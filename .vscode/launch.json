@@ -1,0 +1,49 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Current file",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "justMyCode": true
+        },
+        {
+            "name": "debug_ik",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/debug_ik.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "justMyCode": false
+        },
+        {
+            "name": "train",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/train.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "justMyCode": true
+        },
+        {
+            "name": "print_env",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/print_env.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "justMyCode": true,
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "0",
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
+        }
+    ]
+}

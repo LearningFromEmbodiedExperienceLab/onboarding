@@ -1,0 +1,12 @@
+{
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/src",
+        "${workspaceFolder}/typings"
+    ],
+    "python.analysis.stubPath": "${workspaceFolder}/typings",
+    "cursorpyright.analysis.extraPaths": [
+        "${workspaceFolder}/src",
+        "${workspaceFolder}/typings"
+    ],
+    "cursorpyright.analysis.stubPath": "${workspaceFolder}/typings"
+}

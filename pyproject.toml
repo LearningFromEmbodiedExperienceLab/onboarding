@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robotics"
+version = "0.1.0"
+description = "Tiny example package for the onboarding tutorial."
+requires-python = ">=3.11"
+dependencies = ["numpy", "einops"]
+
+[project.optional-dependencies]
+mujoco = ["mujoco"]
+debug = ["pdbpp"]
+notebooks = ["ipython", "ipykernel", "matplotlib"]
+torch = ["torch"]
+
+[tool.pyright]
+stubPath = "typings"
+extraPaths = ["src"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
