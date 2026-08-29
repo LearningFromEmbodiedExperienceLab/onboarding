@@ -1,0 +1,91 @@
+# Making Life Easier
+
+The interpreter will run whatever you wrote. The editor can only help if it *understands* the code. Two things make that possible: **type hints** in our Python, and **stubs** for libraries that have no Python source.
+
+## Type hints
+
+A type hint is a note on a name that says what it is supposed to be. Python **does not enforce** this at runtime (passing a `str` where you annotated `float` still runs). The editor, and optional checkers like Pyright, read the notes.
+
+```python
+def damped_lstsq(J, dx, damping=1e-3):
+    ...
+```
+
+becomes (see `src/robotics/ik/differential.py`):
+
+```python
+def damped_lstsq(J: np.ndarray, dx: np.ndarray, damping: float = 1e-3) -> np.ndarray:
+```
+
+What you get:
+
+- Hover over `damped_lstsq` in `scripts/train.py` and the editor shows the signature.
+- Pass `damping="lots"` and the editor underlines it *before* you run anything.
+- Autocomplete on `data.` only works if the editor knows `data`'s type.
+
+Annotate arguments and return types first. That is most of the value. Variable annotations (`qpos: np.ndarray = …`) are optional.
+
+Hints are not conversions. This still runs, and is still wrong:
+
+```python
+def f(x: float) -> float:
+    return x
+
+f("hello")  # runtime: ok; editor: error
+```
+
+Keep hints honest and simple (`np.ndarray`, `float`, `str`, `list[int]`). Over-precise NumPy shapes are optional later; a wrong hint is worse than none.
+
+## Editor and stubs
+
+The language server (Pylance in VS Code, Cursor's Pyright) is a second program. It does **not** use your shell's [`PYTHONPATH`](environment-management.qmd#environment-variables). It uses:
+
+1. The **selected interpreter** (status bar → `.venv/bin/python`). That is how it finds `numpy` and an editable `robotics`.
+2. **`extraPaths`** — extra folders to search, the editor's analogue of [`PYTHONPATH`](environment-management.qmd#environment-variables).
+3. **`stubPath`** — a folder of `.pyi` files that overlay types onto installed packages.
+
+`.vscode/settings.json` in this folder sets both (Cursor reads `cursorpyright.analysis.*`; VS Code reads `python.analysis.*`). They apply when this folder is the workspace root; if you opened a parent folder, copy the same keys into that workspace's settings.
+
+```json
+{
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/src",
+        "${workspaceFolder}/typings"
+    ],
+    "python.analysis.stubPath": "${workspaceFolder}/typings",
+    "cursorpyright.analysis.extraPaths": [
+        "${workspaceFolder}/src",
+        "${workspaceFolder}/typings"
+    ],
+    "cursorpyright.analysis.stubPath": "${workspaceFolder}/typings"
+}
+```
+
+`extraPaths` is why you add sibling source trees the editor should see (`src/` here; in a larger workspace, other packages that are not installed into this env). `stubPath` is for **types without source**.
+
+The same keys can live in `pyproject.toml` under `[tool.pyright]`, so the checker is not editor-only.
+
+### Why MuJoCo needs stubs
+
+`import mujoco` works at runtime. The library is a **C++ extension** (pybind11). There is no `mujoco.py` full of Python for the editor to parse, so every name is `Unknown`: no hover, no completion, noisy red squiggles.
+
+A **stub** is a `.pyi` file: types only, never executed. `typings/mujoco/__init__.pyi` might contain lines like:
+
+```python
+def mj_step(m: MjModel, d: MjData, nstep: int = 1) -> None: ...
+```
+
+The editor reads that; `python scripts/mujoco_hello.py` still runs the real C++ module.
+
+### Generate them
+
+```bash
+uv sync --extra mujoco
+bash scripts/generate_mujoco_stubs.sh
+```
+
+The script runs `pybind11-stubgen` against the *installed* `mujoco`, writing `typings/mujoco/*.pyi`. Then open `scripts/mujoco_hello.py`, hover `MjModel` / `mj_step`. If types do not appear, reload the window.
+
+`pybind11-stubgen` **imports the package and inspects it**. Stubs must be regenerated when you bump the MuJoCo version. Generated files can include machine-specific OpenGL backends (`glfw` vs `egl`); that is fine for local editor use. Do not treat them as a hand-written API.
+
+Select the `.venv` interpreter so `import mujoco` in the editor is the same copy the stub generator saw.

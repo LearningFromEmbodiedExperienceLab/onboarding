@@ -1,0 +1,26 @@
+# Preface {.unnumbered}
+
+This is the onboarding tutorial for the `robotics` example package. It covers the
+day-to-day fundamentals of working in this codebase — Python environments and
+imports, project structure, debugging, version control, NumPy/PyTorch tensor
+work, and the robotics concepts (kinematics, rotations, simulators, IK) that the
+`src/robotics/` library illustrates.
+
+The tutorial is split into short, self-contained chapters so sections can be
+edited and reviewed independently. Use the sidebar to navigate.
+
+## How to use it
+
+- The runnable examples live in `scripts/` and the library in `src/robotics/`.
+  Set the environment up once with `uv sync`, then run any example with
+  `uv run python scripts/<name>.py`.
+- Code blocks in these pages are illustrative snippets; the authoritative,
+  runnable versions are the files under `scripts/` and `src/`.
+
+## Building these docs
+
+```bash
+uv sync                 # project env (numpy, einops)
+quarto preview docs     # live-reloading local preview
+quarto render docs      # build static HTML into docs/_site
+```

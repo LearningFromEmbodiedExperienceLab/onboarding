@@ -1,0 +1,14 @@
+# Two simulators
+
+A simulator is **model** (constant: tree, inertias, actuator gears) plus **data** (state that changes every step).
+
+| | MuJoCo | Motrix |
+|---|---|---|
+| Model | `mjModel` | `SceneModel` |
+| State | `mjData` | `SceneData` |
+| Advance | `mj_step(m, d)` | `motrixsim.step(model, data)` |
+| FK only | `mj_fwdPosition` | `forward_kinematic(model, data)` |
+
+`step` is **dynamics** (integrate forces). FK-only is **kinematics** (update poses from `q` with no forces) — see [Kinematics vs dynamics](kinematics-vs-dynamics.qmd#kinematics-vs-dynamics). That distinction matters for IK and for “did I just teleport `qpos`?”.
+
+*(To fill: install extras, a 10-line load-and-step in each API, `MUJOCO_GL`.)*

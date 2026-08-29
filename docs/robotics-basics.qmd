@@ -1,0 +1,10 @@
+# Robotics Basics
+
+Two engines, one set of ideas. **MuJoCo** is the academic default (`mjModel` / `mjData`). **Motrix** (`motrixsim`) loads the same MJCF/URDF into `SceneModel` / `SceneData` and adds a named-object API plus a viewer.
+
+Two maps show up constantly:
+
+- **Forward kinematics (FK):** joint coordinates → body and site poses. “Where is the gripper if the joints are `q`?”
+- **Inverse kinematics (IK):** a desired pose → joint coordinates (or a joint step `dq`). “What `q` puts the gripper there?”
+
+Every subsection below shows the concept once, then the two APIs side by side. A small shared MJCF will be the running example; the IK case study reuses `src/robotics/ik/`.

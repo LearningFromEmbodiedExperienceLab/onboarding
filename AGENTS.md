@@ -39,3 +39,20 @@ Tests / lint:
 Optional extras (only needed for the corresponding demo scripts, not installed by
 default): `torch`, `mujoco`, `notebooks`, `debug` — install with
 `uv sync --extra <name>` (e.g. `uv sync --extra torch`). `torch`/`mujoco` are large.
+
+Docs (Quarto):
+- The tutorial is a Quarto book under `docs/` (one `.qmd` per section). The root
+  `readme.md` is just a short pointer to it.
+- Quarto is a **standalone CLI**, not a Python/pip package, and is not installed
+  by `uv sync`. Install it from <https://quarto.org/docs/get-started/> if it is
+  missing (`quarto --version` to check).
+- Build/preview with `quarto render docs` / `quarto preview docs`; output goes to
+  the gitignored `docs/_site/`.
+- Chapters use pandoc auto-generated heading ids for anchors; cross-chapter links
+  are written as `other-file.qmd#anchor`. The debugger heading has an explicit
+  `{#vscode-debugger}` id because its pandoc id would otherwise include a period
+  (from `launch.json`). Reuse an explicit `{#id}` for any new heading whose title
+  contains punctuation you want to link to.
+- Pages currently contain no executable (`{python}`) cells, so rendering needs
+  only the Quarto CLI. Adding executable cells later would require `jupyter` in
+  the env (e.g. via a new `docs` extra).

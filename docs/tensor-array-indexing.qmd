@@ -1,0 +1,284 @@
+# Tensor / Array indexing
+
+NumPy `ndarray` and `torch.Tensor` share one indexing grammar. Learn it once. Examples below are NumPy (`scripts/index_tensors.py`); replace `np` with `torch` and the **shapes** match. View vs copy is the main place the two libraries disagree — see the table at the end.
+
+The layout we care about in simulation is batched:
+
+```text
+x.shape == (n_env, n_body, 3)    # env, body, xyz
+```
+
+## Prefer tensor ops over Python loops
+
+A Python `for` over environments runs on the CPU, one row at a time. The array/GPU path applies the same op to the whole batch in one kernel.
+
+```python
+# don't
+out = np.empty_like(x)
+for i in range(n_env):
+    out[i] = x[i] * 2
+
+# do
+out = x * 2
+```
+
+Loops over a **tiny** axis (3 XYZ components, 4 quaternion entries) are sometimes clearer and not the bottleneck. Loops over `n_env` (hundreds to thousands) are.
+
+## Slicing (basic indexing)
+
+Integers, `start:stop:step`, `...`, and `None` (new axis). This is **basic indexing**. In NumPy a slice is a **view**: it aliases the same memory.
+
+| Expression | Shape from `(4, 3, 3)` | Meaning |
+|---|---|---|
+| `x[0]` | `(3, 3)` | env 0; the env axis **drops** |
+| `x[0:1]` | `(1, 3, 3)` | env 0; the env axis **stays** |
+| `x[:, 1, :]` | `(4, 3)` | body 1 of every env |
+| `x[..., 0]` | `(4, 3)` | the `x` coordinate of every body |
+| `x[:, None, :, :]` | `(4, 1, 3, 3)` | insert an axis (for broadcasting) |
+
+```python
+y = x[0]
+y[0, 0] = -1   # x[0, 0, 0] is now -1  (same storage)
+```
+
+`...` means "every axis I did not name". Useful when rank varies (`(…, 3)` positions, `(…, 4)` quaternions). `None` inserts an axis of size 1 — that is how you *enable* broadcasting.
+
+## Broadcasting
+
+Arithmetic and advanced indexing use the **same** shape rule. Get this solid before `x[env_ids, body_ids, dim_ids]`.
+
+Align shapes **from the right**. For each axis:
+
+- equal sizes → ok
+- one of them is `1` → stretch it
+- one array is shorter → pretend it has leading `1`s
+- otherwise → `ValueError` / runtime error
+
+```text
+  (n_env, n_body, 3)
+* (      n_body, 1)
+  -------------------
+  (n_env, n_body, 3)
+```
+
+`mass[:, None]` turns a per-body vector `(n_body,)` into `(n_body, 1)` so it scales all three xyz of that body, in every env — no loop.
+
+```python
+mass = np.array([1.0, 10.0, 100.0])   # (n_body,)
+x * mass[:, None]                     # (n_env, n_body, 3)
+```
+
+Pairwise distances without a double `for`: insert axes so every env is paired with every env.
+
+```python
+roots = x[:, 0, :]                              # (n_env, 3)
+delta = roots[:, None, :] - roots[None, :, :]  # (n_env, 1, 3) - (1, n_env, 3)
+dist = np.linalg.norm(delta, axis=-1)          # (n_env, n_env)
+```
+
+Broadcasting is silent when the shapes *happen* to match. That is the bug class.
+
+```python
+np.zeros((4, 4)) + np.arange(4)
+# (4, 4) + (4,) → last axis matches, so `arange` is added to *every row*.
+# Per-column?  np.arange(4)[:, None]  → (4, 1)
+
+np.zeros((4, 3)) + np.arange(4)
+# (4, 3) + (4,) → 3 vs 4 → error. Lucky.
+
+x * mass
+# (n_env, n_body, 3) * (n_body,) → 3 vs n_body → error unless n_body == 3.
+# You wanted mass[:, None].
+```
+
+Print shapes. `keepdims=True` on reductions (`mean`, `sum`) is there so the result still broadcasts.
+
+## Advanced indexing
+
+Index with **integer arrays** or **boolean masks**. NumPy always returns a **copy**. Several index arrays are **broadcast against each other first** (the rule above), then used as a gather: `out[…] = x[env[…], body[…], dim[…]]`. The output shape is that broadcast shape.
+
+```bash
+uv run python scripts/index_tensors.py
+```
+
+**Homogeneous zip** — all 1-D, same length. One output per pair, *not* a grid:
+
+```python
+env_ids = [0, 2];  body_ids = [1, 0];  dim_ids = [2, 1]
+x[env_ids]                      # (2, 3, 3)   two whole envs
+x[env_ids, body_ids]           # (2, 3)
+x[env_ids, body_ids, dim_ids]  # (2,)        x[0,1,2] and x[2,0,1]
+# out[k] == x[env_ids[k], body_ids[k], dim_ids[k]]
+```
+
+Same list of bodies (or dims) for every selected env is the other homogeneous case: `body_ids` has shape `(B,)` and you insert axes so it stretches across `K`.
+
+**Heterogeneous** — *some* envs, and **each of those envs has its own bodies and its own dims**. The index tensors are 2-D (or 3-D); they are not a shared 1-D list. You broadcast them into a common `(K, B, D)` grid of triples.
+
+```python
+# env 0 → bodies 0,2 and dims x,z
+# env 2 → bodies 1,0 and dims y,x
+env_ids  = np.array([0, 2])            # (K,)
+body_ids = np.array([[0, 2], [1, 0]])  # (K, B)
+dim_ids  = np.array([[0, 2], [1, 0]])  # (K, D)
+
+e = env_ids[:, None, None]   # (K, 1, 1)
+b = body_ids[:, :, None]     # (K, B, 1)
+d = dim_ids[:, None, :]     # (K, 1, D)
+out = x[e, b, d]             # (K, B, D)
+# out[k, i, j] == x[env_ids[k], body_ids[k, i], dim_ids[k, j]]
+```
+
+`None` is doing the same job as `mass[:, None]`: size-1 axes that stretch. Without them, `(K,)`, `(K, B)`, `(K, D)` do not broadcast.
+
+If the dim choice also varies **per body** (not just per env), `dim_ids` is already `(K, B, D)` and you only expand `env_ids` and `body_ids`:
+
+```python
+out = x[env_ids[:, None, None], body_ids[:, :, None], dim_ids]
+```
+
+| You want | Index shapes after `None` | `out` |
+|---|---|---|
+| zip, one triple per `k` | `(K,)`, `(K,)`, `(K,)` | `(K,)` |
+| same bodies & dims for every selected env | `(K,1,1)`, `(1,B,1)`, `(1,1,D)` | `(K, B, D)` |
+| **per-env bodies and per-env dims** | `(K,1,1)`, `(K,B,1)`, `(K,1,D)` | `(K, B, D)` |
+| per-env, per-body dims | `(K,1,1)`, `(K,B,1)`, `(K,B,D)` | `(K, B, D)` |
+
+Forget `None` and you get a zip or a shape error. Print `e.shape, b.shape, d.shape, out.shape` until it is a reflex.
+
+Boolean masks follow the copy rule: `x[x[..., 2] > 0]` flattens every `True` location. They do not give you a `(K, B, D)` block; use integer ids when you need that structure.
+
+On **CUDA**, the index must live on the **same device** as `x`. A Python `list` (or a CPU `LongTensor` / NumPy array) is converted on the host and copied to the GPU. That copy [synchronizes](bells-and-whistles.qmd#bells-and-whistles). Keep `env_ids` as `torch.long` on `x.device` for the whole step — do not rebuild them with `.tolist()` inside the loop. A single Python `int` (`x[3]`) is fine; a list of ids is not.
+
+```python
+# don't — list → CPU tensor → blocking H2D copy every call
+x[ [0, 2, 5] ]
+x[env_ids.tolist()]
+
+# do — index already on the GPU
+x[env_ids]   # env_ids.dtype == torch.long, env_ids.device == x.device
+```
+
+## Indexed get vs indexed set
+
+**Get** (`y = x[idx]`) builds an array. If `idx` was advanced indexing, `y` is a copy: mutating `y` does **not** change `x`.
+
+**Set** (`x[idx] = value`) writes through into `x`. `value` must broadcast to the shape of `x[idx]`.
+
+```python
+y = x[env_ids, body_ids]   # 1-D zip: copy, shape (K, 3)
+y[:] = 0                   # x unchanged
+
+x[e, b, d] = 0             # heterogeneous write; value broadcasts to (K, B, D)
+x[e, b, d] = np.zeros((2, 1, 2))  # same, via broadcasting
+```
+
+A slice on the left of `=` is a view, so `x[0] = 0` also writes into `x`. The rule is: assignment into an indexing expression writes to `x`; assignment into a name bound earlier to a *copy* does not.
+
+## View vs copy
+
+| | NumPy | PyTorch |
+|---|---|---|
+| `x[0]`, `x[:, 1]`, `x[..., :2]` | **view** | **view** (must be contiguous enough) |
+| `x[env_ids]`, `x[env_ids, body_ids]` | **copy** | **copy** (new tensor) |
+| duplicate storage | `y = x.copy()` | `y = x.clone()` |
+| same storage, new shape | `x.reshape(…)` may copy | `x.view(…)` fails if not contiguous; `x.reshape` / `x.contiguous()` |
+
+Torch-only: `x.view(4, -1)` is a view and **requires** contiguous memory. Prefer `reshape` unless you know the tensor is contiguous — details in [Shape manipulation](#shape-manipulation).
+
+In-place math on a view (`x[0] *= 0`) mutates `x`. In-place math on a copy does not. When a gradient-related error says a tensor does not own its storage, you indexed a view.
+
+`scripts/index_tensors.py` walks broadcasting, then the per-env gather, and prints shapes. Read the shapes first, the values second.
+
+## Shape manipulation
+
+Indexing *selects*. These ops *rearrange* axes without (usually) changing values. `scripts/reshape_tensors.py` prints each case.
+
+NumPy and PyTorch names differ. **einops** is the same in both — use it for anything that is more than a single `unsqueeze`.
+
+### `view` vs `reshape`
+
+The product of sizes must stay the same: `(4, 3, 3)` can become `(4, 9)` or `(12, 3)`, not `(4, 4, 3)`.
+
+| | PyTorch | NumPy |
+|---|---|---|
+| Same storage, new shape | `x.view(4, 9)` — **fails** if not contiguous | `x.reshape` *may* be a view |
+| Always succeed | `x.reshape(4, 9)` — copies if it must | `x.reshape(4, 9)` |
+| Force contiguous | `x.contiguous().view(…)` | `np.ascontiguousarray` |
+
+`transpose` / `permute` only **relabel** axes; memory order is unchanged, so the tensor is often **not** contiguous. Then `view` raises. `reshape` is the default.
+
+**Do not** use `ndarray.view` in NumPy for this. That method is a **dtype pun** (`float64` → `uint8`), not a reshape. Torch `Tensor.view` is a reshape.
+
+```python
+x.reshape(n_env, -1)          # (n_env, n_body * 3)
+x.permute(0, 2, 1)           # torch: (n_env, 3, n_body); not contiguous
+# x.view(n_env, 3, n_body)   # may fail
+x.reshape(n_env, 3, n_body)  # always ok
+```
+
+### `squeeze` / `unsqueeze`
+
+`unsqueeze(d)` (NumPy: `np.expand_dims`, or `x[..., None]`) inserts a size-1 axis. That is broadcasting's `None`.
+
+`squeeze` **removes** size-1 axes. `squeeze()` with no argument drops *every* 1. If you ever run with `n_env == 1`, a bare `squeeze()` will also delete the batch axis and the next line that expected `(n_env, …)` breaks. Always `squeeze(d)` / `squeeze(-1)`.
+
+```python
+mass[:, None]                 # (B,) → (B, 1)     unsqueeze
+x.unsqueeze(-1)              # torch; same as x[..., None]
+x.squeeze(-1)                # only the last axis, if it is 1
+```
+
+### `expand` vs `repeat`
+
+Both make a size-1 axis look longer. They are not the same.
+
+**`expand`** (PyTorch) is a **view**: it does not copy. You can only expand axes that are already size 1. Writes through an expanded tensor are undefined / errors — treat it as read-only. NumPy's equivalent is broadcasting (or `np.broadcast_to`, also read-only).
+
+**`repeat`** **copies** the data. Use it when you need independent storage (or when einops is doing a named repeat).
+
+```python
+# torch
+ones = torch.ones(n_env, 1, 3)
+ones.expand(n_env, n_body, 3)     # view, no extra memory
+ones.repeat(1, n_body, 1)         # copy
+ones.expand(n_env, n_body, 3).clone()  # if you must write
+```
+
+`repeat` of a large batch is a common silent memory blow-up. If broadcasting or `expand` would do, prefer that.
+
+### einops (recommended)
+
+`permute` + `reshape` + `unsqueeze` chains are how axis bugs are born: the numbers are meaningless and the next reader cannot tell `n_env` from `n_body`. einops names the axes.
+
+```python
+from einops import rearrange, repeat, reduce
+
+# (n_env, n_body, 3) → (n_env, 3, n_body)
+rearrange(x, "n b xyz -> n xyz b")
+
+# flatten bodies and xyz for an MLP
+rearrange(x, "n b xyz -> n (b xyz)")
+
+# split a feature dim you packed earlier
+rearrange(feat, "n (b xyz) -> n b xyz", b=n_body, xyz=3)
+
+# NHWC image → NCHW
+rearrange(img, "n h w c -> n c h w")
+
+# copy a hidden state across time (this *is* a repeat / copy)
+repeat(hx, "n h -> n t h", t=T)
+
+# mean over bodies
+reduce(x, "n b xyz -> n xyz", "mean")
+```
+
+`...` means "whatever leading axes": `rearrange(feat, "... (m c) -> ... m c", m=1)` works for `(n, d)` and `(t, n, d)`.
+
+Parentheses **compose** axes (`(b xyz)` is one dim of size `b * xyz`); a split needs the sizes on the right-hand side (`b=n_body`).
+
+einops works on NumPy and torch (and keeps the tensor on the same device). Prefer it over `view`/`permute` whenever more than one axis moves. Keep `unsqueeze`/`None` for a single broadcasting axis — that is still clearer as `mass[:, None]`.
+
+```bash
+uv run python scripts/reshape_tensors.py
+```

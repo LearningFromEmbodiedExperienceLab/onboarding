@@ -1,0 +1,136 @@
+# Debugging, REPL and Notebooks
+
+Print-debugging gets you the value. A **debugger** lets you stop, look around, and try expressions *in the frame that failed*. A **REPL** / notebook is the same idea without a frozen stack: you type, see a figure, change one number.
+
+The example to pause is `scripts/debug_ik.py`: a rank-1 Jacobian so `JᵀJ` is singular without damping. The notebook `notebooks/inspect_ik.ipynb` plots residual vs λ using the same function.
+
+## `breakpoint()`, pdb, ipdb, pdbpp
+
+`breakpoint()` is the built-in hook (Python 3.7+). It drops you into a debugger in **that** stack frame — no signal, no IDE required.
+
+```bash
+uv run python scripts/debug_ik.py
+```
+
+You get a `(Pdb)` prompt (or `(Pdb++)` once pdbpp is installed). Useful commands:
+
+| Key | What it does |
+|---|---|
+| `n` | Next line in *this* function |
+| `s` | Step **into** the next call (`damped_lstsq`) |
+| `c` | Continue to the next breakpoint or the end |
+| `l` / `ll` | Show source around here |
+| `p expr` / `pp expr` | Print / pretty-print |
+| `u` / `d` | Up / down the call stack |
+| `q` | Quit |
+
+At the first stop, `dq` does not exist yet. `n` over the `damped_lstsq` line, then `p dq`, `p J @ dq - dx`. `s` instead of `n` to land inside `src/robotics/ik/differential.py`.
+
+**pdb** is the stdlib debugger. You can also start the script *under* it from line 1:
+
+```bash
+uv run python -m pdb scripts/debug_ik.py
+```
+
+**ipdb** is pdb with IPython tab-completion and nicer tracebacks. [`PYTHONBREAKPOINT`](environment-management.qmd#environment-variables) selects which debugger `breakpoint()` starts:
+
+```bash
+uv pip install ipdb
+PYTHONBREAKPOINT=ipdb.set_trace uv run python scripts/debug_ik.py
+```
+
+**pdbpp** (pdb++) is a drop-in: install it and `breakpoint()` / `python -m pdb` become the nicer UI **with no code change**. That is why we use it.
+
+```bash
+uv sync --extra debug
+uv run python scripts/debug_ik.py
+# (Pdb++) sticky    ← side-by-side source; stay in this mode
+```
+
+[`PYTHONBREAKPOINT=0`](environment-management.qmd#environment-variables) disables every `breakpoint()` for one run (handy when you left one in by mistake).
+
+`breakpoint()` is for "I know this line is interesting". An exception you did not expect is **post-mortem**:
+
+```bash
+uv run python -m pdb -c continue scripts/debug_ik.py
+```
+
+or, in IPython / a notebook after a crash, `%debug`.
+
+## VS Code / Cursor debugger and `launch.json` {#vscode-debugger}
+The GUI debugger is the same idea with a mouse: click the gutter to set a breakpoint, press F5, hover locals. It does **not** read your shell. It uses a **launch configuration** plus the selected interpreter.
+
+`.vscode/launch.json` in this folder:
+
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Current file",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "justMyCode": true
+        },
+        {
+            "name": "debug_ik",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/debug_ik.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "justMyCode": false
+        }
+    ]
+}
+```
+
+What the keys mean:
+
+| Key | Why it is there |
+|---|---|
+| `type: debugpy` | The Python debugger extension |
+| `program` | The file to run (`${file}` = whatever tab is active) |
+| `cwd` | Working directory (same as "where you would have `cd`'d") |
+| `python` | **Which** interpreter. Pin `.venv` so F5 is not the system Python |
+| `console` | `integratedTerminal` so `input()` and pdb work |
+| `justMyCode` | `true` skips NumPy/site-packages. `false` on `debug_ik` so **Step Into** reaches `damped_lstsq` |
+| `args` | CLI arguments, as a JSON list of strings |
+| `env` | Environment variables for **this** debug session (see [Environment variables](environment-management.qmd#environment-variables)). The **print_env** config sets `CUDA_VISIBLE_DEVICES` and `PYTHONPATH` |
+
+Run: open `scripts/debug_ik.py` → red gutter dot on the `dq = …` line → Run and Debug → **debug_ik** (or Current file) → F5. The Variables / Watch panes are `p` / `pp` with less typing.
+
+These configs apply when this folder is the workspace root. If you opened a parent folder, copy the entries into *that* `.vscode/launch.json` and fix the paths.
+
+Do not fight the GUI debugger with `breakpoint()` *and* a gutter breakpoint on the same line unless you mean to stop twice.
+
+## IPython and notebooks
+
+`python` is a REPL. **IPython** is the same loop with tab-completion, `?` help, and magics (`%timeit`, `%debug`).
+
+```bash
+uv sync --extra notebooks
+uv run ipython
+```
+
+```python
+from robotics.ik.differential import damped_lstsq
+damped_lstsq?
+```
+
+A **notebook** (`*.ipynb`) is IPython split into cells, with figures inline. Open `notebooks/inspect_ik.ipynb` and pick the `.venv` kernel. The plot is residual and `‖dq‖` against damping for the same rank-1 `J` — the kind of one-off figure that does not belong in `src/`.
+
+Use notebooks for:
+
+- plots and visual checks
+- probing a checkpoint / array you do not want to write a script for yet
+- `%debug` after a cell fails
+
+Do **not** put library code in a notebook. Restarting the kernel does not make a 200-cell file a package; `import robotics` does. If you find yourself copy-pasting a cell into three notebooks, it is a function — move it to `src/`.
+
+Notebooks are JSON with output blobs. They diff poorly; do not commit huge executed outputs. `.ipynb_checkpoints/` is already gitignored.

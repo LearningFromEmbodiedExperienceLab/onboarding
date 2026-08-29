@@ -1,0 +1,47 @@
+project:
+  type: book
+  output-dir: _site
+
+book:
+  title: "Onboarding: Python & Robotics"
+  subtitle: "A working tutorial for the `robotics` example package"
+  search: true
+  chapters:
+    - index.qmd
+    - part: "Python Basics"
+      chapters:
+        - environment-management.qmd
+        - project-structure.qmd
+        - debugging-repl-notebooks.qmd
+        - github-version-control.qmd
+        - making-life-easier.qmd
+        - useful-patterns.qmd
+    - part: "PyTorch and NumPy"
+      chapters:
+        - tensor-array-indexing.qmd
+        - batch-agnostic-operations.qmd
+        - cuda.qmd
+        - bells-and-whistles.qmd
+    - part: robotics-basics.qmd
+      chapters:
+        - kinematics-vs-dynamics.qmd
+        - scene-vocabulary.qmd
+        - rotations-and-frames.qmd
+        - asset-files.qmd
+        - two-simulators.qmd
+        - forward-kinematics.qmd
+        - state-sensors-and-actuators.qmd
+        - the-simulation-loop.qmd
+        - case-study-ik-tracking.qmd
+    - glossary.qmd
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    code-copy: true
+    code-overflow: wrap
+    html-math-method: mathjax
+
+execute:
+  enabled: false

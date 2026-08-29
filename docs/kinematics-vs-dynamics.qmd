@@ -1,0 +1,16 @@
+# Kinematics vs dynamics
+
+**Kinematics** is the geometry of motion: poses, joint angles, and how they relate. No mass, no force, no “will it actually get there.” FK and IK are kinematic. Setting `qpos` and running FK *teleports* the robot to that configuration.
+
+**Dynamics** is Newton’s laws: given inertia, gravity, contact, and actuator forces, what acceleration happens next, then integrate. `mj_step` / `motrixsim.step` is dynamics (plus the FK needed to update poses). Mass, COM ([inertial frame](rotations-and-frames.qmd#link-frame-vs-inertial-frame)), and actuators matter here; they do not change FK.
+
+| | Kinematics | Dynamics |
+|---|---|---|
+| Question | Where is it if `q` is this? | What happens if I apply these forces? |
+| Inputs | `q` (and maybe `q̇` as geometry) | forces / `ctrl`, plus `q`, `q̇`, inertia |
+| Typical call | FK, Jacobian, IK | `step`, inverse dynamics (`q̈` → `τ`) |
+| Failure mode | Unreachable pose | Too weak, slips, tips, oscillates |
+
+**Inverse dynamics** is not IK. IK: pose → `q`. Inverse dynamics: a desired `q̈` (or trajectory) → the torques that would produce it. Our `DampedIK` is the former.
+
+Writing **controls** (`ctrl`) is the dynamic path: the integrator consumes them. Writing **state** (`qpos`) is kinematic: you skip the physics of getting there. The [state I/O](state-sensors-and-actuators.qmd#state-sensors-and-actuators) and [simulation loop](the-simulation-loop.qmd#the-simulation-loop) sections use that split.

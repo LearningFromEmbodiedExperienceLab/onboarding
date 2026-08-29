@@ -1,0 +1,12 @@
+# Case study: IK tracking
+
+Put the pieces together. A site tracks a target pose:
+
+1. FK → site pose (this section).
+2. Pose error → `dq` via `make_ik("dls")` (or Motrix `ik.DlsSolver` / `IkChain` for comparison).
+3. Write joints or actuator targets; `step`.
+4. Loop.
+
+Same `IKConfig` / registry as [Useful Patterns](useful-patterns.qmd#useful-patterns). Success is residual vs time, not a screenshot.
+
+*(To fill: one script, two backends; optional Motrix built-in IK vs our NumPy solvers.)*

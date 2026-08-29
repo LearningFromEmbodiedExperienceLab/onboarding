@@ -1,0 +1,7 @@
+# Asset files
+
+How a robot is stored on disk: **URDF** (ROS, tree of links) vs **MJCF** (MuJoCo XML: compiler, defaults, actuators, sensors, keyframes). Motrix `load_model` accepts MJCF, URDF, or USD. We will author **one MJCF** and load it in both simulators.
+
+Mesh paths, compiler flags, and “inertia from geom” belong here — not in the control loop.
+
+*(To fill: the tutorial MJCF; `mujoco.MjModel.from_xml_path` vs `motrixsim.load_model`.)*

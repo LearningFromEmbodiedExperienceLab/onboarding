@@ -1,0 +1,118 @@
+# Useful Patterns
+
+The IK folder (`src/robotics/ik/`) is one small design: several solvers, one call site. The patterns below are how that stays extensible. Run the walkthrough:
+
+```bash
+uv run python scripts/ik_controllers.py
+```
+
+## Dunder (magic) methods
+
+Names like `__len__` and `__call__` are how Python implements `len(x)`, `x[i]`, `x()`. You rarely invent new ones; you implement the ones the language already calls.
+
+`IKController` (`src/robotics/ik/base.py`):
+
+| Dunder | Syntax | Here |
+|---|---|---|
+| `__call__` | `dq = ctrl(J, dx)` | compute and remember last `dq` |
+| `__len__` | `len(ctrl)` | batch size of that `dq` |
+| `__getitem__` / `__setitem__` | `ctrl[i]`, `ctrl[i] = 0` | read / override per-env `dq` |
+| `__repr__` | `repr(ctrl)` | debugger / logs |
+
+`ctrl(J, dx)` is the same object as `ctrl.__call__(J, dx)`. `__init__` is the constructor, not a dunder you use at the call site. Do not implement `__eq__` unless you know what "equal controllers" means.
+
+## Subclassing, registry, singleton
+
+`IKController.compute` is abstract. `TransposeIK`, `PinvIK`, and `DampedIK` only implement that method — call, length, and indexing come free.
+
+A **registry** is a dict `name → class` so config strings (`"dls"`) construct objects without `if name == …`. `@register("dls")` on the class (a **decorator** that runs at import) fills the table.
+
+```python
+from robotics.ik import make_ik
+
+ctrl = make_ik("dls", damping=1e-2)
+dq = ctrl(J, dx)
+```
+
+The table itself is a **singleton**: `IKRegistry()` and `IKRegistry.instance()` are the same process-wide object (`__new__` returns the cached instance). That is appropriate for "the list of known solvers". It is **not** appropriate for a controller — each `make_ik` returns a **new** instance with its own last `dq`. If two threads shared one `DampedIK`, `__setitem__` would fight.
+
+Importing `robotics.ik` loads `solvers.py` so the `@register` lines run. A solver you never import is invisible.
+
+## Decorators
+
+A decorator is a function that takes a function (or class) and returns a replacement. `@register("pinv")` is executed at **class definition**, not at each `compute`.
+
+`timed` in `src/robotics/context.py` is a decorator that wraps a call in a `Timer`. Use it on a helper you always want timed. Use the context manager (next) when you only want a few lines.
+
+`functools.wraps` copies `__name__` / `__doc__` onto the wrapper so `help()` and traces still make sense. Always use it.
+
+## Context managers
+
+`with x:` calls `x.__enter__()` on the way in and `x.__exit__(…)` on the way out — **including** if the block raises. That is the point: release / restore cannot be forgotten.
+
+**Timer** (`Timer` in `src/robotics/context.py`) — later sections reuse this for host-side profiling:
+
+```python
+from robotics.context import Timer
+
+timer = Timer("dls")
+with timer:
+    dq = ctrl(J, dx)
+print(timer.elapsed)  # seconds
+```
+
+On CUDA, pair it with a synchronize or CUDA events ([Bells and whistles](bells-and-whistles.qmd#bells-and-whistles)); otherwise you time the launch, not the kernel.
+
+**Controlled random state** — pin `np.random` for a reproducible snippet, then put the global RNG back so the rest of the process is not stuck on seed `0`:
+
+```python
+from robotics.context import numpy_seed
+
+with numpy_seed(0):
+    noise = np.random.randn(*dx.shape)
+```
+
+New code should prefer an isolated generator, `rng = np.random.default_rng(0)`, which never touches globals. `numpy_seed` exists for blocks that still call `np.random.randn` (or a library that does). Torch's analogue is `with torch.random.fork_rng(): torch.manual_seed(0)`.
+
+`contextlib.contextmanager` turns a generator with one `yield` into `__enter__` / `__exit__` so you do not write a class for the seed helper. `Timer` is a class because callers need `.elapsed` after the block.
+
+## NamedTuple and dataclass
+
+A **dict** of `{"pos": …, "quat": …}` loses typos until runtime (`pose["poss"]`). A two-element tuple ` (pos, quat)` loses names. `NamedTuple` and `dataclass` are named fields with almost no boilerplate. Both live in `src/robotics/ik/types.py`.
+
+**`NamedTuple`** is a tuple with names. Immutable *slots*, unpackable, indexable:
+
+```python
+from robotics.ik import Pose
+
+pose = Pose(pos=np.zeros(3), quat=np.array([1.0, 0.0, 0.0, 0.0]))
+pose.pos          # by name
+pose[0]           # still a tuple
+pos, quat = pose  # unpack
+# pose.pos = np.ones(3)  # AttributeError — the field binding is frozen
+pose.pos[:] = 0           # the array *inside* is still mutable
+```
+
+Use it for a small, fixed record you pass around (a pose, an `(dq, residual)` pair). Do not put a growing config here: no default factories, no `__post_init__` validation beyond what you write by hand, and `replace` is clunkier (`pose._replace(pos=…)`).
+
+**`dataclass`** is a class the compiler fills in (`__init__`, `__repr__`, `__eq__`). Defaults, validation, and `replace` are the reason we use it for configs:
+
+```python
+from dataclasses import replace
+from robotics.ik import IKConfig
+
+cfg = IKConfig(method="dls", damping=1e-2)
+ctrl = cfg.build()                 # make_ik under the hood
+stiffer = replace(cfg, damping=0.1)
+```
+
+`__post_init__` runs after the generated `__init__` — `IKConfig(damping=-1)` raises. `@dataclass(frozen=True)` makes field assignment fail, like a NamedTuple (arrays inside are still mutable).
+
+| | `NamedTuple` | `dataclass` |
+|---|---|---|
+| Unpack / `pose[0]` | yes | no (unless you add it) |
+| Defaults, `__post_init__` | awkward | natural |
+| `replace` | `_replace` | `dataclasses.replace` |
+| Typical use | pose, small result | Hydra-style config, many optional fields |
+
+Neither replaces a tensor. Do not `.item()` a CUDA batch into a NamedTuple in a hot loop ([Bells and whistles](bells-and-whistles.qmd#bells-and-whistles)). For a config you serialize or override from a YAML, a dataclass (or `OmegaConf`) is the usual choice.

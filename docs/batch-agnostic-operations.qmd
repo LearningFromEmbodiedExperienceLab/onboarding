@@ -1,0 +1,36 @@
+# Writing batch-agnostic operations
+
+A helper is **batch-agnostic** when it does not care how many leading axes you stacked: the same function handles a single quaternion `(4,)`, a batch `(n_env, 4)`, and bodies `(n_env, n_body, 4)`.
+
+The recipe, used throughout `src/robotics/math_utils.py`:
+
+1. **Feature axes last.** Quaternions are `(..., 4)`, vectors `(..., 3)`, Jacobians `(..., m, n)`. Leading axes are "batch" and may be missing.
+2. Index with `...` and reduce with `axis=-1` (torch: `dim=-1`). Never `x[0]` / `x[:, 0]` unless you *mean* a batch slot.
+3. Reductions that must broadcast back use `keepdims=True` (`keepdim=True` in torch).
+4. Two inputs that should line up: `np.broadcast_arrays` / `torch.broadcast_tensors`.
+5. If an algorithm is only written for rank 2, flatten then restore: `batch = q.shape[:-1]; q = q.reshape(-1, 4); …; return out.reshape(batch + (4,))`.
+
+```python
+# don't — only works for a single quaternion
+w0, x0, y0, z0 = q
+
+# do — last axis, any leading shape
+w0, x0, y0, z0 = np.moveaxis(q, -1, 0)
+```
+
+`normalize` is the smallest complete example: the norm is `(..., 1)` so it divides every component.
+
+```python
+def normalize(x, eps=1e-6):
+    return x / np.linalg.norm(x, axis=-1, keepdims=True).clip(min=eps)
+```
+
+`quat_rotate` / `quat_mul` / `yaw_rotate` follow the same pattern (`..., 4` and `..., 3`). `damped_lstsq` is the matrix analogue: `J` is `(..., m, n)`, `dx` is `(..., m)` — `np.swapaxes` / `matmul` on the last two axes, `np.eye(n)` broadcasts into `(..., n, n)`.
+
+`yaw_rotate(yaw[:, None], vec)` is [broadcasting](tensor-array-indexing.qmd#broadcasting) again: a per-env yaw against `(n_env, n_body, 3)` needs a size-1 body axis, same as `mass[:, None]`.
+
+```bash
+uv run python scripts/batch_ops.py
+```
+
+The script calls the *same* functions at three ranks. If a new helper only works for `(n_env, 4)`, it is not done.

@@ -6,4 +6,6 @@ dist/
 build/
 typings/mujoco/
 .ipynb_checkpoints/
+docs/_site/
+.quarto/
 
