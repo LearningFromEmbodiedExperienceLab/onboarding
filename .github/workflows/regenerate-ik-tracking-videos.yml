@@ -1,0 +1,44 @@
+# Regenerate docs/imgs/ik-tracking/*.mp4 from the differential IK tracking demo.
+name: Regenerate IK tracking videos
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, main]
+    paths:
+      - scripts/ik_tracking_common.py
+      - scripts/ik_tracking_demo.py
+      - scripts/render_ik_tracking_videos.py
+      - .github/workflows/regenerate-ik-tracking-videos.yml
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install OSMesa and ffmpeg (headless MuJoCo + encode)
+        run: sudo apt-get update && sudo apt-get install -y libosmesa6 libosmesa6-dev ffmpeg
+
+      - name: Fetch Menagerie assets (sparse)
+        run: bash scripts/fetch_menagerie_assets.sh
+
+      - name: Install Python deps
+        run: uv sync --extra mujoco
+
+      - name: Render IK tracking videos
+        env:
+          MUJOCO_GL: osmesa
+          PYOPENGL_PLATFORM: osmesa
+        run: uv run python scripts/render_ik_tracking_videos.py
+
+      - name: Commit updated MP4s
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Regenerate IK tracking doc videos [skip ci]"
+          file_pattern: docs/imgs/ik-tracking/*.mp4
