@@ -12,6 +12,35 @@ Two different pieces of software share the name "CUDA". Mixing them up is why `n
 | `pip install` a package that compiles CUDA on this machine | yes | yes (toolkit compatible with that PyTorch) |
 | CPU-only torch | no | no |
 
+## Installing the driver and toolkit (Linux)
+
+**1. NVIDIA driver (almost always first).** Install this on any machine that will run GPU code — including when you only use prebuilt PyTorch wheels. Without a loaded driver, `nvidia-smi` fails and `torch.cuda.is_available()` is false.
+
+On Linux workstations, prefer the **`.run` installer** from [NVIDIA's driver download page](https://www.nvidia.com/Download/Find.aspx), not distro PPA packages mixed with leftovers from older installs. NVIDIA's [Omniverse Linux troubleshooting guide](https://docs.omniverse.nvidia.com/dev-guide/latest/linux-troubleshooting.html) walks through that approach: uninstall old drivers (`sudo nvidia-uninstall`), avoid (or purge) PPA-packaged `nvidia-*` if they left conflicting files, reboot, then run the downloaded `NVIDIA-Linux-x86_64-*.run` (often from a TTY without the desktop session holding the GPU). Remote/headless boxes follow the same doc's notes on stopping the display manager before install.
+
+That guide is aimed at Omniverse, but the driver steps apply to any CUDA stack (PyTorch, MuJoCo GPU, custom kernels). After install:
+
+```bash
+nvidia-smi   # should list GPUs; header "CUDA Version" is the driver's runtime cap
+```
+
+**2. CUDA toolkit / `nvcc` (only when you compile).** Skip this if you only `pip install` or `uv sync` prebuilt wheels. Install it when a dependency **builds** CUDA extensions on your machine (`pip install` hits `nvcc`, or you maintain `.cu` sources).
+
+Options:
+
+| Approach | When |
+|---|---|
+| [CUDA toolkit `.run`](https://developer.nvidia.com/cuda-downloads) or distro package | One system-wide toolkit version is enough |
+| **`conda` / `mamba` env** (`cuda-nvcc`, `cuda-toolkit`, …) | Different projects need **different `nvcc` / toolkit versions** on the same box |
+
+System-wide toolkit is fine for a single stack. **Conda shines when versions diverge:** PyTorch wheel built for CUDA 12.x, one research repo pinned to 11.8 for an old extension, another package's `setup.py` that insists on a specific `nvcc`. Create **separate envs** with the toolkit each build expects instead of fighting one global `/usr/local/cuda`. See [conda vs uv](environment-management.qmd#conda-vs-uv) — conda for the compiler/toolkit, `uv`/`pip` for Python packages inside that env still works.
+
+Whichever path you use, the toolkit's `nvcc` version should be **compatible with your driver** (driver cap ≥ toolkit) and with the **CUDA tag** of the PyTorch (or other) runtime you run. Mismatch usually shows up at compile time (`unsupported GPU architecture`) or at import (`CUDA driver version is insufficient`).
+
+```bash
+which nvcc && nvcc --version   # optional — only after you install a toolkit
+```
+
 The driver advertises a **maximum** CUDA version it can run. The PyTorch wheel's tag (`cu128`, …) must not exceed that. `nvidia-smi` shows "CUDA Version" in the header — that is the driver's cap, not the toolkit you compiled with.
 
 ```bash
