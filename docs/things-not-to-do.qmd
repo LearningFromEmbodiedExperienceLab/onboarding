@@ -215,6 +215,101 @@ Check `sys.executable` (wrong venv?), then whether `robotics` is missing from
 
 Rule of thumb: **`sys.path` is for reading when debugging, not for writing in shared code.**
 
+## Import-time side effects
+
+`import train_utils` does not mean “load function definitions.” Python **executes the
+ whole module** from top to bottom the first time it is imported. Any statement at
+ **module scope** runs immediately — before your `main()` or notebook cell that
+ “actually starts” the job.
+
+That includes function *definitions* (cheap) and everything else (often not):
+
+```python
+# train_utils.py — library-ish module
+print("Loading 40 GB dataset…")
+dataset = np.load("data/episodes.npz")          # disk I/O at import
+model = load_checkpoint("/home/alice/best.pt")  # GPU, paths, network
+train(model, dataset)                           # starts training on import
+```
+
+```python
+# elsewhere
+from train_utils import set_seed   # already loading data and training
+```
+
+### Bad — work hidden in imports
+
+```python
+# config.py
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"   # mutates process for everyone
+
+# sim_env.py
+XML = require_piper_scene()
+model = mujoco.MjModel.from_xml_path(str(XML))  # heavy; fails if assets missing
+
+# metrics.py
+RESULTS = json.loads(Path("results/latest.json").read_text())
+```
+
+Problems:
+
+- **Surprise at import** — `import metrics` reads disk and may crash in CI because
+  `results/latest.json` is absent, even though the test only wanted a helper.
+- **Slow and order-dependent** — importing `A` pulls in `B` pulls in `C`; side
+  effects run in import order, not call order. Circular imports become painful.
+- **Hard to test and reuse** — you cannot import a function without paying for
+  training, sim startup, or global env mutation.
+- **Not obvious from the call site** — `from project.sim import step` looks innocent.
+
+[Do not train, load large data, open files, start simulators, mutate `os.environ`, or print progress at module import time in library code. Import should define names; **running** should be explicit.]{.common-bug-warning}
+
+### Better — explicit entrypoints and lazy work
+
+**Scripts** gate execution with `if __name__ == "__main__":` (`scripts/train.py` in this repo):
+
+```python
+def main() -> None:
+    dataset = load_dataset()   # I/O here, when you run the script
+    train_loop(dataset)
+
+
+if __name__ == "__main__":
+    main()
+```
+
+Running `python scripts/train.py` calls `main()`. Importing the file as a module
+ (unusual for `scripts/`, but the pattern matters) would **not** train.
+
+**Libraries** defer expensive or fragile work until a function is called:
+
+```python
+def load_dataset(path: Path | None = None) -> np.ndarray:
+    path = path or default_dataset_path()
+    return np.load(path)
+
+
+def make_model(xml_path: Path) -> mujoco.MjModel:
+    return mujoco.MjModel.from_xml_path(str(xml_path))
+```
+
+Module level is fine for **cheap, pure** bindings: constants, type aliases, a
+ `Path` built from `__file__` (not opened), `logging.getLogger(__name__)`.
+
+### When module-level work *is* intentional
+
+Some patterns run at import **on purpose**, but stay small and predictable:
+
+| Pattern | Example here | Why it is ok |
+|---|---|---|
+| Registry fill at class definition | `@register("dls")` on `DampedIK` ([Useful Patterns — decorators](useful-patterns.qmd#decorators)) | One dict write; no I/O; needed so `make_ik("dls")` works after import |
+| Re-exports in `__init__.py` | `from robotics.math_utils import quat_mul` | Keep thin — heavy imports in `__init__.py` slow every `import robotics` ([Project structure](project-structure.qmd#module-vs-package)) |
+| `@dataclass` / `@register(...)` factory | Decorator runs at class body time | Still avoid doing I/O inside the decorator |
+
+Rule of thumb: if it touches **disk, network, GPU, or global process state**, it
+ belongs in `main()`, a `setup()` function, or a method — not in the import path.
+ If you need “run once at startup,” call that function from your entrypoint; do not
+ rely on someone importing the module.
+
 ## Next
 
 More footguns will land here as the tutorial grows (mutable defaults are already
