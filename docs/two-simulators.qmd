@@ -1,6 +1,6 @@
 # Two simulators
 
-A simulator is **model** (constant: tree, inertias, actuator gears) plus **data** (state that changes every step).
+A simulator is **model** (constant: tree, inertias, actuator gears) plus **data** (state that changes every step). This tutorial uses **[MuJoCo](https://mujoco.readthedocs.io/en/stable/)** and **[MotrixSim](https://motrixsim.readthedocs.io/en/latest/)** on shared [MJCF / URDF](references.qmd#robotics-assets) assets; more links in [References — Robotics assets](references.qmd#robotics-assets).
 
 | | MuJoCo | Motrix |
 |---|---|---|
@@ -10,5 +10,7 @@ A simulator is **model** (constant: tree, inertias, actuator gears) plus **data*
 | FK only | `mj_fwdPosition` | `forward_kinematic(model, data)` |
 
 `step` is **dynamics** (integrate forces). FK-only is **kinematics** (update poses from `q` with no forces) — see [Kinematics vs dynamics](kinematics-vs-dynamics.qmd#kinematics-vs-dynamics). That distinction matters for IK and for “did I just teleport `qpos`?”.
+
+Install extras and API docs: [MuJoCo Python](https://mujoco.readthedocs.io/en/stable/python.html), [MotrixSim](https://motrixsim.readthedocs.io/en/latest/), and [References — Robotics assets](references.qmd#robotics-assets).
 
 *(To fill: install extras, a 10-line load-and-step in each API, `MUJOCO_GL`.)*

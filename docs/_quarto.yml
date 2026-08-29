@@ -47,6 +47,7 @@ book:
         - state-sensors-and-actuators.qmd
         - the-simulation-loop.qmd
         - case-study-ik-tracking.qmd
+    - references.qmd
     - glossary.qmd
 
 format:

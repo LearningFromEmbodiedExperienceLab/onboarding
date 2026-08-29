@@ -7,6 +7,6 @@ Put the pieces together. A site tracks a target pose:
 3. Write joints or actuator targets; `step`.
 4. Loop.
 
-Same `IKConfig` / registry as [Useful Patterns](useful-patterns.qmd#useful-patterns). Success is residual vs time, not a screenshot.
+Same `IKConfig` / registry as [Useful Patterns](useful-patterns.qmd#useful-patterns). Success is residual vs time, not a screenshot. Python patterns (registry, `@register`) and type tooling: [References — Python / PEPs](references.qmd#peps-style-packaging-typing).
 
 *(To fill: one script, two backends; optional Motrix built-in IK vs our NumPy solvers.)*

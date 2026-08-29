@@ -17,7 +17,7 @@ import math_utils
 math_utils.quat_mul(q1, q2)
 ```
 
-A **package** is a directory of modules. The directory name is the import prefix. We always include `__init__.py` so the intent is obvious (Python also has *namespace packages* without it; we do not rely on that):
+A **package** is a directory of modules. The directory name is the import prefix. We always include `__init__.py` so the intent is obvious ([PEP 420](https://peps.python.org/pep-0420/) also allows *namespace packages* without it; we do not rely on that):
 
 ```text
 robotics/
@@ -94,7 +94,7 @@ Puts `src/` on `sys.path`. Convenient for an afternoon, fragile: everyone must r
 
 **3. Install the package into the environment (what we actually do)**
 
-`pyproject.toml` tells the installer the package name, its dependencies, and that importable code lives under `src/`. Then:
+[`pyproject.toml`](https://packaging.python.org/en/latest/guides/writing-pyproject-toml/) tells the installer the package name, its dependencies, and that importable code lives under `src/`. Then:
 
 ```bash
 uv sync                 # or: pip install -e .
@@ -126,7 +126,7 @@ The **`-e` is the part that matters while you are writing code**. It means *edit
 | `pip install .` | A **copy** of the package | Python still imports the stale copy until you reinstall |
 | `pip install -e .` | A **link** (`.pth` / egg-link) pointing at `src/` | Next `import` sees your live files |
 
-Research is edit-run-edit. A copied install would force a reinstall after every change. Editable is the only mode that is usable.
+Research is edit-run-edit. A copied install would force a reinstall after every change. Editable installs are [PEP 660](https://peps.python.org/pep-0660/) / `pip install -e` — the only mode that is usable day to day.
 
 `uv sync` does this editable install of the current project automatically. `uv pip install -e .` and `pip install -e .` are the explicit form — same effect. You only need to re-run the install when **metadata** changes (new dependency, renamed package), not when you edit `.py` files.
 
@@ -148,7 +148,7 @@ If that still prints a path under `src/`, the package lives on the environment �
 
 ## `src/` layout
 
-Importable packages live under `src/`; scripts you *run* live under `scripts/`. Installing via `pyproject.toml` is what makes `from robotics.ik.differential import damped_lstsq` work from `scripts/train.py`, a notebook, or a test.
+Importable packages live under `src/`; scripts you *run* live under `scripts/`. Installing via `pyproject.toml` is what makes `from robotics.ik.differential import damped_lstsq` work from `scripts/train.py`, a notebook, or a test. See [PyPA src layout](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/) and [References](references.qmd#packaging-and-environments).
 
 Do not give a script the same name as a package you need (`robotics.py` next to the `robotics/` package). First match on `sys.path` wins.
 

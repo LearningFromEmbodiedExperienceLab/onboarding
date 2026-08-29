@@ -56,6 +56,9 @@ Docs (Quarto):
 - Pages currently contain no executable (`{python}`) Quarto cells, so rendering needs
   only the Quarto CLI. Adding executable cells later would require `jupyter` in
   the env (e.g. via a new `docs` extra).
+- **External references:** curated PEP / install / simulator links live in
+  `docs/references.qmd` (book chapter before the glossary). Chapters link inline
+  or to `#references` anchors — extend that page when adding new cited tools.
 - **In-browser exercises** on `tensor-array-indexing.qmd` use Pyodide + NumPy
   (`docs/tensor-exercises.js`, loaded via `tensor-exercises.html`). They need network
   access on first **Check** (CDN). No `uv` / local kernel required for readers.

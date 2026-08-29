@@ -10,6 +10,6 @@ Names that appear in both formats and both APIs:
 | Named frame, no mass | site | End-effector, sensor origin |
 | Map `ctrl` → force/position | actuator | Motor, position, velocity |
 
-URDF says *link*; MJCF and MuJoCo say *body*. Motrix exposes both `Body` (rigid body) and `Link` (kinematic frame). Joints, geoms, sites, and actuators are the same ideas in both.
+URDF says *[link](http://wiki.ros.org/urdf/XML/link)*; MJCF and [MuJoCo](https://mujoco.readthedocs.io/en/stable/overview.html) say *body*. Motrix exposes both `Body` (rigid body) and `Link` (kinematic frame). Joints, geoms, sites, and actuators are the same ideas in both. Format links: [References — Robotics assets](references.qmd#robotics-assets).
 
 *(To fill: a one-page picture of a 2-DoF arm; URDF vs MJCF cheat-sheet.)*

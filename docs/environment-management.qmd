@@ -13,9 +13,9 @@ If they point at `/usr/bin/python3` (or some other env you did not mean), you ar
 
 ## conda vs uv
 
-**conda** (Miniconda / Mamba) manages *environments and more than Python*. It can install compilers, CUDA toolkits, and native libraries that are not pip wheels. Use it when a dependency is not a Python package — or when a stack is only distributed as a conda package.
+**conda** ([Miniconda](https://docs.anaconda.com/miniconda/) / [Mamba](https://mamba.readthedocs.io/en/latest/)) manages *environments and more than Python*. It can install compilers, CUDA toolkits, and native libraries that are not pip wheels. Use it when a dependency is not a Python package — or when a stack is only distributed as a conda package.
 
-**uv** is what we use day to day. It replaces `venv` + `pip` + lockfiles and is much faster. It:
+**uv** ([documentation](https://docs.astral.sh/uv/)) is what we use day to day. It replaces `venv` + `pip` + lockfiles and is much faster. It:
 
 - creates a virtualenv (usually `.venv/` in the project)
 - installs Python packages from `pyproject.toml` / `uv.lock`
@@ -46,7 +46,7 @@ uv sync                  # create / update .venv from the lockfile
 uv run python train.py
 ```
 
-Prefer `uv run …` over relying on a lingering `conda activate` / `source .venv/bin/activate` in your shell. It is harder to accidentally use the wrong env.
+Prefer `uv run …` over relying on a lingering `conda activate` / `source .venv/bin/activate` in your shell. It is harder to accidentally use the wrong env. Project metadata follows [PEP 621](https://peps.python.org/pep-0621/); see [References](references.qmd#peps-style-packaging-typing).
 
 ## How `import` finds things
 
@@ -146,7 +146,7 @@ print(os.environ.get("CUDA_VISIBLE_DEVICES"), torch.cuda.device_count())
 | Variable | Typical use |
 |---|---|
 | `PYTHONBREAKPOINT` | debugger for `breakpoint()` (`ipdb.set_trace`, or `0` to disable) |
-| `MUJOCO_GL` | MuJoCo GL backend (`egl` on a headless server, `glfw` on a desktop) |
+| `MUJOCO_GL` | MuJoCo GL backend (`egl` on a headless server, `glfw` on a desktop) — [MuJoCo rendering](https://mujoco.readthedocs.io/en/stable/programming/index.html#rendering) |
 | `OMP_NUM_THREADS` / `MKL_NUM_THREADS` | cap CPU threads so many jobs do not oversubscribe |
 | `CUDA_LAUNCH_BLOCKING` | `1` makes CUDA kernels run synchronously (see [Bells and whistles](bells-and-whistles.qmd#bells-and-whistles)) |
 

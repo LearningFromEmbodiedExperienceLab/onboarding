@@ -1,0 +1,111 @@
+# References and external docs {#references}
+
+Curated **official** links for standards, install guides, and APIs cited in this tutorial. Chapters point here (or link inline) instead of duplicating install steps.
+
+## Python language
+
+| Topic | Link |
+|---|---|
+| Tutorial (3.11+) | [docs.python.org/3](https://docs.python.org/3/) |
+| Import system | [Importing modules](https://docs.python.org/3/reference/import.html) |
+| `venv` | [venv — Creation of virtual environments](https://docs.python.org/3/library/venv.html) |
+| `dataclasses` | [dataclasses](https://docs.python.org/3/library/dataclasses.html) |
+| `typing` / type hints | [typing](https://docs.python.org/3/library/typing.html) |
+| `breakpoint()` | [PEP 553 — Built-in breakpoint()](https://peps.python.org/pep-0553/) |
+| Dunder / data model | [Special method names](https://docs.python.org/3/reference/datamodel.html#special-method-names) |
+
+### PEPs (style, packaging, typing)
+
+| PEP | Title |
+|---|---|
+| [PEP 8](https://peps.python.org/pep-0008/) | Style Guide for Python Code |
+| [PEP 257](https://peps.python.org/pep-0257/) | Docstring Conventions |
+| [PEP 318](https://peps.python.org/pep-0318/) | Decorators for Functions and Methods |
+| [PEP 484](https://peps.python.org/pep-0484/) | Type Hints |
+| [PEP 517](https://peps.python.org/pep-0517/) | Build system (`pyproject.toml` hooks) |
+| [PEP 518](https://peps.python.org/pep-0518/) | `pyproject.toml` as config file |
+| [PEP 621](https://peps.python.org/pep-0621/) | Project metadata in `pyproject.toml` |
+| [PEP 660](https://peps.python.org/pep-0660/) | Editable installs for pyproject builds |
+| [PEP 420](https://peps.python.org/pep-0420/) | Implicit namespace packages (we use explicit `__init__.py`) |
+
+## Packaging and environments
+
+| Tool | Link |
+|---|---|
+| **uv** (this repo) | [docs.astral.sh/uv](https://docs.astral.sh/uv/) |
+| pip | [pip.pypa.io](https://pip.pypa.io/en/stable/) |
+| PyPA overview | [packaging.python.org](https://packaging.python.org/en/latest/) |
+| `src` layout | [src layout vs flat](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/) |
+| Miniconda | [docs.anaconda.com/miniconda](https://docs.anaconda.com/miniconda/) |
+| Mamba | [mamba.readthedocs.io](https://mamba.readthedocs.io/en/latest/) |
+
+## Editor, types, debugging
+
+| Tool | Link |
+|---|---|
+| Pyright | [microsoft.github.io/pyright](https://microsoft.github.io/pyright/) |
+| Pylance (VS Code) | [code.visualstudio.com/docs/python/python-tutorial](https://code.visualstudio.com/docs/python/python-tutorial) |
+| debugpy | [github.com/microsoft/debugpy](https://github.com/microsoft/debugpy) |
+| pybind11-stubgen | [github.com/sizxai/pybind11-stubgen](https://github.com/sizxai/pybind11-stubgen) |
+| IPython | [ipython.org/documentation.html](https://ipython.org/documentation.html) |
+| Jupyter | [jupyter.org/documentation](https://jupyter.org/documentation) |
+
+## NumPy, PyTorch, and friends
+
+| Library | Link |
+|---|---|
+| NumPy | [numpy.org/doc](https://numpy.org/doc/stable/) |
+| PyTorch | [pytorch.org/docs](https://pytorch.org/docs/stable/index.html) |
+| PyTorch CUDA notes | [CUDA semantics](https://pytorch.org/docs/stable/notes/cuda.html) |
+| einops | [einops.rocks](https://einops.rocks/) |
+| SciPy rotations | [`scipy.spatial.transform.Rotation`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.transform.Rotation.html) |
+| Pyodide (browser exercises) | [pyodide.org](https://pyodide.org/en/stable/) |
+
+## GPU / CUDA
+
+| Topic | Link |
+|---|---|
+| NVIDIA driver downloads | [nvidia.com/Download/Find.aspx](https://www.nvidia.com/Download/Find.aspx) |
+| Linux driver install (`.run`) | [Omniverse Linux troubleshooting](https://docs.omniverse.nvidia.com/dev-guide/latest/linux-troubleshooting.html) |
+| CUDA toolkit | [developer.nvidia.com/cuda-downloads](https://developer.nvidia.com/cuda-downloads) |
+| `nvidia-smi` | [NVIDIA System Management Interface](https://developer.nvidia.com/nvidia-system-management-interface) |
+
+## Robotics assets
+
+| Format / tool | Link |
+|---|---|
+| URDF | [wiki.ros.org/urdf](http://wiki.ros.org/urdf) |
+| ROS REP-103 (axes) | [wiki.ros.org/rep103](http://wiki.ros.org/rep103) |
+| `geometry_msgs/Quaternion` | [docs.ros.org — geometry_msgs](https://docs.ros2.org/foxy/api/geometry_msgs/index.html) |
+| MJCF | [MuJoCo XML reference](https://mujoco.readthedocs.io/en/stable/XMLreference.html) |
+| MuJoCo Python | [mujoco.readthedocs.io](https://mujoco.readthedocs.io/en/stable/) |
+| MuJoCo Menagerie | [github.com/google-deepmind/mujoco_menagerie](https://github.com/google-deepmind/mujoco_menagerie) |
+| MotrixSim | [motrixsim.readthedocs.io](https://motrixsim.readthedocs.io/en/latest/) |
+| Isaac Sim | [docs.isaacsim.omniverse.nvidia.com](https://docs.isaacsim.omniverse.nvidia.com/latest/index.html) |
+| Isaac Lab | [isaac-sim.github.io/IsaacLab](https://isaac-sim.github.io/IsaacLab/main/index.html) |
+| Isaac Lab — articulation tutorial | [Interacting with an articulation](https://isaac-sim.github.io/IsaacLab/main/source/tutorials/01_assets/run_articulation.html) |
+| OpenCV camera coords | [calib3d — camera models](https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html) |
+| trimesh | [trimesh.org](https://trimesh.org/) |
+
+## Version control and publishing
+
+| Tool | Link |
+|---|---|
+| Git | [git-scm.com/doc](https://git-scm.com/doc) |
+| Git LFS | [git-lfs.com](https://git-lfs.com/) |
+| Git sparse-checkout | [git-scm.com/docs/git-sparse-checkout](https://git-scm.com/docs/git-sparse-checkout) |
+| GitHub Docs | [docs.github.com](https://docs.github.com/en) |
+| GitHub Pages | [pages.github.com](https://pages.github.com/) |
+| Quarto | [quarto.org/docs/get-started](https://quarto.org/docs/get-started/) |
+| Quarto books | [Quarto book format](https://quarto.org/docs/books/) |
+
+## This repository
+
+| Item | Location |
+|---|---|
+| Runnable examples | `scripts/` (see [Preface](index.qmd)) |
+| Library source | `src/robotics/` |
+| Menagerie vendor fetch | `scripts/fetch_menagerie_assets.sh`, `third_party/assets.lock.json` |
+| Published tutorial | [GitHub Pages site](https://learningfromembodiedexperiencelab.github.io/onboarding/) (after one-time Pages setup in `readme.md`) |
+
+When a chapter mentions a PEP, tool, or simulator by name, check this page for the canonical URL.

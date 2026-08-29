@@ -1,6 +1,6 @@
 # Writing batch-agnostic operations
 
-A helper is **batch-agnostic** when it does not care how many leading axes you stacked: the same function handles a single quaternion `(4,)`, a batch `(n_env, 4)`, and bodies `(n_env, n_body, 4)`.
+A helper is **batch-agnostic** when it does not care how many leading axes you stacked: the same function handles a single quaternion `(4,)`, a batch `(n_env, 4)`, and bodies `(n_env, n_body, 4)`. The same idea is spelled out for tensors in [einops](https://einops.rocks/); this repo uses plain [NumPy](https://numpy.org/doc/stable/) broadcasting ([References — NumPy / PyTorch](references.qmd#numpy-pytorch-and-friends)).
 
 The recipe, used throughout `src/robotics/math_utils.py`:
 

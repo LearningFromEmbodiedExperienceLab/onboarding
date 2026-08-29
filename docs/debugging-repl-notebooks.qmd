@@ -6,7 +6,7 @@ The example to pause is `scripts/debug_ik.py`: a rank-1 Jacobian so `JᵀJ` is s
 
 ## `breakpoint()`, pdb, ipdb, pdbpp
 
-`breakpoint()` is the built-in hook (Python 3.7+). It drops you into a debugger in **that** stack frame — no signal, no IDE required.
+`breakpoint()` is the built-in hook ([PEP 553](https://peps.python.org/pep-0553/), Python 3.7+). It drops you into a debugger in **that** stack frame — no signal, no IDE required.
 
 ```bash
 uv run python scripts/debug_ik.py
@@ -94,7 +94,7 @@ What the keys mean:
 
 | Key | Why it is there |
 |---|---|
-| `type: debugpy` | The Python debugger extension |
+| `type: debugpy` | The [Python debugger](https://github.com/microsoft/debugpy) extension |
 | `program` | The file to run (`${file}` = whatever tab is active) |
 | `cwd` | Working directory (same as "where you would have `cd`'d") |
 | `python` | **Which** interpreter. Pin `.venv` so F5 is not the system Python |
@@ -111,7 +111,7 @@ Do not fight the GUI debugger with `breakpoint()` *and* a gutter breakpoint on t
 
 ## IPython and notebooks
 
-`python` is a REPL. **IPython** is the same loop with tab-completion, `?` help, and magics (`%timeit`, `%debug`).
+`python` is a REPL. **[IPython](https://ipython.org/documentation.html)** is the same loop with tab-completion, `?` help, and magics (`%timeit`, `%debug`).
 
 ```bash
 uv sync --extra notebooks
@@ -123,7 +123,7 @@ from robotics.ik.differential import damped_lstsq
 damped_lstsq?
 ```
 
-A **notebook** (`*.ipynb`) is IPython split into cells, with figures inline. Open `notebooks/inspect_ik.ipynb` and pick the `.venv` kernel. The plot is residual and `‖dq‖` against damping for the same rank-1 `J` — the kind of one-off figure that does not belong in `src/`.
+A **notebook** (`*.ipynb`) is IPython split into cells, with figures inline. Open `notebooks/inspect_ik.ipynb` and pick the `.venv` kernel. The plot is residual and `‖dq‖` against damping for the same rank-1 `J` — the kind of one-off figure that does not belong in `src/`. See [Jupyter documentation](https://jupyter.org/documentation).
 
 Use notebooks for:
 

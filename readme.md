@@ -27,9 +27,10 @@ quarto preview docs     # live-reloading local preview
 quarto render docs      # static HTML into docs/_site
 ```
 
-Install the Quarto CLI from <https://quarto.org/docs/get-started/> (it is a
-standalone tool, separate from the Python environment). Start reading at
-`docs/index.qmd`.
+Install the [Quarto CLI](https://quarto.org/docs/get-started/) separately (standalone
+tool, not a Python package). PEPs, install guides, and simulator docs are collected in
+[`docs/references.qmd`](docs/references.qmd) (rendered as the **References** chapter).
+Start reading at `docs/index.qmd`.
 
 ## Publishing (GitHub Pages)
 
