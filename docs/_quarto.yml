@@ -3,6 +3,7 @@ project:
   output-dir: _site
   resources:
     - progress.js
+    - tensor-exercises.js
 
 website:
   site-url: https://learningfromembodiedexperiencelab.github.io/onboarding/
@@ -52,11 +53,14 @@ format:
     css:
       - styles.css
       - progress.css
+      - tensor-exercises.css
     toc: true
     code-copy: true
     code-overflow: wrap
     html-math-method: mathjax
-    include-after-body: progress.html
+    include-after-body:
+      - progress.html
+      - tensor-exercises.html
 
 execute:
   enabled: false

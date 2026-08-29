@@ -190,6 +190,105 @@ In-place math on a view (`x[0] *= 0`) mutates `x`. In-place math on a copy does 
 
 `scripts/index_tensors.py` walks broadcasting, then the per-env gather, and prints shapes. Read the shapes first, the values second.
 
+## Exercises (check in browser)
+
+These run **NumPy in your browser** via [Pyodide](https://pyodide.org/) (same indexing rules as PyTorch). Click **Check** on each block; the first run downloads Python (~few seconds). Replace `...` with your code — no `import` needed (setup is already run).
+
+```{=html}
+<div class="tensor-exercises-intro">
+  Fill in each snippet, then press <strong>Check</strong>. Assertions report shape or value mismatches.
+  Same grammar works in <code>torch</code> locally (<code>uv sync --extra torch</code>).
+</div>
+
+<div class="tensor-exercise" data-exercise-id="pairwise-broadcast">
+  <p class="exercise-title"></p>
+  <p class="exercise-prompt">
+    Body 0 is each env's root. Compute the pairwise distance matrix
+    <code>dist[i, j] = ||roots[i] - roots[j]||</code> using broadcasting only.
+  </p>
+  <pre class="exercise-setup">import numpy as np
+n_env = 4
+x = np.arange(n_env * 3 * 3, dtype=float).reshape(n_env, 3, 3)
+roots = x[:, 0, :]  # (n_env, 3)</pre>
+  <textarea class="exercise-code" spellcheck="false"></textarea>
+  <div class="exercise-actions">
+    <button type="button" class="btn btn-primary btn-sm exercise-check">Check</button>
+    <span class="exercise-status"></span>
+  </div>
+  <div class="exercise-feedback" hidden></div>
+  <details class="exercise-hint">
+    <summary>Hint</summary>
+    <p class="hint-body"></p>
+  </details>
+</div>
+
+<div class="tensor-exercise" data-exercise-id="homogeneous-world-write">
+  <p class="exercise-title"></p>
+  <p class="exercise-prompt">
+    Homogeneous zip: one body index per selected env. Gather env-frame positions,
+    add each env's world <code>origins</code>, then <strong>write back</strong>
+    <code>world + shift</code> at the same indices.
+  </p>
+  <pre class="exercise-setup">x.shape == (4, 3, 3)   # env-frame body positions
+origins.shape == (4, 3)   # world origin per env
+env_ids = [0, 2];  body_ids = [1, 0];  shift = [1, 2, 3]</pre>
+  <textarea class="exercise-code" spellcheck="false"></textarea>
+  <div class="exercise-actions">
+    <button type="button" class="btn btn-primary btn-sm exercise-check">Check</button>
+    <span class="exercise-status"></span>
+  </div>
+  <div class="exercise-feedback" hidden></div>
+  <details class="exercise-hint">
+    <summary>Hint</summary>
+    <p class="hint-body"></p>
+  </details>
+</div>
+
+<div class="tensor-exercise" data-exercise-id="heterogeneous-world-write">
+  <p class="exercise-title"></p>
+  <p class="exercise-prompt">
+    Heterogeneous: env 0 uses bodies 0 and 2; env 2 uses bodies 1 and 0.
+    Build a <code>(K, B, 3)</code> grid with <code>None</code> axes, offset by
+    origins (broadcasting), and assign back into <code>x</code>.
+  </p>
+  <pre class="exercise-setup">env_ids = [0, 2]
+body_ids = [[0, 2], [1, 0]]   # (K, B)
+shift = [1, 0, 0]</pre>
+  <textarea class="exercise-code" spellcheck="false"></textarea>
+  <div class="exercise-actions">
+    <button type="button" class="btn btn-primary btn-sm exercise-check">Check</button>
+    <span class="exercise-status"></span>
+  </div>
+  <div class="exercise-feedback" hidden></div>
+  <details class="exercise-hint">
+    <summary>Hint</summary>
+    <p class="hint-body"></p>
+  </details>
+</div>
+
+<div class="tensor-exercise" data-exercise-id="sequence-sampling">
+  <p class="exercise-title"></p>
+  <p class="exercise-prompt">
+    From a 1-D <code>flat</code> buffer, extract <code>N</code> contiguous segments of
+    length <code>T</code> starting at <code>starts[n]</code>. Build a
+    <code>(N, T)</code> index grid — no Python loop.
+  </p>
+  <pre class="exercise-setup">flat = np.arange(100)
+starts = [0, 10, 50, 77]
+T = 5</pre>
+  <textarea class="exercise-code" spellcheck="false"></textarea>
+  <div class="exercise-actions">
+    <button type="button" class="btn btn-primary btn-sm exercise-check">Check</button>
+    <span class="exercise-status"></span>
+  </div>
+  <div class="exercise-feedback" hidden></div>
+  <details class="exercise-hint">
+    <summary>Hint</summary>
+    <p class="hint-body"></p>
+  </details>
+</div>
+```
+
 ## Shape manipulation
 
 Indexing *selects*. These ops *rearrange* axes without (usually) changing values. `scripts/reshape_tensors.py` prints each case.

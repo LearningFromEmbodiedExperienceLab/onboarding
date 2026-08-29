@@ -53,9 +53,12 @@ Docs (Quarto):
   `{#vscode-debugger}` id because its pandoc id would otherwise include a period
   (from `launch.json`). Reuse an explicit `{#id}` for any new heading whose title
   contains punctuation you want to link to.
-- Pages currently contain no executable (`{python}`) cells, so rendering needs
+- Pages currently contain no executable (`{python}`) Quarto cells, so rendering needs
   only the Quarto CLI. Adding executable cells later would require `jupyter` in
   the env (e.g. via a new `docs` extra).
+- **In-browser exercises** on `tensor-array-indexing.qmd` use Pyodide + NumPy
+  (`docs/tensor-exercises.js`, loaded via `tensor-exercises.html`). They need network
+  access on first **Check** (CDN). No `uv` / local kernel required for readers.
 - GitHub Pages: `.github/workflows/publish-docs.yml` renders on push to
   `master`/`main` (when `docs/` changes) and deploys `docs/_site/`. One-time UI:
   Settings → Pages → Source: **GitHub Actions**. Live URL is set in
