@@ -1,15 +1,60 @@
 # Case study: IK tracking
 
-Put the pieces together. A site (or EE link) tracks a target pose:
+Put the pieces together. An end-effector link tracks a target pose in workspace:
 
 1. FK → EE pose ([Forward kinematics](forward-kinematics.qmd#forward-kinematics), `link8` in the demos).
 2. Pose error → `dq` via `make_ik("dls")` ([Useful Patterns](useful-patterns.qmd#useful-patterns)).
-3. Write joints or actuator targets; `step` ([State I/O](state-sensors-and-actuators.qmd#state-sensors-and-actuators)).
+3. Integrate `q ← q + α dq` (kinematic tracking) or write actuator targets and `step` ([State I/O](state-sensors-and-actuators.qmd#state-sensors-and-actuators)).
 4. Loop ([Simulation loop](the-simulation-loop.qmd#the-simulation-loop)).
 
-Same `IKConfig` / registry as [Useful Patterns](useful-patterns.qmd#useful-patterns). Success is residual vs time, not a screenshot. Python patterns (registry, `@register`) and type tooling: [References — Python / PEPs](references.qmd#peps-style-packaging-typing).
+Same `IKConfig` / registry as [Useful Patterns](useful-patterns.qmd#useful-patterns). Success is residual vs time, not a screenshot.
 
-## What exists today
+## Global vs differential IK
+
+These terms describe **how often you solve** and **what you optimize**, not two unrelated algorithms.
+
+| | **Global IK** | **Differential IK** |
+|---|---|---|
+| **Question** | What joint vector `q` reaches this target pose? | How should `q` change *this tick* to reduce error? |
+| **Output** | Full `q` (or a large step toward it) | Small increment `dq` each cycle |
+| **Typical math** | Nonlinear optimization, multi-start sampling, analytic subproblems | Jacobian `J`, task error `dx`, solve `J dq ≈ dx` (DLS, transpose, pseudoinverse) |
+| **When it shines** | Offline grasps, keyframes, replanning from scratch | Real-time tracking, teleop, closed-loop sim ticks |
+| **Pitfall** | Local minima, joint limits, singularities — one shot may fail | Drift if you only integrate; needs a loop and gain tuning |
+
+**Global IK** treats the target as a **root-finding / optimization** problem: find `q` so FK\((q)\) matches the desired EE pose (position, orientation, or both). You might run a nonlinear solver for many iterations until convergence, or search over seeds. The tutorial's registry solvers are **not** global IK by themselves — they expect a Jacobian and a *small* task-space step `dx`.
+
+**Differential IK** (also *velocity IK* or *Jacobian IK*) is **one control tick**: read current EE pose, form `dx` (e.g. target position minus current position), compute `dq = f(J, dx)` with damped least squares, then integrate. Repeat every sim step. Over many ticks the arm **tracks** a moving target (or converges to a fixed one) without solving a full posture problem from scratch each time.
+
+In this repo, `make_ik("dls")` is the differential step; wiring it into FK + joint integration is the case study below.
+
+## Runnable demo (MuJoCo + Motrix)
+
+Headless script — **no viewer**, two test cases on the Menagerie Piper arm (`link8`):
+
+| Test | What it checks |
+|---|---|
+| `reach` | Random **proximal** target (small workspace offset from the nominal pose); stops when \(\lVert dx \rVert < 5\,\text{mm}\). |
+| `circle` | Track a horizontal circle (35 mm radius) for 600 ticks; reports mean / final position error. |
+
+```bash
+bash scripts/fetch_menagerie_assets.sh
+uv sync --extra sim
+uv run python scripts/ik_tracking_demo.py
+uv run python scripts/ik_tracking_demo.py --backend motrix --test circle
+```
+
+Implementation split:
+
+| File | Role |
+|---|---|
+| `scripts/ik_tracking_common.py` | Shared DLS loop, trajectories, metrics |
+| `scripts/ik_tracking_demo.py` | MuJoCo (`mj_jacBody`) and Motrix (numerical Jacobian via FK) backends |
+
+MuJoCo uses the analytic position Jacobian (`3 × 6` arm columns). Motrix exposes FK on named links but no Jacobian API in the current SDK, so the demo builds `J` with central differences on `link8` position — same `make_ik("dls")` call site, different `J` source.
+
+Arm IK uses the six hinge joints `joint1`–`joint6`; gripper DoFs stay at zero. Integration is **kinematic** (`qpos` write + `forward` / `forward_kinematic`), not dynamics + `ctrl`, so the example isolates IK from actuator tracking.
+
+## Building blocks elsewhere
 
 | Piece | Where |
 |---|---|
@@ -17,6 +62,4 @@ Same `IKConfig` / registry as [Useful Patterns](useful-patterns.qmd#useful-patte
 | Load Piper + state I/O + step | `scripts/mujoco_robot_demo.py`, `scripts/motrix_robot_demo.py` |
 | Damped IK debug plot | `scripts/debug_ik.py`, `notebooks/inspect_ik.ipynb` |
 
-A single end-to-end **sim + IK tracking** script (MuJoCo and Motrix backends, optional Motrix built-in IK) is the natural next increment — wire `make_ik("dls")` into the lockstep loop from the robot demos, log $\lVert \text{residual} \rVert$ each tick.
-
-Until that script lands, combine the demos manually: FK readout from section 2 of `mujoco_robot_demo.py`, Jacobian/residual from `scripts/train.py`, write `ctrl` or `qpos` as in section 3–4.
+To extend: add orientation rows to `dx` and `J`, swap in global IK for offline goals, or replace kinematic integration with the lockstep `ctrl` loop from section 4 of the robot demos.

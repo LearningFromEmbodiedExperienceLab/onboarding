@@ -46,6 +46,7 @@ Robotics sim smoke test (after `bash scripts/fetch_menagerie_assets.sh`):
 - `uv sync --extra sim`
 - `uv run python scripts/mujoco_robot_demo.py`
 - `uv run python scripts/motrix_robot_demo.py`
+- `uv run python scripts/ik_tracking_demo.py` — differential IK tracking (reach + circle), headless
 - Headless MuJoCo rendering: `MUJOCO_GL=egl` or `osmesa` (+ `PYOPENGL_PLATFORM=osmesa` for OSMesa); see `docs/environment-variables.qmd#displays-opengl-headless`.
 - **Env var lookup:** `docs/environment-variables.qmd` (appendix at end of book); concept in `docs/environment-management.qmd#environment-variables`.
 
