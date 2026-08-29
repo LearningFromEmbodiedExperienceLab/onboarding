@@ -1,0 +1,28 @@
+{
+  "vendors": [
+    {
+      "id": "mujoco_menagerie",
+      "repo": "https://github.com/google-deepmind/mujoco_menagerie.git",
+      "ref": "da76818e269b82289eba39808e2fb91d679d6994",
+      "dest": "third_party/mujoco_menagerie",
+      "paths": ["agilex_piper", "arx_l5"]
+    },
+    {
+      "id": "piper_ros",
+      "repo": "https://github.com/agilexrobotics/Piper_ros.git",
+      "ref": "ac41fcbcdda598f01b51cf6175ed9a24d0dacadc",
+      "paths": [
+        "src/piper_description/urdf",
+        "src/piper_description/meshes"
+      ],
+      "dest": "third_party/piper_ros"
+    },
+    {
+      "id": "arx_model",
+      "repo": "https://github.com/ARXroboticsX/ARX_Model.git",
+      "ref": "af6fe43c873008a85bce6195c0f2160f1a1c14ce",
+      "paths": ["X5/X5A/urdf", "X5/X5A/meshes"],
+      "dest": "third_party/arx_model"
+    }
+  ]
+}
