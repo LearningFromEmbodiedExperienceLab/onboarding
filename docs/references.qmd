@@ -80,6 +80,16 @@ Curated **official** links for standards, install guides, and APIs cited in this
 | PyOpenGL platforms | [PyOpenGL](https://pyopengl.sourceforge.io/) |
 | DISPLAY / headless on Linux | [Environment management — Displays, OpenGL, headless](environment-management.qmd#displays-opengl-headless) |
 
+## Contact models
+
+| Topic | Link |
+|---|---|
+| MuJoCo soft contact / computation | [MuJoCo — Computation (contact)](https://mujoco.readthedocs.io/en/stable/computation/index.html) |
+| MuJoCo `solref` / `solimp` | [MuJoCo — Solver parameters](https://mujoco.readthedocs.io/en/stable/modeling.html#csolver) |
+| Motrix soft vs hard (MJCF extensions) | [MotrixSim — Case comparison](https://motrixsim.readthedocs.io/en/latest/user_guide/overview/case_comparison.html) |
+| Isaac / PhysX materials | [Isaac Sim — Physics](https://docs.isaacsim.omniverse.nvidia.com/latest/physics/index.html) |
+| Tutorial overview | [Geometry and collision — Soft vs hard contact](geometry-and-collision.qmd#soft-vs-hard-contact) |
+
 ## Robotics assets
 
 | Format / tool | Link |
