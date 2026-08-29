@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Onboarding robot</title>
+  <path d="M32 18V12" fill="none" stroke="#25313c" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="32" cy="8" r="5" fill="#f2b84b" stroke="#25313c" stroke-width="3"/>
+  <rect x="5" y="27" width="9" height="20" rx="4.5" fill="#25a89a" stroke="#25313c" stroke-width="3"/>
+  <rect x="50" y="27" width="9" height="20" rx="4.5" fill="#25a89a" stroke="#25313c" stroke-width="3"/>
+  <rect x="11" y="17" width="42" height="40" rx="11" fill="#f7f9fb" stroke="#25313c" stroke-width="4"/>
+  <circle cx="24" cy="34" r="4" fill="#25a89a"/>
+  <circle cx="40" cy="34" r="4" fill="#25a89a"/>
+  <path d="M23 44c2.5 2.5 5.5 3.5 9 3.5s6.5-1 9-3.5" fill="none" stroke="#25313c" stroke-width="3.5" stroke-linecap="round"/>
+</svg>

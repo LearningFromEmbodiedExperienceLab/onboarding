@@ -1,0 +1,13 @@
+.lazygit-figure {
+  width: 80%;
+  margin-inline: auto;
+}
+
+.lazygit-figure .figure-img {
+  display: block;
+  width: 100%;
+}
+
+.lazygit-figure figcaption {
+  text-align: left;
+}

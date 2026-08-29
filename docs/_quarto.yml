@@ -8,6 +8,11 @@ website:
 book:
   title: "Onboarding: Python & Robotics"
   subtitle: "A working tutorial for the `robotics` example package"
+  favicon: favicon.svg
+  repo-url: https://github.com/LearningFromEmbodiedExperienceLab/onboarding
+  repo-subdir: docs
+  repo-branch: master
+  repo-actions: [edit, issue]
   search: true
   chapters:
     - index.qmd
@@ -42,6 +47,7 @@ book:
 format:
   html:
     theme: cosmo
+    css: styles.css
     toc: true
     code-copy: true
     code-overflow: wrap
