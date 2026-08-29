@@ -11,7 +11,7 @@ uv run python scripts/motrix_robot_demo.py
 
 ## Shared workflow
 
-Every engine in this tutorial follows the same loop ([simulation loop](the-simulation-loop.qmd#the-simulation-loop), [state I/O](state-sensors-and-actuators.qmd#state-sensors-and-actuators)):
+Every engine in this tutorial follows the same loop ([simulation loop](the-simulation-loop.qmd#the-simulation-loop), [state I/O](state-sensors-and-actuators.qmd#state-sensors-and-actuators)). In the table below, **`q` / `dof_pos` are DoF scalars** (one entry per hinge coordinate on Piper), not a count of `<joint>` XML tags — see [Joint vs DoF](rotations-and-frames.qmd#joint-vs-dof).
 
 ```text
 load asset  →  model (static) + data (dynamic)
@@ -24,12 +24,14 @@ step() or forward_kinematic()  →  integrate physics or update geometry only
 |---|---|---|---|
 | Load | Parse MJCF/URDF into static model | `MjModel.from_xml_path` | `load_model(path)` |
 | Allocate state | Per-instance dynamic buffers | `MjData(model)` | `SceneData(model)` |
-| Read joints | Generalized coordinates | `data.qpos`, `data.qvel` | `data.dof_pos`, `data.dof_vel` |
+| Read joints | Generalized coordinates (**`nv` DoFs**) | `data.qpos` (`nq`), `data.qvel` (`nv`) | `data.dof_pos`, `data.dof_vel` |
 | Read link pose | FK output in world frame | `data.xpos[id]`, `data.xquat[id]` | `link.get_pose(data)` / `get_position` |
 | Write controls | Actuator commands (dynamic) | `data.ctrl[i] = …` | `actuator.set_ctrl(data, …)` or `data.actuator_ctrls` |
 | Write joints | Kinematic reset / teleport | `data.qpos[…] = …` then `mj_forward` | `joint.set_dof_pos(data, …)` then `forward_kinematic` |
 | Advance dynamics | Integrate one timestep | `mj_step(model, data)` | `step(model, data)` |
 | FK only | Poses from q, no forces | `mj_forward` / `mj_fwdPosition` | `forward_kinematic(model, data)` |
+
+Motrix names joints explicitly (`get_joint("joint1")`); MuJoCo indexes flat arrays — same **DoF** values, different API shape. On Menagerie Piper (six hinges, fixed base): **`nq == nv == 6`** in MuJoCo; Motrix `num_dof` matches.
 
 `step` is **dynamics** (integrate forces). FK-only is **kinematics** (update poses from `q` with no forces) — see [Kinematics vs dynamics](kinematics-vs-dynamics.qmd#kinematics-vs-dynamics). That distinction matters for IK and for “did I just teleport `qpos`?”
 

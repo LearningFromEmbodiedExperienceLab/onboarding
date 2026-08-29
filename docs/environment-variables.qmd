@@ -1,6 +1,6 @@
 # Common environment variables {#common-environment-variables}
 
-Process-wide **`NAME=value`** settings the shell, job scheduler, or IDE passes to your Python process. Read them with `os.environ`; see [Environment management — Environment variables](environment-management.qmd#environment-variables) for the idea (prefix vs `export`, shell vs `uv run` / F5).
+Process-wide **`NAME=value`** settings the shell, job scheduler, or IDE passes to your Python process. Read them with `os.environ`. The **concept** (prefix vs `export`, shell vs `uv run` / F5) is in [Environment management — Environment variables](environment-management.qmd#environment-variables). This appendix is the **lookup table** — placed at the end of the book so early chapters stay focused on ideas.
 
 `scripts/print_env.py` prints the subset this repo uses most often:
 
