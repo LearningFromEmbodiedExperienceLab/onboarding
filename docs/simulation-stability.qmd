@@ -14,7 +14,8 @@ integrate. This page measures that path.
 ## Control stack
 
 Menagerie Piper uses `<position … kp="…" kv="…"/>` actuators: `ctrl` is a **target
-joint angle**, and an internal PD produces torques during `step` ([State
+joint angle**, and an internal [joint PD](state-sensors-and-actuators.qmd#joint-pd-control)
+ produces torques during `step` ([State
 I/O](state-sensors-and-actuators.qmd#state-sensors-and-actuators)).
 
 Lockstep differential IK on top looks like:
@@ -33,7 +34,26 @@ If `dt` is too large for the inner loop — especially with **explicit** integra
 converges. **Implicit** integrators treat the stiff PD more stably and tolerate
 much larger `dt` on MuJoCo.
 
-### Instability in motion
+## Stiff PD gains {#stiff-pd-gains}
+
+The same symptoms appear if **`K_p` is too large** or **`K_d` too small** for the
+chosen `Δt_sim`: the [joint PD](state-sensors-and-actuators.qmd#joint-pd-control)
+ loop acts like an under-damped stiff spring the integrator cannot resolve. You
+ do not need an enormous timestep — on Piper with **Euler @ 10 ms** and lockstep
+ dynamic IK (seed 0):
+
+| PD settings | Reach result |
+|---|---|
+| Nominal Menagerie `kp` / `kv` | **ok** (~5 mm) |
+| **`5× kp`** (stiffer servos) | **FAIL** (~31 mm, peak \|qvel\| ≈ 84 rad/s) |
+| **`kv = 0`** (no damping) | **FAIL** (~84 mm, oscillatory) |
+
+At **`Δt_sim = 2 ms`** with substeps, the same gain scalings still pass — stability
+ depends on **gains and timestep together** (and integrator). Mitigations: lower
+ `K_p`, raise `K_d`, shorten `Δt_sim` (substeps), or use an implicit integrator.
+ See [Stiff PD gains](simulation-stability.qmd#stiff-pd-gains) (`scripts/pd_gain_stability_demo.py`).
+
+### Instability in motion (large `Δt`)
 
 Dynamic IK with **Euler** integration and **20 ms** timesteps (one IK tick per
 `mj_step`) blows up within a few control cycles: the arm flails, position error

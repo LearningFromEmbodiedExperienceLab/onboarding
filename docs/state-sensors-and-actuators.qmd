@@ -46,6 +46,15 @@ $$
   “hold this angle”), this reduces to **`-K_d q̇`**, i.e. viscous damping that
   fights overshoot and oscillation.
 
+**Too much stiffness or too little damping** can destabilize the integrator even
+ when `Δt_sim` is modest — the inner PD behaves like a stiff spring-mass that
+ explicit integrators (and large steps) cannot resolve. Symptoms match other
+ instability modes: growing `qvel`, oscillation, poor tracking. Runnable examples
+ at `Δt_sim = 10 ms` (Euler): **`5× kp`** or **`kv = 0`** on Piper position
+ actuators fail the seed-0 reach test; nominal Menagerie gains pass
+ (`scripts/pd_gain_stability_demo.py`). See also [Simulation
+ stability](simulation-stability.qmd#stiff-pd-gains).
+
 Menagerie Piper encodes these gains on **position** actuators in MJCF (`kp`, `kv`
  on `joint1`–`joint6` in `piper.xml`). You write **`q*`** into `ctrl`; MuJoCo
  applies the PD law inside every `step()` and respects actuator force limits
