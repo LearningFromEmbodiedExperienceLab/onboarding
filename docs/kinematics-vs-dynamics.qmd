@@ -2,7 +2,7 @@
 
 **Kinematics** is the geometry of motion: poses, joint angles, and how they relate. No mass, no force, no “will it actually get there.” FK and IK are kinematic. Setting `qpos` and running FK *teleports* the robot to that configuration.
 
-**Dynamics** is Newton’s laws: given inertia, gravity, contact, and actuator forces, what acceleration happens next, then integrate. `mj_step` / `motrixsim.step` is dynamics (plus the FK needed to update poses). Mass, COM ([inertial frame](rotations-and-frames.qmd#link-frame-vs-inertial-frame)), and actuators matter here; they do not change FK.
+**Dynamics** is Newton’s laws: given inertia, gravity, contact, and actuator forces, what acceleration happens next, then integrate. [`mj_step`](https://mujoco.readthedocs.io/en/stable/APIreference/APIfunctions.html#mj-step) / [`motrixsim.step`](https://motrixsim.readthedocs.io/en/latest/) is dynamics (plus the FK needed to update poses). Mass, COM ([inertial frame](rotations-and-frames.qmd#link-frame-vs-inertial-frame)), and actuators matter here; they do not change FK. Simulator docs: [References — Robotics assets](references.qmd#robotics-assets).
 
 | | Kinematics | Dynamics |
 |---|---|---|

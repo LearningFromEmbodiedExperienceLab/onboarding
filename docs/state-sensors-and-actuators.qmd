@@ -1,6 +1,6 @@
 # State, sensors, and actuators
 
-The I/O contract, independent of engine:
+The I/O contract, independent of engine (MJCF actuators and sensors: [MuJoCo XML reference](https://mujoco.readthedocs.io/en/stable/XMLreference.html); overview in [References — Robotics assets](references.qmd#robotics-assets)):
 
 - **Read** configuration and velocity (`qpos`/`qvel` vs `dof_pos`/`dof_vel`), body/site poses, sensors.
 - **Write controls** (`data.ctrl` / `actuator_ctrls`, or named `MotorActuator`) — the **dynamic** path: forces into `step`.

@@ -45,7 +45,7 @@ These $\omega$ (and the $6$-vector *twist* analogue for $SE(3)$) live in the Lie
 
 ## Rotation representations
 
-All helpers in `src/robotics/math_utils.py` are batch-agnostic on the last axis. **Every quaternion in this repo is `(w, x, y, z)`** (scalar first). That matches MuJoCo `xquat`. ROS, SciPy, and many USD/Isaac stacks use **`(x, y, z, w)`**. Mixing them looks like a 90° bug, not an import error.
+All helpers in `src/robotics/math_utils.py` are batch-agnostic on the last axis. **Every quaternion in this repo is `(w, x, y, z)`** (scalar first). That matches [MuJoCo `xquat`](https://mujoco.readthedocs.io/en/stable/APIreference/APItypes.html). [ROS / SciPy `Rotation`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.transform.Rotation.html) and many USD/Isaac stacks use **`(x, y, z, w)`**. Mixing them looks like a 90° bug, not an import error.
 
 ```python
 from robotics.math_utils import quat_from_euler_xyz, quat_rotate, wxyz_to_xyzw, xyzw_to_wxyz
@@ -88,7 +88,7 @@ FK poses (`xpos`, `xquat`), joint axes in MJCF/URDF, and gravity (usually along 
 | Stack | +X | +Y | +Z | Camera / viewer habit |
 |---|---|---|---|---|
 | **Sim / ROS-style** | Forward | Left | Up | World-fixed ground frame |
-| **OpenCV** | Right in the image | Down in the image | Forward into the scene | Optical frame; “looks along **+Z**” |
+| **OpenCV** | Right in the image | Down in the image | Forward into the scene | Optical frame; “looks along **+Z**” — [OpenCV calib3d](https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html) |
 | **OpenGL (classic camera)** | Right | Up | Back (toward the viewer) | Camera looks down **−Z** |
 
 **What to do at boundaries.** Whenever sim meets pixels (rendering, projection, AR, logging from a RealSense/OpenCV pipeline):
@@ -110,6 +110,8 @@ Storage order is independent of axis convention but equally easy to get wrong:
 | MuJoCo `xquat`, this repo, `Pose.quat` | **`(w, x, y, z)`** — scalar first |
 | ROS `geometry_msgs/Quaternion`, SciPy `Rotation.from_quat` | **`(x, y, z, w)`** — scalar last |
 | USD / some game engines | Varies — read that engine’s docs |
+
+Full list of rotation / frame references: [References — Robotics assets](references.qmd#robotics-assets) ([REP-103](http://wiki.ros.org/rep103), [SciPy `Rotation`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.transform.Rotation.html), [OpenCV calib3d](https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html)).
 
 Swapping layout without permuting components rotates about the wrong axis in practice. **Always convert explicitly**; do not reorder four floats by habit.
 

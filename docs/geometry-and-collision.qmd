@@ -9,7 +9,7 @@ This chapter is about **how simulators represent geometry**, what **meshes** mea
 that context, why **convex hulls** appear everywhere, and how to **inspect and test**
 collision separately from visuals. File-format details (URDF tags, MJCF `<compiler>`,
 mesh paths) live in [Asset files](asset-files.qmd#asset-files); here we focus on the
-ideas that cross MuJoCo, Motrix, URDF, and most other engines.
+ideas that cross [MuJoCo](https://mujoco.readthedocs.io/en/stable/), Motrix, [URDF](http://wiki.ros.org/urdf), and most other engines. Format and vendor links: [References — Robotics assets](references.qmd#robotics-assets).
 
 ## Three geometries, three jobs
 
@@ -128,7 +128,7 @@ Before a mesh becomes a collision or inertial input:
 6. **Track large assets** with Git LFS — see
    [GitHub and version control](github-version-control.qmd#git-lfs).
 
-Handy tools: Blender, MeshLab, and Python **`trimesh`** for quick inspection
+Handy tools: Blender, MeshLab, and Python **[trimesh](https://trimesh.org/)** for quick inspection
 (`is_watertight`, `volume`, convex hull preview). STL is common and often **broken**
 (non-manifold, holes, wrong scale) — treat it as guilty until inspected.
 

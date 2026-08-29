@@ -1,6 +1,6 @@
 # The simulation loop
 
-How simulated time moves:
+How simulated time moves (see [`mj_step`](https://mujoco.readthedocs.io/en/stable/APIreference/APIfunctions.html#mj-step) / Motrix `step` in [References — Robotics assets](references.qmd#robotics-assets)):
 
 ```text
 write ctrl  →  step (integrate + FK + sensors)  →  read state

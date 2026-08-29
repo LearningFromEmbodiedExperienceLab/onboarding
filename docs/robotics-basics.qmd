@@ -1,6 +1,6 @@
 # Robotics Basics
 
-Two engines, one set of ideas. **MuJoCo** is the academic default (`mjModel` / `mjData`). **Motrix** (`motrixsim`) loads the same MJCF/URDF into `SceneModel` / `SceneData` and adds a named-object API plus a viewer.
+Two engines, one set of ideas. **[MuJoCo](https://mujoco.readthedocs.io/en/stable/)** is the academic default (`mjModel` / `mjData`). **[Motrix](https://motrixsim.readthedocs.io/en/latest/)** (`motrixsim`) loads the same [MJCF / URDF](references.qmd#robotics-assets) into `SceneModel` / `SceneData` and adds a named-object API plus a viewer.
 
 Two maps show up constantly:
 

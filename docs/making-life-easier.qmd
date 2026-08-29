@@ -4,7 +4,7 @@ The interpreter will run whatever you wrote. The editor can only help if it *und
 
 ## Type hints
 
-A type hint is a note on a name that says what it is supposed to be. Python **does not enforce** this at runtime (passing a `str` where you annotated `float` still runs). The editor, and optional checkers like Pyright, read the notes.
+A type hint is a note on a name that says what it is supposed to be. Python **does not enforce** this at runtime ([PEP 484](https://peps.python.org/pep-0484/) — passing a `str` where you annotated `float` still runs). The editor, and optional checkers like [Pyright](https://microsoft.github.io/pyright/), read the notes.
 
 ```python
 def damped_lstsq(J, dx, damping=1e-3):

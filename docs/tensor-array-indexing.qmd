@@ -1,6 +1,6 @@
 # Tensor / Array indexing
 
-NumPy `ndarray` and `torch.Tensor` share one indexing grammar. Learn it once. Examples below are NumPy (`scripts/index_tensors.py`); replace `np` with `torch` and the **shapes** match. View vs copy is the main place the two libraries disagree — see the table at the end.
+NumPy [`ndarray`](https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html) and [`torch.Tensor`](https://pytorch.org/docs/stable/tensors.html) share one indexing grammar. Learn it once. Examples below are NumPy (`scripts/index_tensors.py`); replace `np` with `torch` and the **shapes** match. View vs copy is the main place the two libraries disagree — see the table at the end.
 
 The layout we care about in simulation is batched:
 
@@ -192,7 +192,7 @@ In-place math on a view (`x[0] *= 0`) mutates `x`. In-place math on a copy does 
 
 ## Exercises (check in browser)
 
-These run **NumPy in your browser** via [Pyodide](https://pyodide.org/) (same indexing rules as PyTorch). Click **Check** on each block; the first run downloads Python (~few seconds). Replace `...` with your code — no `import` needed (setup is already run).
+These run **NumPy in your browser** via [Pyodide](https://pyodide.org/en/stable/) (same indexing rules as PyTorch). Click **Check** on each block; the first run downloads Python (~few seconds). Replace `...` with your code — no `import` needed (setup is already run). More links: [References — NumPy / PyTorch](references.qmd#numpy-pytorch-and-friends).
 
 ```{=html}
 <div class="tensor-exercises-intro">
@@ -298,7 +298,7 @@ T = 5</pre>
 
 Indexing *selects*. These ops *rearrange* axes without (usually) changing values. `scripts/reshape_tensors.py` prints each case.
 
-NumPy and PyTorch names differ. **einops** is the same in both — use it for anything that is more than a single `unsqueeze`.
+NumPy and PyTorch names differ. **[einops](https://einops.rocks/)** is the same in both — use it for anything that is more than a single `unsqueeze`.
 
 ### `view` vs `reshape`
 

@@ -1,6 +1,6 @@
 # GitHub and version control
 
-Git is a history of snapshots **on your machine**. GitHub is a server that stores a copy of that history so other people (and future you) can `clone` it. The link between the two is a **remote**.
+Git is a history of snapshots **on your machine**. GitHub is a server that stores a copy of that history so other people (and future you) can `clone` it. The link between the two is a **remote**. Official docs: [Git](https://git-scm.com/doc), [GitHub Docs](https://docs.github.com/en), and the curated list in [References — Version control and publishing](references.qmd#version-control-and-publishing).
 
 ## Create and publish
 
@@ -127,7 +127,7 @@ Git stores **every version of every file** in the history. A 200 MB checkpoint
 
 This folder's `.gitignore` already excludes `.venv/` and generated MuJoCo stubs. Add lines as you add new artifact types.
 
-**Git LFS** is for files that *belong* with the source and are large-but-stable: robot meshes (`.obj`, `.usd`), a small canonical MJCF mesh pack, a fixture binary a test must have. LFS stores a **pointer** in git and the bytes on a separate LFS server.
+**[Git LFS](https://git-lfs.com/)** is for files that *belong* with the source and are large-but-stable: robot meshes (`.obj`, `.usd`), a small canonical MJCF mesh pack, a fixture binary a test must have. LFS stores a **pointer** in git and the bytes on a separate LFS server.
 
 ```bash
 git lfs install
@@ -158,8 +158,8 @@ bash scripts/fetch_menagerie_assets.sh
 ```
 
 Under the hood: `git clone --filter=blob:none --sparse`, then
-`git sparse-checkout set agilex_piper arx_l5`, then `git checkout <pinned-sha>`.
-Everyone gets the same robots without cloning all of Menagerie (~100+ models).
+[`git sparse-checkout set`](https://git-scm.com/docs/git-sparse-checkout) `agilex_piper arx_l5`, then `git checkout <pinned-sha>`.
+Everyone gets the same robots without cloning all of [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie) (~100+ models). See [References — Robotics assets](references.qmd#robotics-assets).
 
 | Pattern | When |
 |---|---|

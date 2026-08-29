@@ -50,4 +50,4 @@ python -c "import torch; print(torch.__version__, torch.cuda.is_available(), tor
 
 Pick a GPU with [`CUDA_VISIBLE_DEVICES`](environment-management.qmd#environment-variables). After that mask, this process's `cuda:0` is the first *visible* card, not necessarily physical 0.
 
-PyTorch tensors live on a **device**. NumPy arrays do not. `x.cuda()` / `x.to("cuda")` copies; ops on `cuda` tensors run on the GPU. Mixing `cpu` and `cuda` in one expression is an error. Keep a batch on one device; `.cpu().numpy()` is a host copy (and a sync — next section).
+PyTorch tensors live on a **device**. NumPy arrays do not. `x.cuda()` / `x.to("cuda")` copies; ops on `cuda` tensors run on the GPU. Mixing `cpu` and `cuda` in one expression is an error. Keep a batch on one device; `.cpu().numpy()` is a host copy (and a sync — [Bells and whistles](bells-and-whistles.qmd#bells-and-whistles)). See also [PyTorch CUDA semantics](https://pytorch.org/docs/stable/notes/cuda.html) and [References — GPU / CUDA](references.qmd#gpu--cuda).

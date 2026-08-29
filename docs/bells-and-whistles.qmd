@@ -1,6 +1,6 @@
 # Bells and whistles
 
-On CPU, the next Python line runs after the math finished. On CUDA, `x @ x` **queues a kernel** and Python continues. The GPU may still be working. That is why a training step looks instant until you print a loss or call `.item()`.
+On CPU, the next Python line runs after the math finished. On CUDA, `x @ x` **queues a kernel** and Python continues. The GPU may still be working. That is why a training step looks instant until you print a loss or call `.item()`. Background: [PyTorch CUDA semantics](https://pytorch.org/docs/stable/notes/cuda.html) and [References — GPU / CUDA](references.qmd#gpu--cuda).
 
 **Host-device sync** (Python waits for the GPU) happens when you need a value on the CPU, including:
 
