@@ -26,6 +26,7 @@ sim = [
 debug = ["pdbpp"]
 notebooks = ["ipython", "ipykernel", "matplotlib"]
 torch = ["torch"]
+ipc = ["pyzmq"]
 
 [tool.pyright]
 stubPath = "typings"
