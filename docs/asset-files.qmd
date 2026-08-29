@@ -6,13 +6,13 @@ Mesh paths, compiler flags, and “inertia from geom” belong here — not in t
 
 ## URDF vs MJCF at a glance
 
-Both describe a **kinematic tree** (links/bodies, joints, inertial tags, geometry). The vocabulary overlap is in [Scene vocabulary](scene-vocabulary.qmd#scene-vocabulary); the **file shape** differs.
+Both describe a **kinematic tree** (links/bodies, joints, inertial tags, geometry). The vocabulary overlap is in [Scene vocabulary](scene-vocabulary.qmd#scene-vocabulary); the **file shape** differs — and, more importantly, **what defines the tree** differs (see [Kinematic tree: two mental models](#kinematic-tree-two-mental-models) below).
 
 | | URDF | MJCF (MuJoCo) |
 |---|---|---|
 | Root element | `<robot name="…">` | `<mujoco model="…">` |
 | Rigid segment | `<link>` | `<body>` |
-| Parent/child | `<joint>` between links | `<joint>` on child `<body>` |
+| Parent/child | `<joint>` names `parent` / `child` links (tree = joint graph) | Child `<body>` nested in parent; `<joint>` on child sets DoF vs parent |
 | Visual / collision | `<visual>` / `<collision>` siblings on `<link>` | `<geom>` (often duplicated; `group`, `class`, `contype`) |
 | Inertia | `<inertial>` on `<link>` | `<inertial>` on `<body>` |
 | Actuators | *Not in URDF* (ROS packages add separately) | `<actuator>` block (motors, position servos, …) |
@@ -22,6 +22,108 @@ Both describe a **kinematic tree** (links/bodies, joints, inertial tags, geometr
 | Simulation options | Outside the URDF | `<option>`, `<default>`, `<keyframe>` |
 
 URDF is the ROS **lingua franca** — good for CAD export and MoveIt. MJCF is MuJoCo’s **native** format — good for contact, actuators, and reproducible sim. Menagerie ships **MJCF** that was **derived from** vendor URDFs, then hand-tuned for MuJoCo.
+
+## Kinematic tree: two mental models {#kinematic-tree-two-mental-models}
+
+When you open a robot file, ask: *what makes A the parent of B, and what if I never connect them?*
+
+### MJCF — nesting is the tree
+
+Under `<worldbody>`, the kinematic tree **is** the XML hierarchy:
+
+- Each nested `<body>` is a rigid segment (inertial, geoms, sites).
+- **Joints listed on that child body** say how it may move **relative to its parent** (hinge, slide, ball, …) — they add degrees of freedom (DoF).
+- **No joint on the child** → MuJoCo **welds** it to the parent: **0 DoF**, one rigid piece. Geoms and sites do not create new DoF; only joints do.
+
+So every body is already placed in a connected scene graph by nesting. Joints *optionally* allow motion along that edge. Forgetting a revolute tag does not leave a link “floating undefined” — it leaves it **stuck** to the parent.
+
+Menagerie Piper (fixed arm): `base_link` is a direct child of `<worldbody>` with **no** `<freejoint>` → bolted to the world. `link1` is nested inside `base_link` and carries `<joint name="joint1" …/>` → one revolute DoF between them.
+
+```xml
+<worldbody>
+  <body name="base_link">           <!-- welded to world -->
+    <body name="link1" pos="…">
+      <joint name="joint1" axis="0 0 1" range="…"/>   <!-- 1 DoF vs parent -->
+      …
+    </body>
+  </body>
+</worldbody>
+```
+
+### URDF — joints are the tree
+
+URDF lists `<link>` elements as a mostly **flat** catalog of rigid segments (inertial, visual, collision). The kinematic tree exists **only where `<joint>` elements connect links**:
+
+- Each joint names one **`parent`** link and one **`child`** link, plus `<origin>` (pose at zero) and `type` / `axis` / `limit`.
+- **No joint between two links** → URDF defines **no** transform between them. They are unrelated fragments — not “implicitly rigid,” just **not in the model**. Validators and simulators ignore orphan links or reject the file.
+- **`type="fixed"`** is still a joint: **0 DoF**, but it **does** connect parent to child. CAD exporters use fixed joints for dummy roots, sensor mounts, or gripper pads that are separate links but do not move.
+
+Piper’s upstream URDF roots at `dummy_link`, then a **fixed** `base_to_dummy` joint → `base_link`, then revolute joints down the arm. The tree is the **graph of joints**, not the order of `<link>` tags in the file.
+
+```xml
+<link name="dummy_link"/>                    <!-- root: never a joint's child -->
+<joint name="base_to_dummy" type="fixed">
+  <parent link="dummy_link"/>
+  <child link="base_link"/>
+</joint>
+<link name="base_link"> … </link>
+<joint name="joint1" type="revolute">
+  <parent link="base_link"/>
+  <child link="link1"/>
+  …
+</joint>
+```
+
+When MuJoCo compiles URDF, it **reconstructs** an MJCF-style nested body tree from that joint graph (and may merge or drop long chains of fixed links).
+
+| Question | MJCF | URDF |
+|---|---|---|
+| What defines parent/child? | XML nesting under `<body>` | `<joint>` `parent` / `child` attributes |
+| 0-DoF “same rigid piece” | Omit joint (welded to parent) | `<joint type="fixed">` |
+| Forgot to connect two segments | Unusual — nesting keeps bodies attached | Stray `<link>` with no joint path to root |
+| Where is “world”? | Implicit `<worldbody>` anchor | Implicit — sim attaches the **root link** to world |
+
+### Fixed-base vs floating-base
+
+**Fixed-base** — the robot is bolted to the environment (tabletop arm). The base pose in world frame does not change.
+
+| | MJCF | URDF |
+|---|---|---|
+| How | Root robot `<body>` under `<worldbody>` **without** `<freejoint>` → welded to world (0 DoF). | **Root link** = the link that is never any joint’s `child` (Piper: `dummy_link`). Parsers/simulators rigidly attach that root to the world frame. |
+| `qpos` | Only articulated joints (arm, gripper); base pose not in `qpos`. | Same after import. |
+| Piper | `worldbody` → `base_link`, no `freejoint` | `dummy_link` → fixed → `base_link` → revolute chain |
+
+**Floating-base** — the whole mechanism can move in space (humanoid, drone, mobile base). The base has 6 DoF in world frame (3 translation + 3 rotation).
+
+| | MJCF | URDF |
+|---|---|---|
+| How | `<freejoint/>` on the root robot body: 7 `qpos` (3 position + 4 quaternion), 6 velocity DoF. | `<joint type="floating">` from a **`world`** link to the base link (MuJoCo’s URDF loader supports this type). |
+| Example | Menagerie [Skydio X2](https://github.com/google-deepmind/mujoco_menagerie/tree/main/skydio_x2): root body + `<freejoint/>` | Add a massless `world` link and a floating joint to `base_link` when authoring for sim. |
+
+```xml
+<!-- MJCF: floating root (Menagerie drone pattern) -->
+<worldbody>
+  <body name="x2" pos="0 0 0.1">
+    <freejoint/>
+    …
+  </body>
+</worldbody>
+```
+
+```xml
+<!-- URDF: floating-base pattern -->
+<link name="world"/>
+<joint name="floating_base" type="floating">
+  <parent link="world"/>
+  <child link="base_link"/>
+  <origin xyz="0 0 0" rpy="0 0 0"/>
+</joint>
+<link name="base_link"> … </link>
+```
+
+[Fixed manipulator: **no** `<freejoint/>` on the MJCF root, and **no** floating joint in URDF. Floating robot: **exactly one** free root — do not weld the base to world and also add a floating joint.]{.common-bug-warning}
+
+Pick fixed vs floating when authoring or converting assets; mixed-up base attachment is a common source of “why is my robot sliding / nailed to the origin?” bugs.
 
 ## Vendor layout (fetch, do not commit) {#vendor-layout}
 
