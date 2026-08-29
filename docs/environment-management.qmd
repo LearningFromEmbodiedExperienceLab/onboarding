@@ -112,4 +112,4 @@ uv run python scripts/print_env.py
 CUDA_VISIBLE_DEVICES=1 PYTHONPATH=src uv run python scripts/print_env.py
 ```
 
-**Lookup.** Names, typical values, and longer notes for `PYTHONPATH`, CUDA, MuJoCo GL, `DISPLAY`, and the rest live in [Common environment variables](environment-variables.qmd#common-environment-variables) — use that chapter when you need a specific variable; this section is the concept only.
+**Lookup.** Names, typical values, and longer notes live in [Common environment variables](environment-variables.qmd#common-environment-variables) at the **end of the book** — use that appendix when you need a specific variable; this section is the concept only.
