@@ -1,13 +1,23 @@
 # Preface {.unnumbered}
 
-This is the onboarding tutorial for the `robotics` example package. It covers the
-day-to-day fundamentals of working in this codebase — Python environments and
-imports, project structure, debugging, version control, NumPy/PyTorch tensor
-work, and the robotics concepts (kinematics, rotations, simulators, IK) that the
-`src/robotics/` library illustrates.
+Most research code is not a homework hand-in. It grows for months or years: new
+dependencies, shared repos, experiments you need to reproduce, and collaborators
+who were not in the room when you wrote the first script. Yet many students arrive
+with experience only from introductory programming or algorithms courses — a few
+files, a single deadline, no version control, no package layout, and no plan for
+what happens after the grade is posted.
 
-The tutorial is split into short, self-contained chapters so sections can be
-edited and reviewed independently. Use the sidebar to navigate.
+This tutorial fills that gap. It is onboarding for the `robotics` example package
+and, more broadly, for **how to start, develop, organize, and maintain a research
+project in practice**: Python environments and imports, project structure,
+debugging, version control, NumPy/PyTorch tensor work, and the robotics concepts
+(kinematics, rotations, simulators, IK) that `src/robotics/` illustrates. The tone
+is closer to [MIT's *The Missing Semester*](https://missing.csail.mit.edu/) than
+to a language syntax cheat sheet — tools and habits you use every week, not once
+on an exam.
+
+The book is split into short, self-contained chapters so sections can be edited
+and reviewed independently. Use the sidebar to navigate.
 
 ## How to use it
 
