@@ -159,6 +159,76 @@ Use it when:
 
 Do **not** use it when `self.qpos` (or other inputs) change but the instance is reused — the cache will be **stale**. Invalidate by deleting the attribute (`del state.mass_matrix`) or create a new instance. For caches keyed on changing tensors, explicit methods or `lru_cache` on immutable arguments are clearer.
 
+### Class members vs instance members
+
+Python stores data on the **class** or on each **instance**:
+
+| Kind | Defined on | Shared by | Typical examples |
+|---|---|---|---|
+| **Instance member** | `self.x = …` in `__init__` or methods | one object only | `ctrl._last_dq`, `state.qpos` |
+| **Class member** | name in the class body (`name = …`) | all instances of that class | `IKRegistry._instance`, default constants |
+
+Lookup is **instance first, then class**:
+
+```python
+ctrl = make_ik("dls")
+ctrl.damping          # instance attribute (set in __init__)
+len(IKRegistry())     # class holds the solver table; each make_ik() still builds a new controller
+```
+
+Each `make_ik("dls")` returns a **new** controller with its own last `dq`. The **registry table** is process-wide class/singleton state — do not confuse “one registry” with “one controller” ([Subclassing, registry, singleton](#subclassing-registry-singleton)).
+
+[Do not use a **mutable** class attribute as a per-instance default (`items = []` on the class — all instances share the same list). Put mutable defaults in `__init__` (`self.items = []`).]{.common-bug-warning}
+
+**Regular methods** take `self` — the instance the call was made on:
+
+```python
+def compute(self, J, dx):
+    ...  # reads/writes self._last_dq
+```
+
+### `@classmethod` and `@staticmethod`
+
+Both are method decorators, but Python binds them differently:
+
+| | First argument | Gets | Use when |
+|---|---|---|---|
+| **instance method** | `self` | the object | needs per-object state |
+| **`@classmethod`** | `cls` | the class (or subclass) | factory, alternate constructor, class-level registry |
+| **`@staticmethod`** | *(none injected)* | — | helper logically grouped with the class but needs neither `self` nor `cls` |
+
+**`@classmethod`** — Python passes the class as the first argument. Subclasses get **their** type, which matters for inheritance:
+
+```python
+class IKRegistry:
+    _instance: IKRegistry | None = None  # class member
+
+    @classmethod
+    def instance(cls) -> IKRegistry:
+        return cls()   # same as IKRegistry(); cls is IKRegistry here
+
+# call site:
+reg = IKRegistry.instance()
+```
+
+`instance()` is an **alternate constructor**: callers do not need to know whether `__new__` caches a singleton. If you subclassed `IKRegistry`, `SubRegistry.instance()` would receive `cls is SubRegistry`.
+
+**`@staticmethod`** — no automatic `self` or `cls`. It is a plain function stored on the class namespace:
+
+```python
+class IKRegistry:
+    @staticmethod
+    def normalize_name(name: str) -> str:
+        """Pure helper — no registry state required."""
+        return name.strip().lower()
+
+# IKRegistry.normalize_name(" DLS ")  →  "dls"
+```
+
+Use `@staticmethod` for utilities that **belong next to** the class in the file but do not touch instance or class state (format checks, unit conversions, parsing). If the function only needs `cls` and class data, prefer `@classmethod`. If it needs `self`, use a normal method.
+
+You can call either form from the class or an instance (`IKRegistry.normalize_name(" DLS ")`) — both work; pick the style that signals intent.
+
 ### Quick map (this repo + stdlib)
 
 | Decorator | Args? | When it runs | Role here |
@@ -167,6 +237,8 @@ Do **not** use it when `self.qpos` (or other inputs) change but the instance is 
 | `@register("dls")` | yes (name) | class definition | fill IK registry (`registry.py`) |
 | `@property` | no (optional `.setter`) | each attribute read | cheap derived fields |
 | `@cached_property` | no | first read only | expensive derived fields |
+| `@classmethod` | no | each call; receives `cls` | `IKRegistry.instance()` (`registry.py`) |
+| `@staticmethod` | no | each call; no `self`/`cls` | grouped helpers with no object state |
 | `@dataclass(…)` | yes (options) | class definition | config objects (`types.py`) |
 
 Importing `robotics.ik` loads `solvers.py` so the `@register` lines run. A solver you never import is invisible.
