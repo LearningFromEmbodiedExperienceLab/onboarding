@@ -11,3 +11,9 @@
 .lazygit-figure figcaption {
   text-align: left;
 }
+
+/* Common bug / footgun warnings (geometry chapter and future sections). */
+.common-bug-warning {
+  color: #c0392b;
+  font-weight: 600;
+}

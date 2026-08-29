@@ -31,7 +31,8 @@ robot folder’s `assets/` directory.
 
 Doc figures under `docs/imgs/menagerie/` are **generated PNGs** (committed so the static
 site builds without MuJoCo). Regenerate with
-`scripts/render_menagerie_geometry_figures.py` — see
+`scripts/render_menagerie_geometry_figures.py` (visual, convex hull of visual meshes,
+and collision columns) — see
 [Geometry and collision](geometry-and-collision.qmd#inspect-in-the-viewer).
 
 *(To fill: `<compiler meshdir="…"/>` for our own MJCF; `motrixsim.load_model` parity.)*
