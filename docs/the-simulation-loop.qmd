@@ -52,9 +52,36 @@ every physics step:
 
 That is closer to onboard compute + a 1 kHz PD loop. Policies that only work lockstep often degrade here (delay, multiple physics steps per action, observation from an older `ctrl`). When policy and sim run in **separate processes**, the same async picture applies over IPC — see [Inter-process communication](inter-process-communication.qmd#inter-process-communication).
 
-**Substeps:** some stacks expose `n_substeps` or a smaller internal dt than the control dt. Same idea: multiple `step()` calls per policy tick with **held** `ctrl` between policy updates.
+## Substeps vs decimation
 
-Viewer/render (MuJoCo viewer, Motrix `RenderApp`, Isaac viewport) is a separate issue: do not confuse UI FPS with the control period.
+Physics and control rarely share one clock. Define:
+
+| Term | Typical meaning |
+|---|---|
+| `Δt_sim` | Physics timestep — one `step()` |
+| `Δt_ctrl` | Control period — one IK / policy update |
+| **Substeps** (`n_sub`) | Physics steps **per control tick**: `n_sub = Δt_ctrl / Δt_sim`. Same `ctrl` held for all substeps. |
+| **Decimation** | Same ratio, common in RL stacks: **decimation** = number of sim steps per env step = `n_sub`. “Policy decimated 10×” ⇒ physics runs 10 steps per action. |
+
+Example: Menagerie `timestep = 2 ms`, IK at 50 Hz ⇒ `Δt_ctrl = 20 ms`, **`n_sub = 10`** (decimation 10).
+
+```text
+# Substepped loop (50 Hz IK, 500 Hz physics)
+if control_tick_elapsed:
+    obs = read(state)
+    ctrl = ik(obs)              # or policy(obs)
+for _ in range(n_sub):
+    write(ctrl)                 # zero-order hold
+    step(Δt_sim)
+```
+
+**Lockstep** is the special case `n_sub = 1` (one physics step per control step). That is easy to debug but dangerous when `Δt_ctrl` is large for stiff actuators — see the [instability video](simulation-stability.qmd#instability-in-motion).
+
+**Asynchronous IPC** ([Inter-process communication](inter-process-communication.qmd#inter-process-communication)) is the same decimation pattern across processes: the sim process runs `step()` at `Δt_sim`; the controller process wakes at `Δt_ctrl` and publishes new targets.
+
+Runnable headless check: `scripts/ik_substeps_demo.py` (Euler lockstep @ 20 ms fails; 10×2 ms substeps @ 50 Hz IK passes).
+
+Do not confuse **physics substeps/decimation** with **viewer FPS** — rendering is unrelated to control rate.
 
 ## Isaac Lab scheduling (reference)
 

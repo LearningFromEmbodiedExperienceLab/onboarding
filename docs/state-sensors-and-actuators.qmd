@@ -22,6 +22,15 @@ uv run python scripts/motrix_robot_demo.py
 
 Menagerie Piper **position actuators** (`<position …/>` in MJCF): `ctrl` is a **target joint position**, not motor torque. The internal PD drives `qpos` toward `ctrl` during `step`.
 
+Menagerie Piper **motor actuators** (`<motor …/>`): `ctrl` is a **joint torque** (Nm). There is no built-in servo — you implement PD (or any controller) in Python and write `tau` each tick.
+
+| Actuator | `ctrl` meaning | Who closes the loop |
+|---|---|---|
+| `<position>` | Target joint angle `q*` | **Simulator** — stiffness `kp`, damping `kv` in MJCF |
+| `<motor>` | Joint torque `τ` | **You** — explicit PD, computed torque, RL policy, etc. |
+
+See [Simulation stability — position vs motor](simulation-stability.qmd#position-vs-motor-actuators) for how this interacts with substeps.
+
 ## Dynamic vs kinematic writes
 
 - **Write controls** (`data.ctrl` / `set_ctrl`) — the **dynamic** path: actuators apply forces/torques (or position servos) inside `step`. Use for simulating motors.
