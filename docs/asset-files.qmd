@@ -278,7 +278,16 @@ l5 = mj.MjModel.from_xml_path(
 )
 ```
 
-*(To fill: `motrixsim.load_model` on the same paths; URDF load after `package://` path fix for local inspection.)*
+**Motrix** — same paths:
+
+```python
+from motrixsim import SceneData, load_model
+
+piper_model = load_model("third_party/mujoco_menagerie/agilex_piper/scene.xml")
+piper_data = SceneData(piper_model)
+```
+
+See `scripts/motrix_robot_demo.py` for named joint/actuator access. Requires `uv sync --extra sim`.
 
 ## Where this fits
 

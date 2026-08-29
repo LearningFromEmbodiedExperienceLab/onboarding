@@ -6,6 +6,13 @@ How simulated time moves (see [`mj_step`](https://mujoco.readthedocs.io/en/stabl
 write ctrl  →  step (integrate + FK + sensors)  →  read state
 ```
 
+The demos implement a **synchronous lockstep** loop in section 4 of `scripts/mujoco_robot_demo.py` and `scripts/motrix_robot_demo.py`:
+
+```bash
+uv sync --extra sim
+uv run python scripts/mujoco_robot_demo.py
+```
+
 Two *control* schedules, not “does the window redraw on another thread”.
 
 **Synchronous (lockstep).** One policy tick per physics step (or per fixed decimation you still wait for):
@@ -17,7 +24,20 @@ write(ctrl)
 step()                 # then the next obs is from this action
 ```
 
-Easy to debug; `Timer` around `policy` vs `step` is honest. Unrealistic: a real robot’s motors do not freeze while the GPU thinks.
+Easy to debug; `Timer` from `robotics.context` around `policy` vs `step` is honest:
+
+```python
+from robotics.context import Timer
+
+timer = Timer("policy+step", print_on_exit=False)
+with timer:
+    err = target - data.qpos[0]
+    data.ctrl[0] = data.qpos[0] + 0.35 * err
+    mj.mj_step(model, data)
+print(f"{timer.elapsed * 1e3:.1f} ms")
+```
+
+Unrealistic for production: a real robot’s motors do not freeze while the GPU thinks — but correct for learning the API.
 
 **Asynchronous (policy ‖ physics).** Physics keeps stepping at `timestep`. The policy runs at a slower rate (and/or takes wall-clock time). Until a new action arrives, the last `ctrl` is **held** (zero-order hold). Optional **delay**: the action computed from `obs(t)` is applied only at `t + Δ`.
 
@@ -32,6 +52,21 @@ every physics step:
 
 That is closer to onboard compute + a 1 kHz PD loop. Policies that only work lockstep often degrade here (delay, multiple physics steps per action, observation from an older `ctrl`).
 
-Viewer/render (MuJoCo viewer, Motrix `RenderApp`) is a separate issue: do not confuse UI FPS with the control period.
+**Substeps:** some stacks expose `n_substeps` or a smaller internal dt than the control dt. Same idea: multiple `step()` calls per policy tick with **held** `ctrl` between policy updates.
 
-*(To fill: lockstep vs `n_substeps` hold vs delayed action, same MJCF, plot tracking error; `Timer` on policy vs sim.)*
+Viewer/render (MuJoCo viewer, Motrix `RenderApp`, Isaac viewport) is a separate issue: do not confuse UI FPS with the control period.
+
+## Isaac Lab scheduling (reference)
+
+Isaac RL environments often split:
+
+1. `_pre_physics_step(actions)` — store actions
+2. `_apply_action` — map to joint targets / efforts
+3. `write_data_to_sim()` + `sim.step()` — may repeat for decimation
+4. `_get_observations` — read batched tensors after `articulation.update(dt)`
+
+Same read → write → step contract; more boilerplate because of GPU batching and Gym-style env wrappers ([Creating a direct RL env](https://isaac-sim.github.io/IsaacLab/develop/source/tutorials/03_envs/create_direct_rl_env.html)).
+
+## Next
+
+[Case study: IK tracking](case-study-ik-tracking.qmd#case-study-ik-tracking) closes the loop with FK + `make_ik` + actuator writes.

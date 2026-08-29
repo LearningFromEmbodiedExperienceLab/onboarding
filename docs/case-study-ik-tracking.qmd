@@ -1,12 +1,22 @@
 # Case study: IK tracking
 
-Put the pieces together. A site tracks a target pose:
+Put the pieces together. A site (or EE link) tracks a target pose:
 
-1. FK → site pose (this section).
-2. Pose error → `dq` via `make_ik("dls")` (or Motrix `ik.DlsSolver` / `IkChain` for comparison).
-3. Write joints or actuator targets; `step`.
-4. Loop.
+1. FK → EE pose ([Forward kinematics](forward-kinematics.qmd#forward-kinematics), `link8` in the demos).
+2. Pose error → `dq` via `make_ik("dls")` ([Useful Patterns](useful-patterns.qmd#useful-patterns)).
+3. Write joints or actuator targets; `step` ([State I/O](state-sensors-and-actuators.qmd#state-sensors-and-actuators)).
+4. Loop ([Simulation loop](the-simulation-loop.qmd#the-simulation-loop)).
 
 Same `IKConfig` / registry as [Useful Patterns](useful-patterns.qmd#useful-patterns). Success is residual vs time, not a screenshot. Python patterns (registry, `@register`) and type tooling: [References — Python / PEPs](references.qmd#peps-style-packaging-typing).
 
-*(To fill: one script, two backends; optional Motrix built-in IK vs our NumPy solvers.)*
+## What exists today
+
+| Piece | Where |
+|---|---|
+| NumPy IK solvers + registry | `src/robotics/ik/`, `scripts/ik_controllers.py`, `scripts/train.py` |
+| Load Piper + state I/O + step | `scripts/mujoco_robot_demo.py`, `scripts/motrix_robot_demo.py` |
+| Damped IK debug plot | `scripts/debug_ik.py`, `notebooks/inspect_ik.ipynb` |
+
+A single end-to-end **sim + IK tracking** script (MuJoCo and Motrix backends, optional Motrix built-in IK) is the natural next increment — wire `make_ik("dls")` into the lockstep loop from the robot demos, log $\lVert \text{residual} \rVert$ each tick.
+
+Until that script lands, combine the demos manually: FK readout from section 2 of `mujoco_robot_demo.py`, Jacobian/residual from `scripts/train.py`, write `ctrl` or `qpos` as in section 3–4.

@@ -1,7 +1,58 @@
 # Forward kinematics
 
-FK, defined above: joint coordinates → body/site poses. No forces. After writing `qpos` / `dof_pos`, you must run the simulator’s FK ([`mj_forward`](https://mujoco.readthedocs.io/en/stable/APIreference/APIfunctions.html#mj-forward) / Motrix `forward_kinematic`) or a full `step` before `xpos` / link poses are valid.
+FK, defined above: joint coordinates → body/site poses. No forces. After writing `qpos` / `dof_pos`, you must run the simulator’s FK ([`mj_forward`](https://mujoco.readthedocs.io/en/stable/APIreference/APIfunctions.html#mj-forward) / Motrix `forward_kinematic`) or a full `step` before link poses are valid.
 
-We will not derive the product-of-exponentials by hand; we will *ask the simulator* and check it against `quat_rotate` from `src/robotics/math_utils.py` ([Rotations and frames](rotations-and-frames.qmd#rotations-and-frames)). Sites are the EE frames for the IK case study.
+```bash
+uv sync --extra sim
+uv run python scripts/mujoco_robot_demo.py   # section 2
+uv run python scripts/motrix_robot_demo.py
+```
 
-*(To fill: read `d.site_xpos` vs Motrix `Site` pose; batch-agnostic shapes.)*
+We will not derive the product-of-exponentials by hand; we *ask the simulator* and check it against `quat_rotate` from `src/robotics/math_utils.py` ([Rotations and frames](rotations-and-frames.qmd#rotations-and-frames)). Menagerie Piper uses link **`link8`** as the wrist / gripper-base frame (`scripts/sim_common.py`).
+
+## MuJoCo
+
+```python
+import mujoco as mj
+
+data.qpos[0] = 0.5          # kinematic write
+mj.mj_forward(model, data)  # FK only — no integration
+
+body_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "link8")
+pos = data.xpos[body_id]    # (3,) world position
+quat = data.xquat[body_id]  # (4,) wxyz in MuJoCo
+```
+
+`mj_step` also updates FK, but integrates dynamics — use `mj_forward` when you only changed `qpos` and want geometry without time advancing.
+
+## Motrix
+
+```python
+from motrixsim import forward_kinematic
+
+joint1 = model.get_joint("joint1")
+joint1.set_dof_pos(data, 0.5)
+forward_kinematic(model, data)
+
+link = model.get_link("link8")
+pos = link.get_position(data)       # (3,)
+pose = link.get_pose(data)          # (7,) pos + quat (layout per Motrix docs)
+```
+
+Named `get_link` / `get_body` vs flat arrays — same information, different ergonomics ([Two simulators](two-simulators.qmd#two-simulators)).
+
+## Cross-check
+
+With `qpos[0] = 0.5` and the rest zero, MuJoCo and Motrix agree on `link8` position to numerical precision (same MJCF tree). That is a good sanity check after asset changes.
+
+Sites are the usual EE frames when the MJCF defines them; this Piper scene exposes links only. Prefer a **site** at the tool center point in your own MJCF when you add one.
+
+## Batched shapes
+
+These demos use a single environment. In RL you will stack leading axes: `(n_env, n_dof)` joint buffers, `(n_env, 3)` positions — same [batch-agnostic](batch-agnostic-operations.qmd#batch-agnostic-operations) rules as `math_utils`.
+
+Isaac Lab: `robot.data.body_link_pose_w` is already `(num_envs, num_bodies, 7)` torch — same FK result, different container.
+
+## Next
+
+[State, sensors, and actuators](state-sensors-and-actuators.qmd#state-sensors-and-actuators) for writing `ctrl` vs `qpos`; [Case study: IK tracking](case-study-ik-tracking.qmd#case-study-ik-tracking) for closing the loop.

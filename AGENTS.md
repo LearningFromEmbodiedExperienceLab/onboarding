@@ -37,8 +37,16 @@ Tests / lint:
   tutorial code); a clean file to sanity-check against is `src/robotics/math_utils.py`.
 
 Optional extras (only needed for the corresponding demo scripts, not installed by
-default): `torch`, `mujoco`, `notebooks`, `debug` — install with
-`uv sync --extra <name>` (e.g. `uv sync --extra torch`). `torch`/`mujoco` are large.
+default): `torch`, `mujoco`, `sim`, `notebooks`, `debug` — install with
+`uv sync --extra <name>`. **`sim`** = `mujoco` + `motrixsim` (robotics sim chapters);
+**`mujoco`** alone is enough for menagerie figure rendering and MuJoCo-only scripts.
+`torch`/`motrixsim` are large.
+
+Robotics sim smoke test (after `bash scripts/fetch_menagerie_assets.sh`):
+- `uv sync --extra sim`
+- `uv run python scripts/mujoco_robot_demo.py`
+- `uv run python scripts/motrix_robot_demo.py`
+- Headless MuJoCo rendering: `MUJOCO_GL=egl` or `osmesa` if needed.
 
 Docs (Quarto):
 - The tutorial is a Quarto book under `docs/` (one `.qmd` per section). The root
