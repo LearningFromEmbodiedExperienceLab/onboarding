@@ -34,7 +34,7 @@ See [Simulation stability — position vs motor](simulation-stability.qmd#positi
 ## Joint PD control
 
 To move a hinge toward a **target angle** `q*` (and optionally a **target velocity**
-`q̇*`), the usual model is a **PD servo** that outputs joint torque:
+`q̇*`), the usual model is a **PD servo** ([Glossary — servo / servoing](glossary.qmd#glossary-and-terminology)) that outputs joint torque:
 
 $$
 \tau = K_p\,(q^* - q) + K_d\,(\dot q^* - \dot q)

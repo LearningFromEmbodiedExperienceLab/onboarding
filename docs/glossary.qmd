@@ -19,6 +19,7 @@ Short definitions for terms used across the tutorial. Expand as chapters land.
 | **contype / conaffinity** | MuJoCo bitmasks controlling which geoms collide with which. |
 | **from_geom** | MuJoCo option to infer mass/inertia from geom density and shape. |
 | **FK / IK** | Forward / inverse kinematics — joint coordinates ↔ poses. |
+| **servo / servoing** | **Closed-loop** control that drives a joint (or tool) toward a **setpoint** — position, velocity, or both — by reading state and writing forces or targets each tick. *Servoing* is running that loop continuously. A **position actuator** (`ctrl = q*`) embeds a PD servo in the simulator ([Joint PD](state-sensors-and-actuators.qmd#joint-pd-control)); a **motor actuator** (`ctrl = τ`) expects **you** to implement the servo in code ([Position vs motor](simulation-stability.qmd#position-vs-motor-actuators)). Distinct from a hardware *servo motor* (motor + gearbox + encoder), though the control problem is the same. |
 | **IPC** | Inter-process communication — shared memory, ZMQ, LCM; see [Advanced — IPC](inter-process-communication.qmd#inter-process-communication). |
 | **site** | Named frame on a body (EE, sensor origin); no mass. |
 
