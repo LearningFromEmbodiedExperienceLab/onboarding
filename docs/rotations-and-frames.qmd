@@ -85,6 +85,7 @@ world
         └── inertial frame   ← COM, `ipos` / `iquat`; MuJoCo `xipos` / `ximat`
 ```
 
-Setting `pos` on a geom does **not** move the COM unless inertia is computed `from_geom` (or you edit `<inertial>`). A mesh whose visual origin is not the COM is the usual source of “it tips over in sim.” When reading poses: site/body pose is the **link** frame; if you need the COM in world, use the inertial quantities (`xipos` in MuJoCo), not `xpos`.
+Setting `pos` on a geom does **not** move the COM unless inertia is computed
+`from_geom` (or you edit `<inertial>`). A mesh whose visual origin is not the COM is the usual source of “it tips over in sim.” See [Geometry and collision](geometry-and-collision.qmd#three-geometries-three-jobs) for visual vs collision vs inertial shapes. When reading poses: site/body pose is the **link** frame; if you need the COM in world, use the inertial quantities (`xipos` in MuJoCo), not `xpos`.
 
 Motrix `Body` vs `Link` follows the same split: the rigid body (inertia) vs a kinematic frame you hang sensors and EE sites on.
