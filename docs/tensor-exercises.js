@@ -253,8 +253,10 @@
     var exercise = EXERCISES[exerciseId];
     var textarea = container.querySelector("textarea.exercise-code");
     var button = container.querySelector("button.exercise-check");
+    var resetButton = container.querySelector("button.exercise-reset");
+    var runId = 0;
 
-    if (!textarea || !button) {
+    if (!textarea || !button || !resetButton) {
       return;
     }
 
@@ -275,13 +277,25 @@
       }
     }
 
+    resetButton.addEventListener("click", function () {
+      runId += 1;
+      textarea.value = exercise.starter;
+      setStatus(container, "", "");
+      setFeedback(container, "");
+      textarea.focus();
+    });
+
     button.addEventListener("click", function () {
+      var currentRunId = ++runId;
       button.disabled = true;
       setStatus(container, "loading", "Loading Python (first check may take a few seconds)…");
       setFeedback(container, "");
 
       runExercise(exerciseId, textarea.value)
         .then(function (result) {
+          if (currentRunId !== runId) {
+            return;
+          }
           if (result.ok) {
             setStatus(container, "pass", "Correct");
             setFeedback(container, "");
@@ -291,6 +305,9 @@
           }
         })
         .catch(function (err) {
+          if (currentRunId !== runId) {
+            return;
+          }
           setStatus(container, "fail", "Runtime error");
           setFeedback(container, String(err));
         })

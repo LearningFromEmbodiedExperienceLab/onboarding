@@ -213,6 +213,7 @@ roots = x[:, 0, :]  # (n_env, 3)</pre>
   <textarea class="exercise-code" spellcheck="false"></textarea>
   <div class="exercise-actions">
     <button type="button" class="btn btn-primary btn-sm exercise-check">Check</button>
+    <button type="button" class="btn btn-outline-secondary btn-sm exercise-reset">Reset</button>
     <span class="exercise-status"></span>
   </div>
   <div class="exercise-feedback" hidden></div>
@@ -235,6 +236,7 @@ env_ids = [0, 2];  body_ids = [1, 0];  shift = [1, 2, 3]</pre>
   <textarea class="exercise-code" spellcheck="false"></textarea>
   <div class="exercise-actions">
     <button type="button" class="btn btn-primary btn-sm exercise-check">Check</button>
+    <button type="button" class="btn btn-outline-secondary btn-sm exercise-reset">Reset</button>
     <span class="exercise-status"></span>
   </div>
   <div class="exercise-feedback" hidden></div>
@@ -258,6 +260,7 @@ shift = [1, 0, 0]</pre>
   <textarea class="exercise-code" spellcheck="false"></textarea>
   <div class="exercise-actions">
     <button type="button" class="btn btn-primary btn-sm exercise-check">Check</button>
+    <button type="button" class="btn btn-outline-secondary btn-sm exercise-reset">Reset</button>
     <span class="exercise-status"></span>
   </div>
   <div class="exercise-feedback" hidden></div>
@@ -280,6 +283,7 @@ T = 5</pre>
   <textarea class="exercise-code" spellcheck="false"></textarea>
   <div class="exercise-actions">
     <button type="button" class="btn btn-primary btn-sm exercise-check">Check</button>
+    <button type="button" class="btn btn-outline-secondary btn-sm exercise-reset">Reset</button>
     <span class="exercise-status"></span>
   </div>
   <div class="exercise-feedback" hidden></div>

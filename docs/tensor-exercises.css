@@ -50,8 +50,11 @@
   margin-top: 0.65rem;
 }
 
-.tensor-exercise button.exercise-check {
-  font-size: 0.875rem;
+.tensor-exercise button.exercise-check,
+.tensor-exercise button.exercise-reset {
+  font-size: 0.8rem;
+  border: 1px solid;
+  border-radius: 0.375rem;
 }
 
 .tensor-exercise button.exercise-check:disabled {
