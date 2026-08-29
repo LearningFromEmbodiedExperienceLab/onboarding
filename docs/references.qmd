@@ -119,6 +119,16 @@ Curated **official** links for standards, install guides, and APIs cited in this
 | Quarto | [quarto.org/docs/get-started](https://quarto.org/docs/get-started/) |
 | Quarto books | [Quarto book format](https://quarto.org/docs/books/) |
 
+## IPC {#ipc}
+
+| Tool | Link |
+|---|---|
+| Python shared memory | [`multiprocessing.shared_memory`](https://docs.python.org/3/library/multiprocessing.shared_memory.html) |
+| ZeroMQ guide | [zeromq.org/get-started](https://zeromq.org/get-started/) |
+| PyZMQ | [pyzmq.readthedocs.io](https://pyzmq.readthedocs.io/) |
+| LCM | [lcm-proj.github.io/lcm](https://lcm-proj.github.io/lcm/) |
+| Tutorial overview | [Inter-process communication](inter-process-communication.qmd#inter-process-communication) |
+
 ## This repository
 
 | Item | Location |
