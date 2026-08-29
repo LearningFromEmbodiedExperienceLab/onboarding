@@ -1,0 +1,9 @@
+# More topics (TBD) {#advanced-more-topics}
+
+Placeholder for a second **Advanced** chapter. Candidates (not finalized):
+
+- Real-time scheduling and `SCHED_FIFO` on Linux
+- ROS 2 / DDS vs the IPC patterns in [Inter-process communication](inter-process-communication.qmd#inter-process-communication)
+- Recording and time synchronization (`clock`, PTP, sim time vs wall time)
+
+*(To fill: pick one topic, add runnable minimal example, link from case study or sim loop.)*

@@ -1,0 +1,97 @@
+# Inter-process communication (IPC)
+
+Once sim, control, and logging live in **different processes** (or machines), you need a way to move observations and commands without sharing one Python interpreter. That is **inter-process communication (IPC)** — the plumbing behind “policy process ↔ sim process,” hardware drivers, and multi-rate loops.
+
+This chapter is conceptual: we do not ship IPC examples in `scripts/` yet. It compares three patterns you will see in robotics labs: **shared memory**, **ZeroMQ**, and **LCM**.
+
+## Why split processes at all?
+
+| Reason | Example |
+|---|---|
+| **Isolation** | Sim crash does not take down the training controller |
+| **Rates** | Physics at 1 kHz, policy at 50 Hz, logger at 10 Hz |
+| **Languages / stacks** | MuJoCo in C++/Python, policy in PyTorch, UI in another tool |
+| **Hardware** | Motor driver daemon on the robot PC, planner on a workstation |
+
+In-process calls (`import`, function calls) are simplest — use them until you hit one of the rows above. IPC adds **serialization, timing, and failure modes**; pick the lightest option that meets your latency and topology.
+
+## Shared memory
+
+**Idea:** Two processes map the **same RAM**. One writes a `numpy` buffer; the other reads it — no copy through the kernel for each frame (after setup).
+
+| Pros | Cons |
+|---|---|
+| Lowest latency on **one machine** | No built-in schema — you define layout and versioning |
+| High throughput for large arrays (images, state vectors) | **Synchronization is on you** (locks, semaphores, double buffering, seqlocks) |
+| Simple when both sides are Python/C++ you control | Does not cross hosts; fragile if writers/readers disagree on shape/dtype |
+
+**Python:** [`multiprocessing.shared_memory`](https://docs.python.org/3/library/multiprocessing.shared_memory.html) (3.8+), or `numpy` views into a named segment. Often paired with a small **signaling** mechanism (event, atomic counter, or a 1-byte “frame ready” flag) so the reader never sees a half-updated tensor.
+
+**When to use:** Same workstation, **tight loop** (sim ↔ policy at hundreds–thousands of Hz), large payloads (camera + proprioception), both sides under your control. Common in embedded RL and custom sim bridges.
+
+## ZeroMQ (ZMQ)
+
+**Idea:** **Message sockets** — send opaque byte blobs (or structured payloads you encode) over `inproc://`, `ipc://`, or `tcp://`. Brokerless; each socket has a pattern (PUSH/PULL, PUB/SUB, REQ/REP, …).
+
+| Pros | Cons |
+|---|---|
+| **Flexible topology** — same API for threads, local processes, remote hosts | No enforced message **types** — you pick JSON, msgpack, protobuf, pickle |
+| Fire-and-forget pub/sub fits telemetry and commands | Pub/sub can drop slow subscribers unless you design queues |
+| Mature libraries ([PyZMQ](https://pyzmq.readthedocs.io/)) | “Which socket pattern?” is a design choice — wrong pattern → deadlocks or lost msgs |
+| Good default when you might **scale out** later | Slightly higher overhead than shared memory on localhost |
+
+**When to use:** Multiple processes **or machines**, moderate rates, you want **general-purpose** plumbing (command channel + log stream + heartbeat). Popular when the team already knows TCP and does not want multicast/LCM tooling.
+
+## LCM (Lightweight Communications and Marshalling)
+
+**Idea:** Robotics-oriented **typed messages** (`.lcm` definitions → generated encode/decode) over **UDP multicast** on a LAN. Strong culture of **log files** you can replay (`lcm-logger` / `lcm-logplayer`).
+
+| Pros | Cons |
+|---|---|
+| **Schema-first** messages — less “random dict over the wire” | Multicast UDP: LAN-focused; WAN/VPN needs extra care |
+| Designed for **robot state + command** streams in labs | Smaller ecosystem than ZMQ outside robotics |
+| Built-in **log/replay** for debugging “what did the robot see?” | Another code-gen step (`.lcm` → language bindings) |
+| Low overhead for small, fixed structs at high rate | Less ideal for huge images unless you split metadata (SHM) + LCM (metadata) |
+
+Docs: [lcm-proj.github.io](https://lcm-proj.github.io/lcm/). Common in legged robotics, MIT-style stacks, and hardware teams that standardize on a message catalog.
+
+**When to use:** Whole lab on one subnet, many publishers/subscribers, you want **named typed messages** and **timestamped logs** — especially hardware + sim + viz on the same clock domain.
+
+## Comparison at a glance
+
+| | Shared memory | ZeroMQ | LCM |
+|---|---|---|---|
+| **Typical scope** | One machine | One machine or network | LAN (multicast) |
+| **Latency (local)** | Lowest | Low–medium | Low (small messages) |
+| **Message typing** | DIY layout | DIY encoding | `.lcm` schemas |
+| **Best payload** | Large arrays, images | Flexible blobs / JSON | Fixed structs, state snapshots |
+| **Discovery** | Shared name / fd | Connect/bind addresses | Multicast URL + channel name |
+| **Replay / debug** | DIY logging | DIY logging | First-class log/replay |
+| **Cross-language** | Yes (careful layout) | Yes (bytes on wire) | Yes (generated bindings) |
+
+## Hybrid patterns (common in practice)
+
+Nobody forces a single choice:
+
+- **SHM for images + LCM for metadata** (width, height, timestamp, frame id).
+- **ZMQ REQ/REP for commands + SHM for observations** when policy and sim are co-located but isolated.
+- **LCM for robot state** + **ZMQ to a cloud trainer** — different layers of the stack.
+
+## Choosing (rule of thumb)
+
+1. **Same box, kHz loop, big tensors** → start with **shared memory** + explicit sync.
+2. **Several services, maybe remote, general messaging** → **ZeroMQ** (pick one pattern per channel; document payloads).
+3. **Lab robot bus, typed messages, multicast + logs** → **LCM** (or something LCM-shaped in your org).
+
+Whichever you pick: define **one canonical state message** (joint `q`, `qdot`, timestamp, frame id), version it, and log enough to reproduce a bug without guessing wire format.
+
+## Where this fits
+
+| Topic | Chapter |
+|---|---|
+| Single-process sim loop | [The simulation loop](the-simulation-loop.qmd#the-simulation-loop) |
+| Async policy vs physics | [The simulation loop — asynchronous](the-simulation-loop.qmd#the-simulation-loop) |
+| Env vars / launch configs | [Common environment variables](environment-variables.qmd#common-environment-variables) |
+| External links | [References — IPC](references.qmd#ipc) |
+
+*(More advanced topics: see [More topics (TBD)](advanced-more-topics.qmd#advanced-more-topics).)*

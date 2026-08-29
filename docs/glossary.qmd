@@ -19,6 +19,7 @@ Short definitions for terms used across the tutorial. Expand as chapters land.
 | **contype / conaffinity** | MuJoCo bitmasks controlling which geoms collide with which. |
 | **from_geom** | MuJoCo option to infer mass/inertia from geom density and shape. |
 | **FK / IK** | Forward / inverse kinematics — joint coordinates ↔ poses. |
+| **IPC** | Inter-process communication — shared memory, ZMQ, LCM; see [Advanced — IPC](inter-process-communication.qmd#inter-process-communication). |
 | **site** | Named frame on a body (EE, sensor origin); no mass. |
 
 See also [References and external docs](references.qmd#references) and the dedicated [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) chapter for mesh and validation vocabulary. Process env vars: [Common environment variables](environment-variables.qmd#common-environment-variables).

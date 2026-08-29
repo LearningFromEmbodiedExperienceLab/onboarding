@@ -62,6 +62,9 @@ Docs (Quarto):
   `{#vscode-debugger}` id because its pandoc id would otherwise include a period
   (from `launch.json`). Reuse an explicit `{#id}` for any new heading whose title
   contains punctuation you want to link to.
+- **Advanced** (after Robotics Basics): `inter-process-communication.qmd` (IPC:
+  shared memory, ZMQ, LCM) and `advanced-more-topics.qmd` (placeholder). No scripts
+  in-repo yet — conceptual chapters only.
 - Pages currently contain no executable (`{python}`) Quarto cells, so rendering needs
   only the Quarto CLI. Adding executable cells later would require `jupyter` in
   the env (e.g. via a new `docs` extra).

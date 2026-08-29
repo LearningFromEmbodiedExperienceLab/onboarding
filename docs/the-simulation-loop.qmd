@@ -50,7 +50,7 @@ every physics step:
         held_ctrl = policy(obs)    # or kick this off and apply next period
 ```
 
-That is closer to onboard compute + a 1 kHz PD loop. Policies that only work lockstep often degrade here (delay, multiple physics steps per action, observation from an older `ctrl`).
+That is closer to onboard compute + a 1 kHz PD loop. Policies that only work lockstep often degrade here (delay, multiple physics steps per action, observation from an older `ctrl`). When policy and sim run in **separate processes**, the same async picture applies over IPC — see [Inter-process communication](inter-process-communication.qmd#inter-process-communication).
 
 **Substeps:** some stacks expose `n_substeps` or a smaller internal dt than the control dt. Same idea: multiple `step()` calls per policy tick with **held** `ctrl` between policy updates.
 
