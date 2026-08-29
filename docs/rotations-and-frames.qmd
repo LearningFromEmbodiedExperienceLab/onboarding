@@ -1,6 +1,40 @@
 # Rotations and frames
 
-Poses are a position plus a rotation. Reading a body pose (FK) or sending a target to IK only makes sense after you fix three conventions: **which way the axes point**, **how the rotation is stored**, and **which frame the pose is expressed in**.
+Poses are a position plus a rotation. Reading a body pose (FK) or sending a target to IK only makes sense after you fix a few conventions: **joint vs DoF** ([below](#joint-vs-dof)), **which way the axes point**, **how the rotation is stored**, and **which frame the pose is expressed in**.
+
+## Terminology: joint vs DoF {#joint-vs-dof}
+
+These words are overloaded. In this tutorial we use them as follows.
+
+| Word | Meaning | Example |
+|---|---|---|
+| **Joint** | A **model object**: the connection between two bodies that *allows* motion (or fixes them). Named in MJCF/URDF/API (`joint1`, `get_joint("joint1")`). | `<joint name="joint1" type="hinge"/>` on Piper |
+| **DoF** (degree of freedom) | One **scalar** in the configuration / velocity vectors — one independent way the mechanism can move. | Piper arm: **6 DoF** (six hinges), one scalar each in `q` |
+
+**One joint can span several DoFs.** Counting `<joint>` tags is not the same as counting mobility:
+
+| Joint type (typical) | Joints | DoFs | Notes |
+|---|---|---|---|
+| Revolute / hinge | 1 | 1 | Menagerie Piper arm joints |
+| Prismatic / slide | 1 | 1 | Linear rail |
+| Ball / spherical | 1 | 3 | Three rotation axes |
+| **Free** / floating base | 1 | 6 | 3 translation + 3 rotation |
+| Fixed / weld / *no* joint | 0 | 0 | Child body rigidly attached to parent |
+
+**Geoms, sites, and actuators are not DoFs.** A mesh does not add coordinates; a **site** is a frame only. An **actuator** is an input channel (`ctrl`) — on Piper there is one position actuator per arm joint, but in general `nu` actuators need not equal `nv` DoFs ([State I/O](state-sensors-and-actuators.qmd#state-sensors-and-actuators)).
+
+**Where the numbers live in code:**
+
+| Idea | MuJoCo | Motrix |
+|---|---|---|
+| Configuration vector | `data.qpos`, length **`nq`** | `data.dof_pos`, **`num_dof`** |
+| Velocity vector | `data.qvel`, length **`nv`** | `data.dof_vel` |
+| One hinge’s coordinate | `data.qpos[i]` | `joint.get_dof_pos(data)` |
+| IK step / Jacobian columns | `dq` with **`nv`** entries | same — one per **DoF**, not per joint object |
+
+**MuJoCo nuance:** `nq` can be **larger than** `nv` because some joints store orientation as a **unit quaternion** (4 scalars in `qpos` for 3 rotational DoFs on a ball or free joint). For velocity and Jacobians, use **`nv`** — that is what IK solvers and `make_ik("dls")` expect. Menagerie Piper is all hinges: **`nq == nv == 6`** on the arm.
+
+**Lie-group “DoF” (next section):** $SO(3)$ has 3 DoF, $SE(3)$ has 6 — that is the **mathematical** count for rotations and poses, aligned with a free joint’s 6 scalars but not the same thing as “how many `<joint>` tags in the XML.” See [Scene vocabulary](scene-vocabulary.qmd#scene-vocabulary) for body / geom / site names; [Asset files](asset-files.qmd#kinematic-tree-two-mental-models) for where joints sit in the tree.
 
 ## The groups $SO(3)$ and $SE(3)$
 
@@ -31,7 +65,7 @@ $$ {#eq-se3-inv}
 Why this matters in this repo:
 
 - Our `Pose(pos, quat)` *is* an element of $SE(3)$: `quat` is the $R \in SO(3)$ in $(w, x, y, z)$ form, `pos` is $p$. FK returns one such $T$ per body/site; the world frame is $T = I$.
-- **Degrees of freedom:** $SO(3)$ has $3$, $SE(3)$ has $6$ ($3$ rotational + $3$ translational). A quaternion spends $4$ numbers on those $3$ rotational DoF under one constraint $\lVert q \rVert = 1$ — the reason $q$ and $-q$ denote the same rotation.
+- **Degrees of freedom (Lie group):** $SO(3)$ has $3$, $SE(3)$ has $6$ ($3$ rotational + $3$ translational) — the pose DoF count for a rigid body in space. That is separate from counting `<joint>` tags in a file; see [Joint vs DoF](#joint-vs-dof). A quaternion spends $4$ numbers on those $3$ rotational DoFs under one constraint $\lVert q \rVert = 1$ — the reason $q$ and $-q$ denote the same rotation.
 - **Compose, don't add:** $R_1 R_2 \in SO(3)$ but $R_1 + R_2 \notin SO(3)$ (and likewise for $T$). That is exactly why an orientation error is a geodesic, not a subtraction — the same fact behind the `q0 - q1` warning in [Rotation representations](#rotation-representations).
 
 **Tangent space (this is what IK moves in).** For a small rotation, $R \approx I + [\omega]_\times$, where $\omega \in \mathbb{R}^3$ is an axis-angle vector and $[\cdot]_\times$ is the skew-symmetric matrix
