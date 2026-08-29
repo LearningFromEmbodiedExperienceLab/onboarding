@@ -86,6 +86,72 @@ Accidentally zeroing these is a silent “ghost robot walks through the table”
 Visual-only geoms often use `contype="0" conaffinity="0"` so they never participate
 in contact.
 
+## Soft vs hard contact {#soft-vs-hard-contact}
+
+When two collision geoms overlap, the engine must decide what **forces** (and
+**impulses**) to apply. That choice — **soft (compliant)** vs **hard
+(non-penetrating)** — is one of the biggest behavioral gaps between simulators.
+
+### Soft contact (compliant)
+
+Small **penetration is allowed**. Normal forces come from a spring–damper on
+penetration depth (friction acts on the tangent). Contacts feel damped or
+“squishy”; the solver stays stable at moderate timesteps. You tune stiffness and
+dissipation rather than forbidding overlap outright.
+
+**MuJoCo uses soft contact only.** Contacts are penalty constraints controlled by
+[`solref` and `solimp`](https://mujoco.readthedocs.io/en/stable/modeling.html#csolver)
+on geoms or contact pairs (plus [`margin`](https://mujoco.readthedocs.io/en/stable/XMLreference.html#body-geom-margin)).
+You can make contacts very stiff, but the formulation still permits brief
+interpenetration — that is why the validation step below speaks of “light
+penetration” pushing out smoothly instead of snapping to zero gap.
+
+### Hard contact (non-penetrating)
+
+Bodies are driven toward **no interpenetration** each step. Contact is often
+formulated as inequalities or impulses (LCP-style solvers): overlap generates a
+**constraint impulse** that separates bodies, with **restitution** controlling
+bounce. Stacks and impacts can look crisp; too large a timestep or wrong material
+can produce jitter or explosive bounces.
+
+**NVIDIA PhysX** (Isaac Sim / Isaac Lab) is in this camp by default. You tune
+**physics materials** (static/dynamic friction, restitution), **contact offset**,
+and solver iterations — not MuJoCo’s `solref`/`solimp`. See [Two simulators — Isaac Lab](two-simulators.qmd#isaac-lab).
+
+### Motrix: both modes on MJCF
+
+**Motrix** implements its **own constraint solver** (not MuJoCo’s), but loads the
+same MJCF/URDF assets. For contact it supports **soft and hard**:
+
+| Mode | MJCF | Behavior |
+|---|---|---|
+| **Soft** (default on standard geoms) | `solref`, `solimp` as in MuJoCo | Compliant contact, same *parameters* as Menagerie/MuJoCo tuning |
+| **Hard** (Motrix extension) | `_hard="true"`, `_bounciness`, `_erp` on `<geom>` | Non-penetrating-style contact; restitution + error-reduction replace `solref`/`solimp` |
+
+Example from [MotrixSim — Case comparison](https://motrixsim.readthedocs.io/en/latest/user_guide/overview/case_comparison.html) (Newton’s cradle — MuJoCo file is soft-only, Motrix file adds hard geoms):
+
+```xml
+<geom _hard="true" _bounciness="1" _erp="0" />
+```
+
+**This tutorial’s Piper demos** use **unmodified Menagerie MJCF** — no `_hard`
+flags — so both MuJoCo and Motrix read the same **soft** `solref`/`solimp`
+data. Dynamics can still **differ** between engines because the solvers are not
+the same (`scripts/motrix_robot_demo.py` warns on unsupported `<option>` tags
+and slight timestep behavior). When comparing Motrix to MuJoCo on Menagerie, treat
+contact as **soft-parameterized in both**, not hard PhysX-style.
+
+### Why this matters when switching engines
+
+| Symptom when porting | Often means |
+|---|---|
+| MuJoCo grasp “mushy”, Isaac grasp brittle | Soft penetration vs hard zero-gap |
+| Isaac stack jitter at your RL timestep | Hard contacts + large `dt` |
+| Same `solref` copied into Isaac | Wrong knob — use PhysX materials instead |
+| Motrix vs MuJoCo disagree on Menagerie | Same soft XML, different solvers — compare side by side |
+
+More links: [References — Contact models](references.qmd#contact-models).
+
 ## Meshes: triangles, quads, watertight
 
 ### Triangles vs quads
@@ -255,8 +321,10 @@ Run these in order when importing a new asset:
 
 1. **Drop test** — spawn slightly above ground; first contact should match where the
    collision sole is, not where the paint is.
-2. **Light penetration** — start barely embedded; contact should push out smoothly, not
-   explode (bad hull scale or wrong solref/solimp is a separate tuning topic).
+2. **Light penetration** — start barely embedded; with **soft** contacts (MuJoCo,
+   default Motrix on Menagerie) penetration should push out smoothly, not explode.
+   Wrong hull scale or bad `solref`/`solimp` still breaks this — see
+   [Soft vs hard contact](#soft-vs-hard-contact).
 3. **Known configuration** — gripper closed on a box: how many contacts? stable or
    buzzing?
 4. **FK cross-check** — site / EE frame vs bounding box of **collision** geoms, not

@@ -10,6 +10,8 @@ Short definitions for terms used across the tutorial. Expand as chapters land.
 | **collision geom** | Shape used for contact and constraints; often simpler than the visual. |
 | **compound geom** | Several collision shapes on one link (capsules + boxes, multiple hulls). |
 | **convex hull** | Smallest convex set containing a mesh; simulators use hulls for fast contact. |
+| **soft contact** | Compliant contact: small penetration, spring–damper forces (MuJoCo; default Motrix on standard MJCF). |
+| **hard contact** | Non-penetrating contact impulses (PhysX / Isaac default; Motrix optional via `_hard` geoms). |
 | **watertight mesh** | Closed mesh with well-defined volume (every edge shared by two faces). |
 | **contype / conaffinity** | MuJoCo bitmasks controlling which geoms collide with which. |
 | **from_geom** | MuJoCo option to infer mass/inertia from geom density and shape. |

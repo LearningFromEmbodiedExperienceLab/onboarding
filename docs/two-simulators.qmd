@@ -110,6 +110,8 @@ robot.update(dt)
 
 Compared to MuJoCo/Motrix: Isaac Lab splits **“push commands to sim”** (`write_data_to_sim`) and **“pull state after step”** (`update`) explicitly, and everything is **torch** on GPU with thousands of cloned envs. MuJoCo/Motrix in this tutorial use **NumPy** and a single `scene.xml` on disk — better for learning the contract before scaling out.
 
+**Contact model:** PhysX uses **hard** (non-penetrating) contacts by default; MuJoCo is **soft-only**; Motrix supports both but our Menagerie demos use soft MJCF unless you add Motrix `_hard` geoms. See [Soft vs hard contact](geometry-and-collision.qmd#soft-vs-hard-contact) before porting manipulation tuned in MuJoCo.
+
 Install and versions: follow [Isaac Lab installation](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/index.html) paired with a specific [Isaac Sim](https://docs.isaacsim.omniverse.nvidia.com/latest/index.html) build. More links: [References — Robotics assets](references.qmd#robotics-assets).
 
 ## Where this fits
