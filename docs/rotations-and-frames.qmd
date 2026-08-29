@@ -91,16 +91,6 @@ FK poses (`xpos`, `xquat`), joint axes in MJCF/URDF, and gravity (usually along 
 | **OpenCV** | Right in the image | Down in the image | Forward into the scene | Optical frame; “looks along **+Z**” |
 | **OpenGL (classic camera)** | Right | Up | Back (toward the viewer) | Camera looks down **−Z** |
 
-```text
-  Sim world (Z-up)              OpenCV camera (common)
-       +Z                              +Y ↓
-        |                                |
-        |                                +----→ +X
-   +Y ←--+--→ +X                         /
-       /                                +Z (out of lens, into scene)
-     +X forward
-```
-
 **What to do at boundaries.** Whenever sim meets pixels (rendering, projection, AR, logging from a RealSense/OpenCV pipeline):
 
 1. Name **both** frames (e.g. `world_mujoco` vs `camera_opencv`).
