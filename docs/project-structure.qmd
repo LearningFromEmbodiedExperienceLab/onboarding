@@ -159,4 +159,5 @@ Do not give a script the same name as a package you need (`robotics.py` next to 
 | Use `numpy`, `torch`, … | Installed into the env's `site-packages` |
 | Use *our* library from anywhere in that env | `pyproject.toml` + `uv sync` / `uv pip install -e .` |
 | Run a one-off script that imports a neighbor file | Script directory on `sys.path` (ok for small tutorials) |
+| Load a data file or asset from disk reliably | Anchor with `pathlib.Path(__file__)` — see [Things not to do — paths](things-not-to-do.qmd#hard-coded-absolute-paths-and-naive-relative-paths) |
 | Debug `ModuleNotFoundError` | `sys.executable` (wrong env), then `sys.path` (never installed / shadowed) | 

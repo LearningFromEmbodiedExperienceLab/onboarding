@@ -63,6 +63,82 @@ Rule of thumb: if **you** are the author of the callee and callers are **your**
  teammates, prefer explicit names. If you are writing a **one-line forwarder** to
  code you do not control, `*args` / `**kwargs` is idiomatic.
 
+## Hard-coded absolute paths (and naive relative paths)
+
+File paths in Python are **strings interpreted by the OS**. Two mistakes show up
+ constantly in research scripts:
+
+1. **Absolute paths baked into the repo** — `/home/alice/onboarding/data/run42.npz`,
+   `/workspace/third_party/...`, `C:\Users\...`. They work on one machine and break
+   for everyone else (CI, a lab mate, future you on a laptop).
+2. **Relative paths that assume the current working directory** — `open("data/run42.npz")`
+   or `Path("third_party/mujoco_menagerie/...")`. Those resolve against **where the
+   process was started**, not where the `.py` file lives.
+
+The entrypoint matters. From the repo root (what `uv run python scripts/train.py`
+ does):
+
+```bash
+uv run python scripts/load_data.py    # cwd is usually the repo root
+```
+
+From inside `scripts/`:
+
+```bash
+cd scripts && python load_data.py     # cwd is scripts/ — "data/run42.npz" is wrong
+```
+
+Same script, different cwd, different file (or `FileNotFoundError`). Notebooks and
+ IDE “Run Python File” buttons often start from yet another directory — see
+ [Project structure — why imports depend on cwd](project-structure.qmd#why-pip-install--e).
+
+### Bad — machine-specific or cwd-dependent
+
+```python
+# Breaks on any other machine or in CI
+model = mujoco.MjModel.from_xml_path("/workspace/third_party/mujoco_menagerie/agilex_piper/scene.xml")
+
+# Works only when cwd happens to be the repo root
+with open("data/calibration.json") as f:
+    ...
+```
+
+[Never hard-code absolute paths in shared code. Do not rely on bare relative paths unless you explicitly document and enforce the required working directory — you will forget, and so will your collaborators.]{.common-bug-warning}
+
+### Better — anchor with `pathlib.Path` and `__file__`
+
+Use [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html) for joins,
+ existence checks, and parent navigation. Anchor paths to **the file that knows
+ where it lives**, then walk up to a stable root:
+
+```python
+from pathlib import Path
+
+# This file: scripts/load_data.py  →  parents[1] is the repo root
+REPO_ROOT = Path(__file__).resolve().parents[1]
+CALIBRATION = REPO_ROOT / "data" / "calibration.json"
+PIPER_SCENE = REPO_ROOT / "third_party/mujoco_menagerie/agilex_piper/scene.xml"
+
+with CALIBRATION.open() as f:
+    ...
+```
+
+Our sim demos share the same pattern in `scripts/sim_common.py` (`REPO_ROOT`,
+ `PIPER_SCENE`). One module defines the paths; scripts import `require_piper_scene()`
+ instead of duplicating strings.
+
+Rule of thumb:
+
+| Need | Pattern |
+|---|---|
+| Path next to **this** script | `Path(__file__).resolve().parent / "helper.json"` |
+| Path anywhere in **the repo** | `Path(__file__).resolve().parents[N] / "..."` (pick `N` from where the file sits) or a shared constant like `REPO_ROOT` |
+| Path passed in from CLI | `Path(user_arg).expanduser().resolve()` — still no hard-coded `/home/...` in the library |
+
+If a path must be configurable, expose it as an argument or environment variable
+ ([Environment variables](environment-variables.qmd#environment-variables)), with a
+ **repo-relative default** built from `Path(__file__)`, not from `os.getcwd()`.
+
 ## Next
 
 More footguns will land here as the tutorial grows (mutable defaults are already

@@ -314,4 +314,4 @@ stiffer = replace(cfg, damping=0.1)
 
 Neither replaces a tensor. Do not `.item()` a CUDA batch into a NamedTuple in a hot loop ([Bells and whistles](bells-and-whistles.qmd#bells-and-whistles)). For a config you serialize or override from a YAML, a dataclass (or `OmegaConf`) is the usual choice.
 
-Anti-patterns (including gratuitous `*args` / `**kwargs`): [Things not to do](things-not-to-do.qmd#things-not-to-do).
+Anti-patterns (including gratuitous `*args` / `**kwargs` and hard-coded paths): [Things not to do](things-not-to-do.qmd#things-not-to-do).
