@@ -56,3 +56,7 @@ Docs (Quarto):
 - Pages currently contain no executable (`{python}`) cells, so rendering needs
   only the Quarto CLI. Adding executable cells later would require `jupyter` in
   the env (e.g. via a new `docs` extra).
+- GitHub Pages: `.github/workflows/publish-docs.yml` renders on push to
+  `master`/`main` (when `docs/` changes) and deploys `docs/_site/`. One-time UI:
+  Settings → Pages → Source: **GitHub Actions**. Live URL is set in
+  `docs/_quarto.yml` (`website.site-url`).

@@ -2,6 +2,9 @@ project:
   type: book
   output-dir: _site
 
+website:
+  site-url: https://learningfromembodiedexperiencelab.github.io/onboarding/
+
 book:
   title: "Onboarding: Python & Robotics"
   subtitle: "A working tutorial for the `robotics` example package"

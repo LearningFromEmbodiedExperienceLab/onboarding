@@ -30,3 +30,19 @@ quarto render docs      # static HTML into docs/_site
 Install the Quarto CLI from <https://quarto.org/docs/get-started/> (it is a
 standalone tool, separate from the Python environment). Start reading at
 `docs/index.qmd`.
+
+## Publishing (GitHub Pages)
+
+Pushes to `master`/`main` that touch `docs/` run
+[`.github/workflows/publish-docs.yml`](.github/workflows/publish-docs.yml),
+which renders the book and deploys to GitHub Pages.
+
+**One-time setup (GitHub UI, after the workflow is on the default branch):**
+
+1. Repo **Settings → Pages → Build and deployment → Source:** choose **GitHub Actions**.
+2. Merge or push the workflow, then either push a docs change or run **Actions → Publish docs → Run workflow**.
+3. When the workflow succeeds, the site is at
+   <https://learningfromembodiedexperiencelab.github.io/onboarding/>.
+
+Do the UI step *after* the workflow file exists on GitHub; until then there is
+nothing for Pages to deploy.
