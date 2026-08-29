@@ -31,6 +31,52 @@ Menagerie Piper **motor actuators** (`<motor …/>`): `ctrl` is a **joint torque
 
 See [Simulation stability — position vs motor](simulation-stability.qmd#position-vs-motor-actuators) for how this interacts with substeps.
 
+## Joint PD control
+
+To move a hinge toward a **target angle** `q*` (and optionally a **target velocity**
+`q̇*`), the usual model is a **PD servo** that outputs joint torque:
+
+$$
+\tau = K_p\,(q^* - q) + K_d\,(\dot q^* - \dot q)
+$$
+
+- **`K_p`** (stiffness): pulls `q` toward `q*`. Larger ⇒ snappier tracking, but
+  harder to integrate stably at large `Δt_sim`.
+- **`K_d`** (damping): opposes velocity error. When **`q̇* = 0`** (the common case —
+  “hold this angle”), this reduces to **`-K_d q̇`**, i.e. viscous damping that
+  fights overshoot and oscillation.
+
+Menagerie Piper encodes these gains on **position** actuators in MJCF (`kp`, `kv`
+ on `joint1`–`joint6` in `piper.xml`). You write **`q*`** into `ctrl`; MuJoCo
+ applies the PD law inside every `step()` and respects actuator force limits
+ (`forcerange` on the default class).
+
+With **motor** actuators there is no built-in servo — **you** evaluate the same
+ law and write **`τ`** into `ctrl`:
+
+```python
+# q_des, q, qd: vectors for the arm DoFs; Kp, Kd per joint (match MJCF kp/kv)
+tau = Kp * (q_des - q) + Kd * (0.0 - qd)   # hold still → qdot_star = 0
+tau = np.clip(tau, -tau_limit, tau_limit)  # respect ctrlrange / gear limits
+data.ctrl[actuator_ids] = tau
+```
+
+The motor path in `scripts/actuator_control_demo.py` uses Piper’s numeric gains
+ (`Kp = 80, 80, 80, 40, 10, 10` and `Kd = 5, 5, 5, 5, 1.5, 1.5` on the six arm
+ joints) and recomputes `tau` **every physics substep** — holding torque at
+ controller rate only fails the reach test ([Simulation
+ stability](simulation-stability.qmd#position-vs-motor-actuators)).
+
+| You command | Actuator type | Who evaluates PD |
+|---|---|---|
+| `q*` | `<position>` | Simulator (each `step`) |
+| `τ` from PD(`q*`, `q`, `q̇*`) | `<motor>` | Your code (each `step` or substep) |
+
+**Do not confuse** joint PD with the tiny **outer P** in the robot demos below:
+ that loop nudges the **position target** `q*` itself (`ctrl ← q + α(q_goal - q)`),
+ not the torque. IK + position actuators is another outer loop: it updates `q*`
+ from workspace error; the inner PD still runs in the engine.
+
 ## Dynamic vs kinematic writes
 
 - **Write controls** (`data.ctrl` / `set_ctrl`) — the **dynamic** path: actuators apply forces/torques (or position servos) inside `step`. Use for simulating motors.
@@ -38,9 +84,11 @@ See [Simulation stability — position vs motor](simulation-stability.qmd#positi
 
 See [Kinematics vs dynamics](kinematics-vs-dynamics.qmd#kinematics-vs-dynamics).
 
-## Tiny PD-on-actuator (MuJoCo)
+## Tiny outer P on position targets (MuJoCo)
 
-From the lockstep section of `scripts/mujoco_robot_demo.py` — read `q`, update position target, step:
+From the lockstep section of `scripts/mujoco_robot_demo.py` — read `q`, nudge the
+**position target** (not torque), step. This is a slow outer loop on `q*`; the
+**inner joint PD** (previous section) still runs inside `step`:
 
 ```python
 err = target_q - data.qpos[0]

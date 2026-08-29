@@ -108,7 +108,7 @@ passes reach tolerance with bounded velocities.
 
 Menagerie Piper uses **position** actuators: `ctrl[i]` is a **target joint angle**
 and MuJoCo’s built-in PD (from `kp` / `kv` in MJCF) converts error into torque
-inside every `step()`.
+inside every `step()`. See [Joint PD control](state-sensors-and-actuators.qmd#joint-pd-control) for the law and gain meaning.
 
 **Motor** actuators are the other common MJCF type: `ctrl[i]` is a **joint
 torque** (Nm). Nothing servos the joint for you — your controller must compute
@@ -134,7 +134,7 @@ repeat 10 times:
     step(2 ms)
 ```
 
-**Motor + IK** — map `q_des` to torque. Holding `τ` computed once at 50 Hz fails
+**Motor + IK** — map `q_des` to torque with [joint PD](state-sensors-and-actuators.qmd#joint-pd-control). Holding `τ` computed once at 50 Hz fails
  on the Piper reach test (large error, |qvel| spikes). Recompute PD every substep:
 
 ```text
