@@ -1,0 +1,117 @@
+# Common environment variables {#common-environment-variables}
+
+Process-wide **`NAME=value`** settings the shell, job scheduler, or IDE passes to your Python process. Read them with `os.environ`; see [Environment management — Environment variables](environment-management.qmd#environment-variables) for the idea (prefix vs `export`, shell vs `uv run` / F5).
+
+`scripts/print_env.py` prints the subset this repo uses most often:
+
+```bash
+uv run python scripts/print_env.py
+CUDA_VISIBLE_DEVICES=1 PYTHONPATH=src uv run python scripts/print_env.py
+```
+
+## At a glance
+
+| Variable | Typical use | Section |
+|---|---|---|
+| `PYTHONPATH` | Extra directories on `sys.path` | [#pythonpath](#pythonpath) |
+| `CUDA_VISIBLE_DEVICES` | Mask which GPUs a process sees | [#cuda-visible-devices](#cuda-visible-devices) |
+| `CUDA_LAUNCH_BLOCKING` | Sync CUDA kernels (debug crashes) | [#cuda-launch-blocking](#cuda-launch-blocking) |
+| `PYTHONBREAKPOINT` | Which debugger `breakpoint()` uses | [#pythonbreakpoint](#pythonbreakpoint) |
+| `DISPLAY` | X11 display socket (Linux GUI windows) | [#displays-opengl-headless](#displays-opengl-headless) |
+| `MUJOCO_GL` | MuJoCo OpenGL backend (`glfw`, `egl`, `osmesa`) | [#displays-opengl-headless](#displays-opengl-headless) |
+| `PYOPENGL_PLATFORM` | PyOpenGL platform plugin (pair with OSMesa) | [#displays-opengl-headless](#displays-opengl-headless) |
+| `OMP_NUM_THREADS` / `MKL_NUM_THREADS` | Cap BLAS / OpenMP CPU threads | [#thread-limits](#thread-limits) |
+| `VK_ICD_FILENAMES`, `VK_LOADER_DEBUG` | Vulkan loader (Isaac / Omniverse class) | [#displays-opengl-headless](#displays-opengl-headless) |
+
+External install links: [References — GPU / CUDA](references.qmd#gpu--cuda), [Graphics and displays](references.qmd#graphics-and-displays).
+
+## `PYTHONPATH` {#pythonpath}
+
+Colon-separated directories **prepended** to `sys.path` (after the script directory). Lets `PYTHONPATH=src python scripts/train.py` import `robotics` without an editable install — we still prefer `pip install -e .` ([Project structure](project-structure.qmd#project-structure)).
+
+```bash
+PYTHONPATH=src uv run python -c "import robotics; print(robotics.__file__)"
+```
+
+Several paths on Linux: `PYTHONPATH=/a:/b`. A stale value in `~/.bashrc` is a common source of importing the *wrong* package copy.
+
+The editor does **not** read the shell's `PYTHONPATH` — use `extraPaths` ([Editor and stubs](making-life-easier.qmd#editor-and-stubs)).
+
+## `CUDA_VISIBLE_DEVICES` {#cuda-visible-devices}
+
+CUDA enumerates GPUs as `0, 1, 2, …`. This variable is a **mask**: the process only sees the IDs you list, **renumbered from zero**.
+
+```bash
+nvidia-smi
+CUDA_VISIBLE_DEVICES=1 uv run python scripts/print_env.py
+```
+
+| You set | The process sees |
+|---|---|
+| unset | all GPUs; `cuda:0` is physical 0 |
+| `1` | only physical 1, as `cuda:0` |
+| `1,3` | those two, as `cuda:0` and `cuda:1` |
+| `""` or `-1` | no GPU (CPU fallback if the library allows) |
+
+So `tensor.to("cuda:0")` after `CUDA_VISIBLE_DEVICES=1` is **physical GPU 1**. See also [CUDA](cuda.qmd#cuda).
+
+PyTorch check (needs `torch` installed):
+
+```python
+import os, torch
+print(os.environ.get("CUDA_VISIBLE_DEVICES"), torch.cuda.device_count())
+```
+
+Do not put this in `~/.bashrc` unless every process on the machine should share the same mask.
+
+## `CUDA_LAUNCH_BLOCKING` {#cuda-launch-blocking}
+
+Set to `1` so each CUDA kernel finishes before Python continues. Errors then surface on the line that launched the kernel instead of at the next sync. Slow — use only while debugging. See [Bells and whistles](bells-and-whistles.qmd#bells-and-whistles).
+
+## `PYTHONBREAKPOINT` {#pythonbreakpoint}
+
+Selects which debugger [`breakpoint()`](https://peps.python.org/pep-0553/) starts (`pdb`, `ipdb.set_trace`, …). `PYTHONBREAKPOINT=0` disables all breakpoints for one run. See [Debugging](debugging-repl-notebooks.qmd#vscode-debugger).
+
+## Displays, OpenGL, and headless rendering {#displays-opengl-headless}
+
+Physics (`mj_step`, tensor matmul) does **not** need a screen. **Drawing** does — simulators and figure scripts choose how to reach the GPU or a software rasterizer.
+
+### `DISPLAY`
+
+On Linux with X11, **`DISPLAY`** names the X server (e.g. `:0`, `localhost:10.0` over SSH X forwarding). Windowed apps — MuJoCo GLFW viewer, some Matplotlib backends — need it. CI and SSH without forwarding usually have it **unset** (“cannot connect to X server”). Training on CUDA does **not** require `DISPLAY`.
+
+### `MUJOCO_GL` and `PYOPENGL_PLATFORM`
+
+[OpenGL](https://www.khronos.org/opengl/) backend for MuJoCo rendering. Set **`MUJOCO_GL` before `import mujoco`**.
+
+| Backend | Set | Needs `DISPLAY`? | Typical use |
+|---|---|---|---|
+| GLFW (desktop) | `glfw` or unset | Yes | Interactive viewer |
+| EGL | `egl` | No | Headless **GPU** render |
+| OSMesa | `osmesa` + `PYOPENGL_PLATFORM=osmesa` | No | Headless **software** GL (CI) |
+
+```bash
+MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa \
+  uv run python scripts/render_menagerie_geometry_figures.py
+```
+
+See [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) for Menagerie figure regeneration. MuJoCo: [Rendering](https://mujoco.readthedocs.io/en/stable/programming/index.html#rendering).
+
+### Vulkan (Isaac / Omniverse)
+
+**MuJoCo here uses OpenGL, not Vulkan.** Isaac Sim and Omniverse use **Vulkan** for viewports and RTX. You may see `VK_ICD_FILENAMES`, `VK_LOADER_DEBUG`, or on hybrid laptops `__NV_PRIME_RENDER_OFFLOAD`. Same NVIDIA driver as CUDA; different API. [References — Graphics](references.qmd#graphics-and-displays).
+
+**Checklist:** FK-only / training → ignore display vars. Laptop viewer → desktop + `glfw`. Headless PNG → `osmesa` or `egl`. Do not copy MuJoCo GL settings into Isaac — different stack.
+
+## Thread limits {#thread-limits}
+
+| Variable | Typical use |
+|---|---|
+| `OMP_NUM_THREADS` | OpenMP thread cap (many NumPy/SciPy builds) |
+| `MKL_NUM_THREADS` | Intel MKL thread cap |
+
+Useful on shared clusters so eight parallel jobs do not each spawn thirty-two BLAS threads.
+
+## IDE and debug sessions
+
+The GUI debugger is a **different parent process** than your terminal. Set the same names under `"env"` in `launch.json` ([VS Code / Cursor debugger](debugging-repl-notebooks.qmd#vscode-debugger)); a prefix in the terminal does not apply to F5.

@@ -18,4 +18,4 @@ Short definitions for terms used across the tutorial. Expand as chapters land.
 | **FK / IK** | Forward / inverse kinematics — joint coordinates ↔ poses. |
 | **site** | Named frame on a body (EE, sensor origin); no mass. |
 
-See also [References and external docs](references.qmd#references) and the dedicated [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) chapter for mesh and validation vocabulary.
+See also [References and external docs](references.qmd#references) and the dedicated [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) chapter for mesh and validation vocabulary. Process env vars: [Common environment variables](environment-variables.qmd#common-environment-variables).
