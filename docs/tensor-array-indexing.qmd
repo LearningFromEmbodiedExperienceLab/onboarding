@@ -248,8 +248,9 @@ env_ids = [0, 2];  body_ids = [1, 0];  shift = [1, 2, 3]</pre>
   <p class="exercise-title"></p>
   <p class="exercise-prompt">
     Heterogeneous: env 0 uses bodies 0 and 2; env 2 uses bodies 1 and 0.
-    Build a <code>(K, B, 3)</code> grid with <code>None</code> axes, offset by
-    origins (broadcasting), and assign back into <code>x</code>.
+    Build a <code>(K, B, 3)</code> grid with <code>None</code> axes on env and body,
+    plus a dim grid <code>d = np.arange(3)[None, None, :]</code>, offset by origins
+    (broadcasting), and assign back into <code>x</code>.
   </p>
   <pre class="exercise-setup">env_ids = [0, 2]
 body_ids = [[0, 2], [1, 0]]   # (K, B)

@@ -96,28 +96,30 @@
       ].join("\n"),
       starter: [
         "# env 0 → bodies 0,2; env 2 → bodies 1,0. Output grid (K, B, 3).",
-        "# Expand index axes with None, gather xyz, offset by origins, write back.",
+        "# Expand env/body axes with None; use a dim grid for all xyz.",
         "e = env_ids[:, None, None]   # (K, 1, 1)",
         "b = body_ids[:, :, None]     # (K, B, 1)",
+        "d = np.arange(3)[None, None, :]  # (1, 1, 3)",
         "pos = ...                    # (K, B, 3)",
         "world = ...                  # (K, B, 3)",
-        "x[e, b, :] = ...",
+        "x[e, b, d] = ...",
       ].join("\n"),
       validate: [
         "e = env_ids[:, None, None]",
         "b = body_ids[:, :, None]",
-        "pos_expected = x_ref[e, b, :]",
+        "d = np.arange(3)[None, None, :]",
+        "pos_expected = x_ref[e, b, d]",
         "world_expected = pos_expected + origins[env_ids][:, None, :]",
         "target = world_expected + shift",
         "assert pos.shape == (K, B, 3), f'pos.shape={pos.shape}, want ({K}, {B}, 3)'",
-        "assert np.allclose(pos, pos_expected), 'pos gather wrong — check e, b, and : on xyz'",
+        "assert np.allclose(pos, pos_expected), 'pos gather wrong — check e, b, d'",
         "assert np.allclose(world, world_expected), 'world wrong — origins[env_ids][:, None, :]'",
-        "assert np.allclose(x[e, b, :], target), 'write-back wrong — assign world + shift'",
+        "assert np.allclose(x[e, b, d], target), 'write-back wrong — assign world + shift'",
         "assert np.allclose(x[1], x_ref[1]), 'unchosen env rows changed'",
       ].join("\n"),
       hint:
-        "x[e, b, :] with e (K,1,1) and b (K,B,1) yields (K,B,3). " +
-        "origins[env_ids][:, None, :] is (K,1,3) and broadcasts over B.",
+        "d = np.arange(3)[None, None, :] broadcasts with e and b to (K, B, 3). " +
+        "origins[env_ids][:, None, :] is (K, 1, 3) and broadcasts over B.",
     },
 
     "sequence-sampling": {
