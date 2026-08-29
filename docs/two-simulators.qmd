@@ -1,16 +1,123 @@
 # Two simulators
 
-A simulator is **model** (constant: tree, inertias, actuator gears) plus **data** (state that changes every step). This tutorial uses **[MuJoCo](https://mujoco.readthedocs.io/en/stable/)** and **[MotrixSim](https://motrixsim.readthedocs.io/en/latest/)** on shared [MJCF / URDF](references.qmd#robotics-assets) assets; more links in [References — Robotics assets](references.qmd#robotics-assets).
+A simulator is **model** (constant: tree, inertias, actuator gears) plus **data** (state that changes every step). This tutorial uses **[MuJoCo](https://mujoco.readthedocs.io/en/stable/)** and **[MotrixSim](https://motrixsim.readthedocs.io/en/latest/)** on shared [MJCF / URDF](references.qmd#robotics-assets) assets. The same Menagerie **`scene.xml`** loads in both engines below; runnable walkthroughs:
 
-| | MuJoCo | Motrix |
-|---|---|---|
-| Model | `mjModel` | `SceneModel` |
-| State | `mjData` | `SceneData` |
-| Advance | `mj_step(m, d)` | `motrixsim.step(model, data)` |
-| FK only | `mj_fwdPosition` | `forward_kinematic(model, data)` |
+```bash
+bash scripts/fetch_menagerie_assets.sh
+uv sync --extra sim
+uv run python scripts/mujoco_robot_demo.py
+uv run python scripts/motrix_robot_demo.py
+```
 
-`step` is **dynamics** (integrate forces). FK-only is **kinematics** (update poses from `q` with no forces) — see [Kinematics vs dynamics](kinematics-vs-dynamics.qmd#kinematics-vs-dynamics). That distinction matters for IK and for “did I just teleport `qpos`?”.
+## Shared workflow
 
-Install extras and API docs: [MuJoCo Python](https://mujoco.readthedocs.io/en/stable/python.html), [MotrixSim](https://motrixsim.readthedocs.io/en/latest/), and [References — Robotics assets](references.qmd#robotics-assets).
+Every engine in this tutorial follows the same loop ([simulation loop](the-simulation-loop.qmd#the-simulation-loop), [state I/O](state-sensors-and-actuators.qmd#state-sensors-and-actuators)):
 
-*(To fill: install extras, a 10-line load-and-step in each API, `MUJOCO_GL`.)*
+```text
+load asset  →  model (static) + data (dynamic)
+read state  ←  q / poses / sensors
+write ctrl or q  →  dynamic path (forces) or kinematic path (teleport)
+step() or forward_kinematic()  →  integrate physics or update geometry only
+```
+
+| Step | Idea | MuJoCo | Motrix |
+|---|---|---|---|
+| Load | Parse MJCF/URDF into static model | `MjModel.from_xml_path` | `load_model(path)` |
+| Allocate state | Per-instance dynamic buffers | `MjData(model)` | `SceneData(model)` |
+| Read joints | Generalized coordinates | `data.qpos`, `data.qvel` | `data.dof_pos`, `data.dof_vel` |
+| Read link pose | FK output in world frame | `data.xpos[id]`, `data.xquat[id]` | `link.get_pose(data)` / `get_position` |
+| Write controls | Actuator commands (dynamic) | `data.ctrl[i] = …` | `actuator.set_ctrl(data, …)` or `data.actuator_ctrls` |
+| Write joints | Kinematic reset / teleport | `data.qpos[…] = …` then `mj_forward` | `joint.set_dof_pos(data, …)` then `forward_kinematic` |
+| Advance dynamics | Integrate one timestep | `mj_step(model, data)` | `step(model, data)` |
+| FK only | Poses from q, no forces | `mj_forward` / `mj_fwdPosition` | `forward_kinematic(model, data)` |
+
+`step` is **dynamics** (integrate forces). FK-only is **kinematics** (update poses from `q` with no forces) — see [Kinematics vs dynamics](kinematics-vs-dynamics.qmd#kinematics-vs-dynamics). That distinction matters for IK and for “did I just teleport `qpos`?”
+
+## MuJoCo minimal example
+
+From `scripts/mujoco_robot_demo.py` (AgileX Piper + ground):
+
+```python
+import mujoco as mj
+
+model = mj.MjModel.from_xml_path("third_party/mujoco_menagerie/agilex_piper/scene.xml")
+data = mj.MjData(model)
+
+# Kinematic: set q, then FK
+data.qpos[0] = 0.5
+mj.mj_forward(model, data)
+
+# Dynamic: position actuator target, then integrate
+data.ctrl[0] = 0.8
+mj.mj_step(model, data)
+```
+
+**Headless rendering:** if you add a viewer later, set `MUJOCO_GL=egl` or `MUJOCO_GL=osmesa` when no display is available.
+
+## Motrix minimal example
+
+Same file, Motrix API (`scripts/motrix_robot_demo.py`):
+
+```python
+from motrixsim import SceneData, forward_kinematic, load_model, step
+
+model = load_model("third_party/mujoco_menagerie/agilex_piper/scene.xml")
+data = SceneData(model)
+
+joint1 = model.get_joint("joint1")
+joint1.set_dof_pos(data, 0.5)
+forward_kinematic(model, data)
+
+act = model.get_actuator("joint1")
+act.set_ctrl(data, 0.8)
+step(model, data)
+```
+
+Motrix adds **named access** (`get_joint`, `get_link`, `get_actuator`) on top of the same MJCF. Menagerie `<option integrator=…>` and some light modes may log warnings and behave slightly differently than MuJoCo — compare both demos on your machine.
+
+Optional viewer: `motrixsim.render.RenderApp` (see [MotrixSim docs](https://motrixsim.readthedocs.io/en/latest/user_guide/overview/examples.html)).
+
+## Isaac Sim / Isaac Lab {#isaac-lab}
+
+We do **not** ship Isaac install or lab scripts in this repo (heavy GPU stack, Omniverse, separate release cycle). The **concepts** still match — useful when you outgrow MuJoCo/Motrix or need photoreal sensors and massive parallel envs.
+
+Isaac Lab sits on **Isaac Sim** (PhysX, USD stage). Official entry points:
+
+- [Interacting with an articulation](https://isaac-sim.github.io/IsaacLab/main/source/tutorials/01_assets/run_articulation.html) — reset, commands, step
+- [Articulation class](https://isaac-sim.github.io/IsaacLab/main/source/api/lab/isaaclab.assets.html#isaaclab.assets.Articulation) — batched torch state, actuators
+
+| Concept (this tutorial) | Isaac Lab |
+|---|---|
+| Static model | USD asset + `ArticulationCfg` (spawn on stage) |
+| Dynamic state | `articulation.data` buffers (`joint_pos`, `root_pose_w`, …) |
+| Read joint state | `robot.data.joint_pos`, `joint_vel` |
+| Read link pose | `robot.data.body_link_pose_w`, etc. |
+| Write controls (dynamic) | `set_joint_position_target` / `set_joint_effort_target` → **`write_data_to_sim()`** |
+| Write state (kinematic) | `write_joint_state_to_sim`, `write_root_pose_to_sim` |
+| Step physics | `sim.step()` on **`SimulationContext`** |
+| Refresh after step | **`articulation.update(dt)`** — pull new state from PhysX into torch tensors |
+| Batched RL envs | `num_envs` clones; index/env_mask on writers (see direct RL env tutorial) |
+
+Typical **position-control** tick (from Isaac Lab articulation docs):
+
+```python
+# targets → actuator model → PhysX buffer → integrate → read back
+robot.set_joint_position_target(position)
+robot.write_data_to_sim()
+sim.step()
+robot.update(dt)
+```
+
+Compared to MuJoCo/Motrix: Isaac Lab splits **“push commands to sim”** (`write_data_to_sim`) and **“pull state after step”** (`update`) explicitly, and everything is **torch** on GPU with thousands of cloned envs. MuJoCo/Motrix in this tutorial use **NumPy** and a single `scene.xml` on disk — better for learning the contract before scaling out.
+
+Install and versions: follow [Isaac Lab installation](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/index.html) paired with a specific [Isaac Sim](https://docs.isaacsim.omniverse.nvidia.com/latest/index.html) build. More links: [References — Robotics assets](references.qmd#robotics-assets).
+
+## Where this fits
+
+| Topic | Chapter |
+|---|---|
+| Names: body, joint, geom | [Scene vocabulary](scene-vocabulary.qmd#scene-vocabulary) |
+| MJCF files, Menagerie paths | [Asset files](asset-files.qmd#asset-files) |
+| FK readout | [Forward kinematics](forward-kinematics.qmd#forward-kinematics) |
+| ctrl vs qpos, sensors | [State, sensors, and actuators](state-sensors-and-actuators.qmd#state-sensors-and-actuators) |
+| Lockstep vs async | [The simulation loop](the-simulation-loop.qmd#the-simulation-loop) |

@@ -1,11 +1,67 @@
 # State, sensors, and actuators
 
-The I/O contract, independent of engine (MJCF actuators and sensors: [MuJoCo XML reference](https://mujoco.readthedocs.io/en/stable/XMLreference.html); overview in [References — Robotics assets](references.qmd#robotics-assets)):
+The I/O contract is the same in every engine: read configuration and velocity, read body/link poses, write **controls** (dynamic) or **state** (kinematic), optionally read **sensors** after the step stage that fills them. MJCF actuators and sensors: [MuJoCo XML reference](https://mujoco.readthedocs.io/en/stable/XMLreference.html); overview in [References — Robotics assets](references.qmd#robotics-assets).
 
-- **Read** configuration and velocity (`qpos`/`qvel` vs `dof_pos`/`dof_vel`), body/site poses, sensors.
-- **Write controls** (`data.ctrl` / `actuator_ctrls`, or named `MotorActuator`) — the **dynamic** path: forces into `step`.
-- **Write state** (set `qpos`, reset, keyframe, mocap) — **kinematic**; follow with FK or `reset`. Do not fight the integrator by setting `qpos` every step unless you mean to.
+Runnable reference (AgileX Piper Menagerie scene):
 
-Sensors are declared in MJCF and read after `step` (or after the documented sensor stage). Named lookup (Motrix `get_sensor_values`, MuJoCo `sensor` adr) vs slicing a flat array.
+```bash
+uv sync --extra sim
+uv run python scripts/mujoco_robot_demo.py
+uv run python scripts/motrix_robot_demo.py
+```
 
-*(To fill: a table of the actual attribute names; a tiny PD-on-actuator example in both APIs.)*
+## Read / write map
+
+| What | MuJoCo (`MjData`) | Motrix (`SceneData`) | Notes |
+|---|---|---|---|
+| Joint positions | `data.qpos` | `data.dof_pos` or `joint.get_dof_pos(data)` | Shape `(nq,)` / `(num_dof,)` |
+| Joint velocities | `data.qvel` | `data.dof_vel` or `joint.get_dof_vel(data)` | Same |
+| Actuator controls | `data.ctrl` | `data.actuator_ctrls` or `actuator.set_ctrl(data, v)` | **Dynamic** input to `step` |
+| Body pose (world) | `data.xpos[i]`, `data.xquat[i]` | `link.get_pose(data)` | After FK or `step` |
+| Reset | `mj_resetData` / manual zero | `data.reset(model)` | Returns to keyframe / default |
+
+Menagerie Piper **position actuators** (`<position …/>` in MJCF): `ctrl` is a **target joint position**, not motor torque. The internal PD drives `qpos` toward `ctrl` during `step`.
+
+## Dynamic vs kinematic writes
+
+- **Write controls** (`data.ctrl` / `set_ctrl`) — the **dynamic** path: actuators apply forces/torques (or position servos) inside `step`. Use for simulating motors.
+- **Write state** (`qpos` / `set_dof_pos`) — the **kinematic** path: teleport the robot, then call FK (`mj_forward` / `forward_kinematic`). Use for resets, IK solutions, debugging geometry. Do not set `qpos` every step *and* expect realistic physics unless you mean to kinematically track.
+
+See [Kinematics vs dynamics](kinematics-vs-dynamics.qmd#kinematics-vs-dynamics).
+
+## Tiny PD-on-actuator (MuJoCo)
+
+From the lockstep section of `scripts/mujoco_robot_demo.py` — read `q`, update position target, step:
+
+```python
+err = target_q - data.qpos[0]
+data.ctrl[0] = data.qpos[0] + 0.35 * err   # outer P on actuator target
+mj.mj_step(model, data)
+```
+
+Motrix equivalent:
+
+```python
+q = float(joint1.get_dof_pos(data))
+act.set_ctrl(data, q + 0.35 * (target_q - q))
+step(model, data)
+```
+
+In Isaac Lab the same idea is `set_joint_position_target` → `write_data_to_sim()` → `sim.step()` → `articulation.update(dt)` ([Two simulators — Isaac Lab](two-simulators.qmd#isaac-lab)).
+
+## Sensors
+
+Sensors are declared in MJCF (`<sensor>`). Read them **after** the pipeline stage that computes sensor values (typically after `step`, or after `mj_sensorPos` in MuJoCo if you split stages).
+
+| | MuJoCo | Motrix |
+|---|---|---|
+| Raw array | `data.sensordata[adr:adr+dim]` | via `model.get_sensor_value(id, data)` |
+| Named lookup | `mj_name2id` + sensor address | `model.get_sensor(…)` |
+
+The Piper tutorial scene has no extra sensors beyond implicit state; add `<framepos>`, `<jointpos>`, IMU blocks in MJCF when you need them.
+
+## Batched / vectorized sim
+
+MuJoCo: one `(MjModel, MjData)` pair per instance (or `mj_data` batch in advanced use). Motrix: multiple `SceneData` from one `SceneModel`. Isaac Lab: `num_envs` articulation tensors — see [Two simulators](two-simulators.qmd#two-simulators) Isaac table.
+
+Keep joint indices and actuator names stable — [Scene vocabulary](scene-vocabulary.qmd#scene-vocabulary) and [Asset files](asset-files.qmd#asset-files) define where they come from on disk.
