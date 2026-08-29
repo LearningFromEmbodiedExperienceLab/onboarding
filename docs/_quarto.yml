@@ -29,6 +29,7 @@ book:
         - github-version-control.qmd
         - making-life-easier.qmd
         - useful-patterns.qmd
+        - things-not-to-do.qmd
     - part: "PyTorch and NumPy"
       chapters:
         - tensor-array-indexing.qmd
