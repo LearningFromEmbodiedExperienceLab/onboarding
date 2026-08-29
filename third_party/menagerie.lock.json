@@ -1,0 +1,5 @@
+{
+  "repo": "https://github.com/google-deepmind/mujoco_menagerie.git",
+  "ref": "da76818e269b82289eba39808e2fb91d679d6994",
+  "paths": ["agilex_piper", "arx_l5"]
+}

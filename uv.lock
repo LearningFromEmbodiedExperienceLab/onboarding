@@ -1580,6 +1580,7 @@ debug = [
 ]
 mujoco = [
     { name = "mujoco" },
+    { name = "pillow" },
 ]
 notebooks = [
     { name = "ipykernel" },
@@ -1599,6 +1600,7 @@ requires-dist = [
     { name = "mujoco", marker = "extra == 'mujoco'" },
     { name = "numpy" },
     { name = "pdbpp", marker = "extra == 'debug'" },
+    { name = "pillow", marker = "extra == 'mujoco'", specifier = ">=12.3.0" },
     { name = "torch", marker = "extra == 'torch'" },
 ]
 provides-extras = ["mujoco", "debug", "notebooks", "torch"]

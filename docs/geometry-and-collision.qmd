@@ -31,8 +31,8 @@ None of the three has to match the others. That is normal and intentional.
 
 ```text
 link / body
-  ├── visual geoms     → pretty mesh (group 1 in MuJoCo)
-  ├── collision geoms  → cheap/convex/compound (group 0, contype set)
+  ├── visual geoms     → pretty mesh (e.g. group 2 in Menagerie MJCF)
+  ├── collision geoms  → capsules / hulls (e.g. group 3; contype set)
   └── inertial block   → mass, COM, inertia (may be from geoms or explicit)
 ```
 
@@ -193,8 +193,42 @@ This is the highest-leverage section. Build a habit **before** tuning controller
 - Print or browse the model’s geom list at load time (`model.geom_type`, names, parent
   body).
 
-*(To fill: `scripts/collision_debug.py` — load tutorial MJCF, print geom summary, optional
-MuJoCo `mjVIS_GEOM` notes.)*
+#### Example: MuJoCo Menagerie arms (visual vs collision)
+
+We pin two robots from [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie)
+(**AgileX Piper** and **ARX L5**) as **third-party assets** — not copied into this repo.
+Fetch them once with `bash scripts/fetch_menagerie_assets.sh` (sparse git checkout;
+see [Asset files](asset-files.qmd#menagerie-vendor-assets) and
+[Large files](github-version-control.qmd#third-party-assets-sparse-checkout)).
+
+Both models use the same MJCF pattern: **`class="visual"`** geoms on **group 2**
+(`contype="0"`, mesh for rendering) and **`class="collision"`** geoms on **group 3**
+(capsules, mesh convex hulls, or boxes for contact). Offscreen renders with only one
+group enabled:
+
+![AgileX Piper: visual geoms (left) vs collision geoms (right)](imgs/menagerie/piper_compare.png)
+
+![ARX L5: visual geoms (left) vs collision geoms (right)](imgs/menagerie/arx_l5_compare.png)
+
+Piper collision uses **capsules** on many links but **mesh convex hulls** on others —
+the collision side looks smoother and chunkier than the painted mesh. L5 shows **box**
+collision primitives on the gripper fingers while the visuals stay detailed meshes — a
+typical “art vs physics” split.
+
+Regenerate these figures after bumping `third_party/menagerie.lock.json`:
+
+```bash
+bash scripts/fetch_menagerie_assets.sh
+uv sync --extra mujoco
+MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa \
+  uv run python scripts/render_menagerie_geometry_figures.py
+```
+
+On Linux CI, install `libosmesa6` first. GitHub Actions workflow
+`.github/workflows/regenerate-menagerie-images.yml` runs the same steps and commits
+updated PNGs when the lock file or render script changes.
+
+*(To fill: `scripts/collision_debug.py` — print geom summary per link from Menagerie XML.)*
 
 ### Validation workflow
 
