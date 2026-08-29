@@ -1,0 +1,69 @@
+# Things not to do
+
+Short list of Python habits that look flexible but usually make code harder to read,
+refactor, and debug. Each item is a **footgun** — fine in libraries with a narrow
+purpose, costly in application and research code. See [Useful Patterns](useful-patterns.qmd#useful-patterns) for the constructive counterpart.
+
+Future entries will use the same red callout style as [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision).
+
+## `*args` and `**kwargs` without a reason
+
+`*args` and `**kwargs` collect extra positional and keyword arguments into a tuple
+and dict. They exist so **wrappers can forward** to another function when the
+signature is intentionally open ([PEP 3102](https://peps.python.org/pep-3102/),
+[`*args` / `**kwargs` in the tutorial](https://docs.python.org/3/tutorial/controlflow.html#more-on-defining-functions)).
+
+They are **not** a substitute for naming what your function actually takes.
+
+### Bad — “flexible” API, unclear contract
+
+```python
+def train(*args, **kwargs):
+    return run_loop(*args, **kwargs)
+
+
+def set_joint_targets(*args, **kwargs):
+    # Which argument is q_des? Which actuator? kwargs keys undefined.
+    ...
+```
+
+Problems:
+
+- Call sites do not document intent — `train(1e-3, 500, True)` is opaque.
+- The editor cannot autocomplete parameter names or catch `damping="1e-3"` (string).
+- Refactor-rename (`epochs` → `max_steps`) misses stringly call sites; grep is noisy.
+- The next reader must read the whole body (or every caller) to learn the API.
+
+[Do not add `*args` / `**kwargs` to ordinary functions “for future flexibility.” Name the parameters you support today; add new ones explicitly when needed. Reserve variadic signatures for true forwarders (decorators, thin adapters) or APIs that mirror an underlying variadic hook.]{.common-bug-warning}
+
+### Better — explicit parameters
+
+```python
+def train(*, learning_rate: float, max_steps: int, log: bool = False) -> None:
+    run_loop(learning_rate=learning_rate, max_steps=max_steps, log=log)
+
+
+def set_joint_targets(data, q_des: np.ndarray, actuator_ids: list[int]) -> None:
+    for act_id, q in zip(actuator_ids, q_des, strict=True):
+        data.ctrl[act_id] = q
+```
+
+Keyword-only parameters (`*` before names) still prevent positional drift at the
+call site without hiding names.
+
+### When variadic signatures *are* reasonable
+
+| Pattern | Example in this repo |
+|---|---|
+| Decorator forwards to wrapped function | `@timed` in [Useful Patterns — decorators](useful-patterns.qmd#decorators) (`wrapped(*args, **kwargs)`) |
+| Registry / factory passes options through | `make_ik("dls", damping=1e-2)` — kwargs match **one** constructor, documented on the class |
+| Subclass hook matching a base signature | Rare in our code; still document allowed keys |
+
+Rule of thumb: if **you** are the author of the callee and callers are **your**
+ teammates, prefer explicit names. If you are writing a **one-line forwarder** to
+ code you do not control, `*args` / `**kwargs` is idiomatic.
+
+## Next
+
+More footguns will land here as the tutorial grows (mutable defaults are already
+ covered under [Useful Patterns — class members](useful-patterns.qmd#class-members-vs-instance-members)). Robotics-specific “do not” notes live in chapters like [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) (red `.common-bug-warning` paragraphs).
