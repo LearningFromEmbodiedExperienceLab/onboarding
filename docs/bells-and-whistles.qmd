@@ -1,0 +1,33 @@
+# Bells and whistles
+
+On CPU, the next Python line runs after the math finished. On CUDA, `x @ x` **queues a kernel** and Python continues. The GPU may still be working. That is why a training step looks instant until you print a loss or call `.item()`.
+
+**Host-device sync** (Python waits for the GPU) happens when you need a value on the CPU, including:
+
+| Call | Why it waits |
+|---|---|
+| `tensor.item()` | one scalar on the host |
+| `tensor.cpu()` / `.numpy()` | copy to host memory |
+| `print(tensor)` | has to format values |
+| `cuda_tensor[python_list]` or `cuda_tensor[cpu_index]` | index is built/copied on the host |
+| `torch.cuda.synchronize()` | explicit wait |
+| some implicit copies (e.g. `cpu_tensor.copy_(cuda_tensor)`) | host must see the data |
+
+Until a sync, **timing with `time.perf_counter()` is lying**: you measured launch overhead, not the matmul. Use CUDA events, or synchronize first:
+
+```python
+start, end = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+start.record()
+y = x @ x
+end.record()
+torch.cuda.synchronize()
+print(start.elapsed_time(end), "ms")
+```
+
+`scripts/cuda_async.py` prints launch time vs time-to-finished. Skip it if you have no GPU.
+
+**Debugging:** CUDA errors are often reported at the *next* sync, not at the kernel that faulted. [`CUDA_LAUNCH_BLOCKING=1`](environment-management.qmd#environment-variables) makes each kernel wait before Python continues so the traceback points at the right line. It is slow; use it only to hunt a crash.
+
+Do not sync inside a hot loop (no `.item()` per env). Sync once per step if you need a logged scalar. Keep `print` of large CUDA tensors out of the inner loop.
+
+Advanced indexing is the easy one to miss: `x[env_ids]` is async if `env_ids` is already a CUDA `long` tensor; `x[[0, 2, 5]]` is not. Build ids on device once (or keep them there from the sim). See [Advanced indexing](tensor-array-indexing.qmd#advanced-indexing).

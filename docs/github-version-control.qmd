@@ -1,0 +1,142 @@
+# GitHub and version control
+
+Git is a history of snapshots **on your machine**. GitHub is a server that stores a copy of that history so other people (and future you) can `clone` it. The link between the two is a **remote**.
+
+## Create and publish
+
+A local repo is just a `.git/` folder. Publishing means: create an empty repo on GitHub, then push your commits there.
+
+From a project folder that is **not** a git repo yet:
+
+```bash
+git init
+git add .
+git commit -m "Initial commit"
+```
+
+Then either:
+
+```bash
+# GitHub CLI: creates the repo and sets origin in one step
+gh repo create myproject --private --source=. --remote=origin --push
+```
+
+or create the repo in the GitHub UI (empty, no README), then:
+
+```bash
+git remote add origin git@github.com:YOUR_USER/myproject.git
+git push -u origin main
+```
+
+`-u` remembers that local `main` tracks `origin/main`, so later `git push` / `git pull` need no extra arguments.
+
+`git add .` respects `.gitignore`. Put `.venv/`, `__pycache__/`, `*.pt`, `outputs/`, and anything with secrets in there **before** the first commit. History is forever: deleting a file later does not remove it from old commits.
+
+## Remotes
+
+A remote is a **named URL**. The conventional name for "the GitHub copy of this repo" is `origin`.
+
+```bash
+git remote -v
+# origin  git@github.com:YOUR_USER/myproject.git  (fetch)
+# origin  git@github.com:YOUR_USER/myproject.git  (push)
+```
+
+You can have more than one remote (`upstream` for the repo you forked from, a second GitHub org, …). Day to day you only need `origin`.
+
+Change the URL without re-cloning (HTTPS → SSH, renamed repo, moved org):
+
+```bash
+git remote set-url origin git@github.com:YOUR_USER/myproject.git
+git remote -v    # confirm
+```
+
+`git clone` sets `origin` for you. `git init` does not — that is why the first publish needs `git remote add`.
+
+## SSH vs HTTPS
+
+GitHub accepts two URL shapes:
+
+| | HTTPS | SSH (recommended) |
+|---|---|---|
+| URL | `https://github.com/USER/repo.git` | `git@github.com:USER/repo.git` |
+| Auth | Personal access token, often every push | SSH key on this machine, once |
+| Typical pain | Token expiry, credential helpers, "Authentication failed" | First-time key setup, then silent |
+
+HTTPS is fine for a one-off clone of a **public** repo. For a repo you push to every day, use SSH.
+
+One-time setup on a new machine:
+
+```bash
+ssh-keygen -t ed25519 -C "you@university.edu"
+# press enter for the default path; set a passphrase
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_ed25519
+cat ~/.ssh/id_ed25519.pub
+```
+
+Paste the **public** key (`*.pub`) into GitHub → Settings → SSH and GPG keys. Test:
+
+```bash
+ssh -T git@github.com
+# Hi YOUR_USER! You've successfully authenticated...
+```
+
+If `git remote -v` still shows `https://…`, switch it with `git remote set-url` as above. Cursor / VS Code's Git panel uses the same remotes as the terminal.
+
+## Branch, develop, squash-and-merge
+
+`main` should be the last **known-good** snapshot, not a scratchpad. Work on a branch:
+
+```bash
+git checkout main
+git pull
+git checkout -b feature/damped-ik
+# edit, then:
+git add -p                 # review hunks; do not `git add .` on autopilot
+git commit -m "Add damped least-squares IK."
+git push -u origin feature/damped-ik
+```
+
+Open a **pull request** on GitHub (branch → `main`). Review happens there. Merge with **Squash and merge** (the GitHub button), not a regular merge commit.
+
+- Your branch may have ten "wip" / "fix typo" commits. That is fine.
+- Squash folds them into **one** commit on `main`, with one message you write at merge time.
+- `main`'s history stays linear and readable. The messy branch can be deleted.
+
+After the PR is merged:
+
+```bash
+git checkout main
+git pull
+git branch -d feature/damped-ik
+git push origin --delete feature/damped-ik
+```
+
+Do not commit directly to `main` on a shared repo. Do not `git push --force` to `main`. Force-pushing a feature branch you own is occasionally needed after a rebase; it is never the default.
+
+## Large files: `.gitignore` first, Git LFS only if they must live in the repo
+
+Git stores **every version of every file** in the history. A 200 MB checkpoint committed once stays in the clone forever, even if you delete it in a later commit. That is why clones become slow and GitHub will reject files over 100 MB.
+
+**Do not put these in git at all** (ignore them; keep them on disk / object storage / Hugging Face):
+
+- environments (`.venv/`, `venv/`)
+- training outputs (`outputs/`, `wandb/`, `*.pt`, `*.ckpt`, `*.npz` datasets)
+- rendered videos, logs, `__pycache__/`
+
+This folder's `.gitignore` already excludes `.venv/` and generated MuJoCo stubs. Add lines as you add new artifact types.
+
+**Git LFS** is for files that *belong* with the source and are large-but-stable: robot meshes (`.obj`, `.usd`), a small canonical MJCF mesh pack, a fixture binary a test must have. LFS stores a **pointer** in git and the bytes on a separate LFS server.
+
+```bash
+git lfs install
+git lfs track "*.obj" "*.usd"
+git add .gitattributes    # this file is what the team shares
+git add assets/robot.obj
+git commit -m "Track robot mesh with Git LFS."
+```
+
+Everyone who clones needs `git lfs install` once on that machine; otherwise they get tiny pointer files instead of the real meshes.
+
+LFS is not a dataset dump. GitHub's LFS quota is small. Multi-gigabyte motion clips and checkpoints should live outside the repo (and the README should say where). If you accidentally committed a large file, fixing history is painful — ask before rewriting `main`.

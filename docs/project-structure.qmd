@@ -1,0 +1,162 @@
+# Project structure
+
+The previous section is "where Python looks". This section is "what it looks *for*, and how we put *our* code on that path".
+
+## Module vs package
+
+A **module** is one importable file. `math_utils.py` is the module `math_utils`:
+
+```python
+# math_utils.py
+def quat_mul(a, b):
+    ...
+```
+
+```python
+import math_utils
+math_utils.quat_mul(q1, q2)
+```
+
+A **package** is a directory of modules. The directory name is the import prefix. We always include `__init__.py` so the intent is obvious (Python also has *namespace packages* without it; we do not rely on that):
+
+```text
+robotics/
+  __init__.py           # may be empty, or re-export public names
+  math_utils.py
+  ik/
+    __init__.py
+    differential.py
+```
+
+```python
+from robotics.math_utils import quat_mul
+from robotics.ik.differential import damped_lstsq
+```
+
+`robotics.ik` is a **subpackage**: a package nested in another. The dotted name is just the folder path with `/` replaced by `.`.
+
+`__init__.py` can re-export so callers do not have to know the internal layout:
+
+```python
+# robotics/__init__.py
+from robotics.math_utils import quat_mul
+```
+
+```python
+from robotics import quat_mul   # instead of robotics.math_utils
+```
+
+Keep that thin. A huge `__init__.py` that imports everything makes every `import robotics` slow and creates circular-import traps.
+
+## What Python actually searches for
+
+For `import robotics`, Python still walks `sys.path`. At each directory it tries, in order:
+
+- `robotics.py` (a module), then
+- `robotics/` (a package)
+
+The **first match wins**. That is why "it works in the notebook but not as a script" is common: you started the notebook from a different working directory, so a different folder sat at `sys.path[0]`.
+
+Relative imports (`from .math_utils import quat_mul`) only work *inside* a package, and only when that package was imported as a package — not when you run the file as a script (`python robotics/math_utils.py`). Run scripts as scripts; import library code as a package.
+
+## Making our code importable
+
+This folder *is* the example project:
+
+```text
+onboarding/
+  pyproject.toml
+  src/
+    robotics/              # this is what you import
+      __init__.py
+      math_utils.py
+      ik/
+        __init__.py
+        differential.py
+  scripts/
+    helpers.py             # neighbor of train.py — not a package
+    train.py               # you run this; you do not import it
+```
+
+Three patterns, from "fine for a one-off" to "how we actually work".
+
+**1. Same folder (scripts talking to neighbors)**
+
+`scripts/train.py` can do `from helpers import greet` because running `python scripts/train.py` puts `scripts/` on `sys.path[0]`. Fine for a tiny helper that only that script needs. Breaks as soon as two scripts in different folders both want `helpers`, or you want `from robotics.ik import …` from a notebook started elsewhere.
+
+**2. [`PYTHONPATH`](environment-management.qmd#environment-variables) (temporary; do not rely on this in a team)**
+
+```bash
+PYTHONPATH=src python scripts/train.py
+```
+
+Puts `src/` on `sys.path`. Convenient for an afternoon, fragile: everyone must remember the same [environment variable](environment-management.qmd#environment-variables), and IDEs / debuggers will not.
+
+**3. Install the package into the environment (what we actually do)**
+
+`pyproject.toml` tells the installer the package name, its dependencies, and that importable code lives under `src/`. Then:
+
+```bash
+uv sync                 # or: pip install -e .
+uv run python scripts/train.py
+```
+
+## Why `pip install -e .`
+
+The `src/` layout is a firewall. `robotics/` is **not** a child of the directory you run from — it sits one level down, under `src/`. Python never searches inside `src/` on its own.
+
+Walk through `python scripts/train.py` *before* installing:
+
+1. Python puts `…/onboarding/scripts` on `sys.path[0]`.
+2. It looks there for `robotics.py` or `robotics/` — not present (`helpers.py` is, which is why `import helpers` still works).
+3. It looks in the env's `site-packages` — `robotics` is not there either.
+4. `ModuleNotFoundError: No module named 'robotics'`.
+
+The same failure happens from a REPL or notebook unless the working directory happens to be `src/` (do not depend on that).
+
+`pip install -e .` does two jobs:
+
+1. **Install dependencies** listed in `pyproject.toml` into the environment (here, NumPy) — the same mechanism as `pip install numpy`.
+2. **Register our package** in that environment's `site-packages`, so `import robotics` uses the same lookup as `import numpy`.
+
+The **`-e` is the part that matters while you are writing code**. It means *editable* (also called a develop install).
+
+| Command | What lands in `site-packages` | Edit `src/robotics/math_utils.py` |
+|---|---|---|
+| `pip install .` | A **copy** of the package | Python still imports the stale copy until you reinstall |
+| `pip install -e .` | A **link** (`.pth` / egg-link) pointing at `src/` | Next `import` sees your live files |
+
+Research is edit-run-edit. A copied install would force a reinstall after every change. Editable is the only mode that is usable.
+
+`uv sync` does this editable install of the current project automatically. `uv pip install -e .` and `pip install -e .` are the explicit form — same effect. You only need to re-run the install when **metadata** changes (new dependency, renamed package), not when you edit `.py` files.
+
+After it works, check that you got *your* tree, not a copy:
+
+```bash
+uv run python -c "import robotics; print(robotics.__file__)"
+# …/onboarding/src/robotics/__init__.py
+```
+
+Then check that it does **not** depend on the current working directory:
+
+```bash
+cd /tmp
+uv run --directory /path/to/onboarding python -c "import robotics; print(robotics.__file__)"
+```
+
+If that still prints a path under `src/`, the package lives on the environment — which is the whole point.
+
+## `src/` layout
+
+Importable packages live under `src/`; scripts you *run* live under `scripts/`. Installing via `pyproject.toml` is what makes `from robotics.ik.differential import damped_lstsq` work from `scripts/train.py`, a notebook, or a test.
+
+Do not give a script the same name as a package you need (`robotics.py` next to the `robotics/` package). First match on `sys.path` wins.
+
+## A mental model
+
+| You want to… | Mechanism |
+|---|---|
+| Use `numpy`, `torch`, … | Installed into the env's `site-packages` |
+| Use *our* library from anywhere in that env | `pyproject.toml` + `uv sync` / `uv pip install -e .` |
+| Run a one-off script that imports a neighbor file | Script directory on `sys.path` (ok for small tutorials) |
+| Debug `ModuleNotFoundError` | `sys.executable` (wrong env), then `sys.path` (never installed / shadowed) | 

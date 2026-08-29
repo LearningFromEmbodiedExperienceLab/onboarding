@@ -1,0 +1,90 @@
+# Rotations and frames
+
+Poses are a position plus a rotation. Reading a body pose (FK) or sending a target to IK only makes sense after you fix two conventions: **how the rotation is stored**, and **which frame it is in**.
+
+## The groups $SO(3)$ and $SE(3)$
+
+An orientation is an element of the **special orthogonal group** $SO(3)$ — the $3\times 3$ rotation matrices:
+
+$$
+SO(3) = \left\{\, R \in \mathbb{R}^{3\times 3} \;\middle|\; R^\top R = I,\ \det R = 1 \,\right\}.
+$$ {#eq-so3}
+
+The constraint $R^\top R = I$ forces the columns to be orthonormal, so lengths and angles are preserved; $\det R = +1$ rules out reflections. Rotations **compose** by multiplication ($R_1 R_2$) and invert by transpose ($R^{-1} = R^\top$) — which is why the matrix from `matrix_from_quat` is something you apply with `@` and undo with `.T`.
+
+A full **pose** (orientation *and* position) is an element of the **special Euclidean group** $SE(3)$, written as a $4\times 4$ homogeneous transform that stacks a rotation $R \in SO(3)$ and a translation $p \in \mathbb{R}^3$:
+
+$$
+T = \begin{bmatrix} R & p \\[2pt] \mathbf{0}^\top & 1 \end{bmatrix} \in SE(3),
+\qquad
+T\begin{bmatrix} v \\[2pt] 1 \end{bmatrix} = \begin{bmatrix} Rv + p \\[2pt] 1 \end{bmatrix}.
+$$ {#eq-se3}
+
+The homogeneous $1$ is the trick that lets one matrix **rotate and translate** a point $v$ in a single multiply (@eq-se3). Poses compose and invert in closed form:
+
+$$
+T_1 T_2 = \begin{bmatrix} R_1 R_2 & R_1 p_2 + p_1 \\[2pt] \mathbf{0}^\top & 1 \end{bmatrix},
+\qquad
+T^{-1} = \begin{bmatrix} R^\top & -R^\top p \\[2pt] \mathbf{0}^\top & 1 \end{bmatrix}.
+$$ {#eq-se3-inv}
+
+Why this matters in this repo:
+
+- Our `Pose(pos, quat)` *is* an element of $SE(3)$: `quat` is the $R \in SO(3)$ in $(w, x, y, z)$ form, `pos` is $p$. FK returns one such $T$ per body/site; the world frame is $T = I$.
+- **Degrees of freedom:** $SO(3)$ has $3$, $SE(3)$ has $6$ ($3$ rotational + $3$ translational). A quaternion spends $4$ numbers on those $3$ rotational DoF under one constraint $\lVert q \rVert = 1$ — the reason $q$ and $-q$ denote the same rotation.
+- **Compose, don't add:** $R_1 R_2 \in SO(3)$ but $R_1 + R_2 \notin SO(3)$ (and likewise for $T$). That is exactly why an orientation error is a geodesic, not a subtraction — the same fact behind the `q0 - q1` warning in [Rotation representations](#rotation-representations).
+
+**Tangent space (this is what IK moves in).** For a small rotation, $R \approx I + [\omega]_\times$, where $\omega \in \mathbb{R}^3$ is an axis-angle vector and $[\cdot]_\times$ is the skew-symmetric matrix
+
+$$
+[\omega]_\times = \begin{bmatrix} 0 & -\omega_3 & \omega_2 \\ \omega_3 & 0 & -\omega_1 \\ -\omega_2 & \omega_1 & 0 \end{bmatrix},
+\qquad R = \exp\!\big([\omega]_\times\big).
+$$ {#eq-so3-exp}
+
+These $\omega$ (and the $6$-vector *twist* analogue for $SE(3)$) live in the Lie algebras $\mathfrak{so}(3)$ and $\mathfrak{se}(3)$. That is the space a joint step $\Delta q$ pushes through: the Jacobian maps joint rates to a body twist, and `axis_angle_from_quat` is the $\log$ map (the inverse of @eq-so3-exp) that turns an orientation error into the $\omega$ our damped least-squares solver drives to zero.
+
+## Rotation representations
+
+All helpers in `src/robotics/math_utils.py` are batch-agnostic on the last axis. **Every quaternion in this repo is `(w, x, y, z)`** (scalar first). That matches MuJoCo `xquat`. ROS, SciPy, and many USD/Isaac stacks use **`(x, y, z, w)`**. Mixing them looks like a 90° bug, not an import error.
+
+```python
+from robotics.math_utils import quat_from_euler_xyz, quat_rotate, wxyz_to_xyzw, xyzw_to_wxyz
+
+q = quat_from_euler_xyz(np.array([0.0, 0.0, np.pi / 2]))  # (w, x, y, z)
+quat_rotate(q, np.array([1.0, 0.0, 0.0]))                 # → +Y
+# quat_rotate(wxyz_to_xyzw(q), …)  # wrong — treats x as w
+```
+
+| Representation | Shape | Pros / cons |
+|---|---|---|
+| Rotation matrix | `(..., 3, 3)` | Apply with `@`; 9 numbers, not unique numerically |
+| Quaternion `(w, x, y, z)` | `(..., 4)` | Compose with `quat_mul`; **`q` and `-q` are the same rotation** |
+| XYZ Euler (RPY) | `(..., 3)` | Human-readable yaw; gimbal lock; convention-dependent |
+| Axis-angle | `(..., 3)` | Axis × radians; good for small `δR` in IK |
+| Yaw only | `(...,)` | Planar base; `yaw_rotate` |
+
+Conversions (same file): `matrix_from_quat`, `quat_from_euler_xyz` / `euler_from_quat`, `axis_angle_from_quat` / `quat_from_angle_axis`, `wxyz_to_xyzw` / `xyzw_to_wxyz`. Euler here is **intrinsic XYZ** (roll about X, then pitch Y, then yaw Z). Other libraries’ “RPY” may differ — convert through a matrix or quaternion, do not copy three floats blindly.
+
+`wrap_to_pi` is for *angles*, not for comparing quaternions. To compare two orientations, use a geodesic (`quat_mul(quat_conjugate(q0), q1)` then `axis_angle` magnitude), not `q0 - q1`.
+
+```bash
+uv run python scripts/rotations.py
+```
+
+## Link frame vs inertial frame
+
+“Inertial” is used in two ways. Do not mix them.
+
+**World / Newtonian inertial frame.** A frame fixed to the ground (MuJoCo’s world, `xpos` in world). Body poses from FK are usually *this* frame. Velocities may be world or body — check the API (`cvel` vs `qvel`).
+
+**Inertial frame of a body** (COM frame). URDF `<inertial origin>` and MJCF `<inertial pos quat>` define a second frame on the *same* rigid body: origin at the center of mass, axes along principal inertia. The **link / body frame** is where the joint, geoms, and sites attach. They need not coincide.
+
+```text
+world
+  └── body / link frame     ← joints, geoms, sites, FK `xpos` / `xquat`
+        └── inertial frame   ← COM, `ipos` / `iquat`; MuJoCo `xipos` / `ximat`
+```
+
+Setting `pos` on a geom does **not** move the COM unless inertia is computed `from_geom` (or you edit `<inertial>`). A mesh whose visual origin is not the COM is the usual source of “it tips over in sim.” When reading poses: site/body pose is the **link** frame; if you need the COM in world, use the inertial quantities (`xipos` in MuJoCo), not `xpos`.
+
+Motrix `Body` vs `Link` follows the same split: the rigid body (inertia) vs a kinematic frame you hang sensors and EE sites on.

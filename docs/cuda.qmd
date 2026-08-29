@@ -1,0 +1,24 @@
+# CUDA
+
+Two different pieces of software share the name "CUDA". Mixing them up is why `nvidia-smi` works but `nvcc` is missing, or why a wheel installs and then `torch.cuda.is_available()` is false.
+
+**The driver** is the kernel module that talks to the GPU. If `nvidia-smi` prints a table of cards, the driver is fine. You need it on **every** machine that runs GPU code. It does not compile anything.
+
+**nvcc** is the CUDA *compiler* (part of the CUDA toolkit). It turns `.cu` files into GPU binaries. You need it when you **build** an extension from source (a custom CUDA kernel, some robotics / rendering packages). You do **not** need it to *run* a PyTorch wheel: that wheel already contains compiled kernels and a matching CUDA runtime.
+
+| You are… | Need driver? | Need nvcc? |
+|---|---|---|
+| Running `tensor.cuda()` / training with a PyTorch CUDA wheel | yes | no |
+| `pip install` a package that compiles CUDA on this machine | yes | yes (toolkit compatible with that PyTorch) |
+| CPU-only torch | no | no |
+
+The driver advertises a **maximum** CUDA version it can run. The PyTorch wheel's tag (`cu128`, …) must not exceed that. `nvidia-smi` shows "CUDA Version" in the header — that is the driver's cap, not the toolkit you compiled with.
+
+```bash
+nvidia-smi
+python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.device_count())"
+```
+
+Pick a GPU with [`CUDA_VISIBLE_DEVICES`](environment-management.qmd#environment-variables). After that mask, this process's `cuda:0` is the first *visible* card, not necessarily physical 0.
+
+PyTorch tensors live on a **device**. NumPy arrays do not. `x.cuda()` / `x.to("cuda")` copies; ops on `cuda` tensors run on the GPU. Mixing `cpu` and `cuda` in one expression is an error. Keep a batch on one device; `.cpu().numpy()` is a host copy (and a sync — next section).

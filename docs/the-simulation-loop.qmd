@@ -1,0 +1,37 @@
+# The simulation loop
+
+How simulated time moves:
+
+```text
+write ctrl  →  step (integrate + FK + sensors)  →  read state
+```
+
+Two *control* schedules, not “does the window redraw on another thread”.
+
+**Synchronous (lockstep).** One policy tick per physics step (or per fixed decimation you still wait for):
+
+```text
+obs = read(state)
+ctrl = policy(obs)     # Python waits
+write(ctrl)
+step()                 # then the next obs is from this action
+```
+
+Easy to debug; `Timer` around `policy` vs `step` is honest. Unrealistic: a real robot’s motors do not freeze while the GPU thinks.
+
+**Asynchronous (policy ‖ physics).** Physics keeps stepping at `timestep`. The policy runs at a slower rate (and/or takes wall-clock time). Until a new action arrives, the last `ctrl` is **held** (zero-order hold). Optional **delay**: the action computed from `obs(t)` is applied only at `t + Δ`.
+
+```text
+every physics step:
+    write(held_ctrl)
+    step()
+    if control period elapsed:
+        obs = read(state)           # may be stale vs when ctrl will apply
+        held_ctrl = policy(obs)    # or kick this off and apply next period
+```
+
+That is closer to onboard compute + a 1 kHz PD loop. Policies that only work lockstep often degrade here (delay, multiple physics steps per action, observation from an older `ctrl`).
+
+Viewer/render (MuJoCo viewer, Motrix `RenderApp`) is a separate issue: do not confuse UI FPS with the control period.
+
+*(To fill: lockstep vs `n_substeps` hold vs delayed action, same MJCF, plot tracking error; `Timer` on policy vs sim.)*

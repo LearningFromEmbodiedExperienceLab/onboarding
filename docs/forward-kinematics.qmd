@@ -1,0 +1,7 @@
+# Forward kinematics
+
+FK, defined above: joint coordinates → body/site poses. No forces. After writing `qpos` / `dof_pos`, you must run the simulator’s FK (or a full `step`) before `xpos` / link poses are valid.
+
+We will not derive the product-of-exponentials by hand; we will *ask the simulator* and check it against `quat_rotate` from `src/robotics/math_utils.py` ([Rotations and frames](rotations-and-frames.qmd#rotations-and-frames)). Sites are the EE frames for the IK case study.
+
+*(To fill: read `d.site_xpos` vs Motrix `Site` pose; batch-agnostic shapes.)*

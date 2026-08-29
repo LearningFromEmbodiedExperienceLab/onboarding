@@ -1,0 +1,11 @@
+# State, sensors, and actuators
+
+The I/O contract, independent of engine:
+
+- **Read** configuration and velocity (`qpos`/`qvel` vs `dof_pos`/`dof_vel`), body/site poses, sensors.
+- **Write controls** (`data.ctrl` / `actuator_ctrls`, or named `MotorActuator`) — the **dynamic** path: forces into `step`.
+- **Write state** (set `qpos`, reset, keyframe, mocap) — **kinematic**; follow with FK or `reset`. Do not fight the integrator by setting `qpos` every step unless you mean to.
+
+Sensors are declared in MJCF and read after `step` (or after the documented sensor stage). Named lookup (Motrix `get_sensor_values`, MuJoCo `sensor` adr) vs slicing a flat array.
+
+*(To fill: a table of the actual attribute names; a tiny PD-on-actuator example in both APIs.)*

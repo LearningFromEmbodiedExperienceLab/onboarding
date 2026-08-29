@@ -1,0 +1,153 @@
+# Environment management
+
+Python itself is just an interpreter. The libraries you `import` (NumPy, PyTorch, Hydra, …) are files sitting somewhere on disk. An **environment** is an isolated copy of Python plus the packages installed into it. Two projects that need different versions of the same library each get their own box, so they do not fight.
+
+Always know **which Python you are talking to**. These two should agree:
+
+```bash
+which python
+python -c "import sys; print(sys.executable)"
+```
+
+If they point at `/usr/bin/python3` (or some other env you did not mean), you are not in the environment you think you are. `ModuleNotFoundError` is almost always "wrong interpreter", not "the package does not exist".
+
+## conda vs uv
+
+**conda** (Miniconda / Mamba) manages *environments and more than Python*. It can install compilers, CUDA toolkits, and native libraries that are not pip wheels. Use it when a dependency is not a Python package — or when a stack is only distributed as a conda package.
+
+**uv** is what we use day to day. It replaces `venv` + `pip` + lockfiles and is much faster. It:
+
+- creates a virtualenv (usually `.venv/` in the project)
+- installs Python packages from `pyproject.toml` / `uv.lock`
+- can pin a Python version (`uv python pin 3.11`)
+- runs a command *inside that env* without you having to remember `activate`
+
+Rule of thumb: **uv for Python work**. Reach for conda only when you need non-Python bits. You can still run `uv` / `pip` *inside* a conda env — the env is just "which Python binary and which `site-packages`".
+
+## Everyday uv
+
+```bash
+# one-off env in the current folder
+uv venv --python 3.11
+uv pip install numpy torch
+
+# run without activating — always this project's env
+uv run python -c "import torch; print(torch.__version__)"
+
+# same thing after activating (optional)
+source .venv/bin/activate
+python -c "import torch; print(torch.__version__)"
+```
+
+If the folder has a `pyproject.toml`, the usual loop is:
+
+```bash
+uv sync                  # create / update .venv from the lockfile
+uv run python train.py
+```
+
+Prefer `uv run …` over relying on a lingering `conda activate` / `source .venv/bin/activate` in your shell. It is harder to accidentally use the wrong env.
+
+## How `import` finds things
+
+`import numpy` does not search the internet. Python walks a list of directories called `sys.path` and looks for `numpy.py`, or a folder `numpy/` (a package), or a compiled extension of that name.
+
+```python
+import sys
+print("\n".join(sys.path))
+```
+
+Typical entries, **in order**:
+
+1. **The script's directory** (or `""` = current working directory in a REPL). This is why `import helpers` works when `helpers.py` sits next to the file you just ran.
+2. Directories from the **[`PYTHONPATH`](#environment-variables)** environment variable, if you set it.
+3. The environment's **`site-packages`**. That is where `uv pip install numpy` put NumPy. Each environment has its own `site-packages`. Switch env → different (or missing) `numpy`.
+
+So "the environment" is: **this Python binary** + **this `site-packages` on `sys.path`**. Local files win if they appear earlier on the list. A classic footgun:
+
+```text
+my_project/
+  numpy.py      # you named a file numpy.py
+  train.py      # import numpy  → loads YOUR file, not the real library
+```
+
+The script directory is searched first, so your `numpy.py` shadows the installed package. Do not name files after third-party libraries.
+
+`import x` and `from y import z` use the same lookup; only the syntax differs.
+
+Quick checks when something will not import:
+
+```bash
+python -c "import sys; print(sys.executable)"   # wrong env?
+python -c "import numpy; print(numpy.__file__)" # which copy did I get?
+```
+
+## Environment variables
+
+A conda/uv **environment** is a Python + `site-packages`. An **environment variable** is a different thing: a `NAME=value` string the parent process (your shell, `launch.json`, a job scheduler) hands to the child. Python reads them through `os.environ`. They are how we pass *process-wide* knobs without changing code.
+
+`scripts/print_env.py` prints the ones we care about and the `sys.path` they affect:
+
+```bash
+uv run python scripts/print_env.py
+CUDA_VISIBLE_DEVICES=1 PYTHONPATH=src uv run python scripts/print_env.py
+```
+
+The prefix form (`NAME=value command`) lasts **one command**. `export NAME=value` lasts for the rest of that shell (and everything you start from it). Prefer the prefix for experiments: it cannot leak into the next job. Do not put `CUDA_VISIBLE_DEVICES` in `~/.bashrc` unless you really want every process on that machine pinned to the same GPU.
+
+Check what the **Python process** sees, not only the shell:
+
+```bash
+echo "$CUDA_VISIBLE_DEVICES"                          # the shell
+uv run python -c "import os; print(os.environ.get('CUDA_VISIBLE_DEVICES'))"
+```
+
+If those disagree, F5 / `uv run` / a notebook kernel is not the same process as that terminal.
+
+### `PYTHONPATH`
+
+Colon-separated directories prepended to `sys.path` (item 2 in the list above). That is why `PYTHONPATH=src python scripts/train.py` can `import robotics` without an editable install — and why we still prefer `pip install -e .` (see [Project structure](project-structure.qmd#project-structure)).
+
+```bash
+PYTHONPATH=src uv run python -c "import robotics; print(robotics.__file__)"
+```
+
+Several paths: `PYTHONPATH=/a:/b` on Linux. A stale `PYTHONPATH` in your bashrc is a common source of "I import the *wrong* `robotics`".
+
+The editor does **not** read your shell's `PYTHONPATH`. That is `extraPaths` (see [Editor and stubs](making-life-easier.qmd#editor-and-stubs)).
+
+### `CUDA_VISIBLE_DEVICES`
+
+CUDA enumerates GPUs as `0, 1, 2, …`. This variable is a **mask**: the process only sees the IDs you list, **renumbered from zero**.
+
+```bash
+nvidia-smi                    # physical IDs on this machine
+CUDA_VISIBLE_DEVICES=1 uv run python scripts/print_env.py
+```
+
+| You set | The process sees |
+|---|---|
+| unset | all GPUs, `cuda:0` is physical 0 |
+| `1` | only physical 1, which appears as `cuda:0` |
+| `1,3` | those two, as `cuda:0` and `cuda:1` |
+| `""` or `-1` | no GPU (CPU fallback if the library allows it) |
+
+So `tensor.to("cuda:0")` after `CUDA_VISIBLE_DEVICES=1` is **physical GPU 1**. That is the usual way to share a box without everyone stacking on GPU 0. Check `nvidia-smi` first.
+
+PyTorch example (needs `torch` installed; not in the default extra):
+
+```python
+import os, torch
+print(os.environ.get("CUDA_VISIBLE_DEVICES"), torch.cuda.device_count())
+```
+
+### Other knobs you will meet
+
+| Variable | Typical use |
+|---|---|
+| `PYTHONBREAKPOINT` | debugger for `breakpoint()` (`ipdb.set_trace`, or `0` to disable) |
+| `MUJOCO_GL` | MuJoCo GL backend (`egl` on a headless server, `glfw` on a desktop) |
+| `OMP_NUM_THREADS` / `MKL_NUM_THREADS` | cap CPU threads so many jobs do not oversubscribe |
+| `CUDA_LAUNCH_BLOCKING` | `1` makes CUDA kernels run synchronously (see [Bells and whistles](bells-and-whistles.qmd#bells-and-whistles)) |
+
+The GUI debugger is a *different* parent process. Set the same names under `"env"` in `launch.json` (see [VS Code / Cursor debugger](debugging-repl-notebooks.qmd#vscode-debugger)); a prefix in the terminal does not apply to F5.

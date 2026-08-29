@@ -1,0 +1,15 @@
+# Scene vocabulary
+
+Names that appear in both formats and both APIs:
+
+| Idea | Typical name | What it is |
+|---|---|---|
+| Rigid piece with inertia | body / link | Mass, pose |
+| Allowed motion | joint | Hinge, slide, ball, free… |
+| Collision / visual shape | geom | Sphere, capsule, mesh; not a DoF |
+| Named frame, no mass | site | End-effector, sensor origin |
+| Map `ctrl` → force/position | actuator | Motor, position, velocity |
+
+URDF says *link*; MJCF and MuJoCo say *body*. Motrix exposes both `Body` (rigid body) and `Link` (kinematic frame). Joints, geoms, sites, and actuators are the same ideas in both.
+
+*(To fill: a one-page picture of a 2-DoF arm; URDF vs MJCF cheat-sheet.)*
