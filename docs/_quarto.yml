@@ -29,6 +29,7 @@ book:
       chapters:
         - kinematics-vs-dynamics.qmd
         - scene-vocabulary.qmd
+        - geometry-and-collision.qmd
         - rotations-and-frames.qmd
         - asset-files.qmd
         - two-simulators.qmd

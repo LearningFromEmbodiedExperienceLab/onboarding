@@ -1,0 +1,244 @@
+# Geometry and collision
+
+The renderer shows art. The physics engine collides with a **different object** that
+happens to occupy the same neighborhood. If you treat “the mesh I see” as “the shape
+the simulator touches,” contact, grasping, and tipping will lie to you until you
+validate.
+
+This chapter is about **how simulators represent geometry**, what **meshes** mean in
+that context, why **convex hulls** appear everywhere, and how to **inspect and test**
+collision separately from visuals. File-format details (URDF tags, MJCF `<compiler>`,
+mesh paths) live in [Asset files](asset-files.qmd#asset-files); here we focus on the
+ideas that cross MuJoCo, Motrix, URDF, and most other engines.
+
+## Three geometries, three jobs
+
+Every rigid link carries up to three unrelated shape descriptions:
+
+| Layer | Purpose | Typical source | If you get it wrong |
+|---|---|---|---|
+| **Visual** | Rendering, human inspection | High-poly mesh, materials, textures | “It *looks* like it should collide” |
+| **Collision** | Contact, constraints, grasp checks | Primitives, convex hull(s), compounds | Slipping, jitter, missed contacts |
+| **Inertial** | Mass, COM, inertia tensor | CAD, explicit `<inertial>`, or `from_geom` | Tips over, wrong dynamics, “floaty” arm |
+
+URDF makes the split explicit: `<visual>` and `<collision>` are sibling tags on each
+`<link>`. MJCF uses one `<geom>` element type for everything; you distinguish roles
+with **`group`**, **`contype` / `conaffinity`**, and sometimes duplicate geoms on the
+same body (one pretty, one ugly). Motrix inherits the same MJCF/URDF semantics when
+it loads a model.
+
+None of the three has to match the others. That is normal and intentional.
+
+```text
+link / body
+  ├── visual geoms     → pretty mesh (group 1 in MuJoCo)
+  ├── collision geoms  → cheap/convex/compound (group 0, contype set)
+  └── inertial block   → mass, COM, inertia (may be from geoms or explicit)
+```
+
+Setting `pos` on a geom does **not** move the center of mass unless inertia is computed
+`from_geom` or you edit `<inertial>` directly — see
+[Link frame vs inertial frame](rotations-and-frames.qmd#link-frame-vs-inertial-frame).
+A visual mesh whose artist origin is not the COM is a common source of “it tips over in
+sim.”
+
+**Team policy (recommended):**
+
+> **Visual:** any mesh, any poly count.  
+> **Collision:** primitives or reviewed convex pieces, authored separately.  
+> **Never** ship “we used the visual mesh for collision because it was easier.”
+
+## Primitives: what simulators prefer
+
+Analytic shapes are cheap, stable, and easy to debug. Production robots are usually
+**compounds** — several primitives (or several convex pieces) per link, not one mesh
+per link.
+
+| Primitive | MuJoCo `type` | URDF `<geometry>` | Notes |
+|---|---|---|---|
+| Sphere | `sphere` | `<sphere radius="…"/>` | Cheapest contact; good for knobs, simplified joints |
+| Capsule | `capsule` | *(no native tag — use cylinder or mesh)* | Excellent for links and limbs; MuJoCo default for many pipelines |
+| Box | `box` | `<box size="…"/>` | Tables, walls, rough link envelopes; `size` is half-extents in MuJoCo |
+| Cylinder | `cylinder` | `<cylinder radius="…" length="…"/>` | Wheels, pegs; watch axis alignment (URDF Z vs your export) |
+| Plane | `plane` | `<plane …/>` (limited) | Infinite ground; foot sliding and contact normals need care |
+| Ellipsoid | `ellipsoid` | — | Less common; know it exists |
+
+**Height fields** (`hfield` in MuJoCo) are terrain meshes sampled on a grid — useful
+for uneven ground, rarely your first debugging problem.
+
+Bullet, PhysX, and ODE use the same primitive vocabulary under different names. When
+you export from CAD or Isaac, you are often **fitting** or **decomposing** into these
+primitives whether you see them or not.
+
+*(To fill: a 2-DoF arm with capsule link collision + mesh visuals only; MJCF snippet.)*
+
+### Collision filtering (MuJoCo)
+
+Geoms also carry **bitmasks** that decide *who collides with whom*:
+
+| Attribute | Meaning |
+|---|---|
+| `contype` | “I am type …” (bit set) |
+| `conaffinity` | “I collide with types …” (bit mask) |
+
+Two geoms collide when `(contype_a & conaffinity_b) || (contype_b & conaffinity_a)`.
+Accidentally zeroing these is a silent “ghost robot walks through the table” bug.
+Visual-only geoms often use `contype="0" conaffinity="0"` so they never participate
+in contact.
+
+## Meshes: triangles, quads, watertight
+
+### Triangles vs quads
+
+| Context | What you usually have |
+|---|---|
+| **Rendering** (USD, glTF, Blender) | Quads and n-gons are fine |
+| **Collision pipelines** | Almost always **triangles** internally |
+| **URDF / OBJ / STL** | Typically triangles; STL is ubiquitous in robotics |
+
+MuJoCo triangulates mesh geoms at load time. Do not assume the render mesh you export
+from a DCC tool is sim-ready just because it looks correct in the viewport.
+
+### Watertight, manifold, closed
+
+Plain-language definitions:
+
+- **Watertight (closed):** every edge is shared by exactly two faces; the mesh encloses
+  a well-defined volume.
+- **Manifold:** locally looks like a thin sheet of paper — no T-junctions, no random
+  internal faces (stricter than watertight in practice; tools disagree on wording).
+
+**Why simulators care:**
+
+- **Volume → mass** when using inertia `from_geom` or density on geoms.
+- **Convex hull algorithms** behave badly on open soup, duplicated vertices, or
+  self-intersections.
+- **Phantom contacts** appear when normals flip or faces intersect themselves.
+
+### Basic mesh processing checklist
+
+Before a mesh becomes a collision or inertial input:
+
+1. **Units:** meters in sim. STL in millimeters → robot the size of a building.
+2. **Axis:** Z-up vs Y-up at export; apply the transform in the file, not in your head.
+3. **Triangulate** for collision; remove degenerate (zero-area) triangles.
+4. **Merge vertices** / remove duplicates; fix inverted normals (consistent outward).
+5. **Decimate visuals** if needed; **never** decimate collision without re-checking hull
+   or contacts.
+6. **Track large assets** with Git LFS — see
+   [GitHub and version control](github-version-control.qmd#git-lfs).
+
+Handy tools: Blender, MeshLab, and Python **`trimesh`** for quick inspection
+(`is_watertight`, `volume`, convex hull preview). STL is common and often **broken**
+(non-manifold, holes, wrong scale) — treat it as guilty until inspected.
+
+*(To fill: `trimesh` one-liner on a tutorial mesh; link to repo path under `assets/`.)*
+
+## Convex hulls: what they are and why we need them
+
+The **convex hull** of a mesh is the smallest convex set that contains all its
+vertices — imagine shrink-wrapping the shape with no dents allowed.
+
+```text
+        visual mesh (concave seat)
+       /‾‾‾‾\___/‾‾‾‾\
+      |  hole  |      |        convex hull fills the hole
+       \_____/ \____/         → robot “sits” on invisible material
+```
+
+### Why engines convexify
+
+| Concave mesh–mesh | Convex–convex |
+|---|---|
+| Expensive, fragile contact | Fast, continuous, well-studied |
+| Needs decomposition or special cases | Default path in most engines |
+
+So simulators **approximate** concave geometry by one or more of:
+
+1. **Single convex hull** per mesh geom (conservative outer shell).
+2. **Convex decomposition** — many hulls per link (VHACD, CoACD, manual compounds).
+3. **Primitives** — capsules/boxes fitted by hand (often the most robust).
+4. **SDFs / other fields** — newer options in some engines; check your version and docs.
+
+**MuJoCo:** a `mesh` geom uses the **convex hull** of the referenced vertices at compile
+time (unless you have moved to alternate representations in your toolchain). The hull
+is often **larger** than the visible mesh: thin walls become thick, holes get plugged.
+
+**URDF / Isaac-style pipelines:** multiple `<collision>` entries per link are normal —
+each piece is convex or primitive.
+
+### When a hull lies
+
+| Symptom | Likely cause |
+|---|---|
+| Floats above the table | Hull bottom is higher than visual sole |
+| Jitter in narrow gaps | Hull filled a concavity; contacts fight |
+| Misses thin features | Hull smoothed over fingers, pegs, edges |
+| Stable but wrong grasp | Hull wider than fingers; contact early/late |
+
+Fix: add **compound** geoms (several capsules/boxes), run **convex decomposition**, or
+simplify the part that needs precision (gripper pads as boxes, not one mesh hull).
+
+## Collision ≠ visuals: inspect and validate
+
+This is the highest-leverage section. Build a habit **before** tuning controllers.
+
+### Inspect in the viewer
+
+- Toggle **collision geoms** on and **visuals** off (MuJoCo viewer flags; Motrix viewer
+  layers when available).
+- For each link: geom **count**, **type**, **pos/quat**, **scale** on meshes.
+- Compare **link frame** (joint attachment) to where the collision volume sits — offset
+  bugs dominate “everything is shifted by 5 cm.”
+- Print or browse the model’s geom list at load time (`model.geom_type`, names, parent
+  body).
+
+*(To fill: `scripts/collision_debug.py` — load tutorial MJCF, print geom summary, optional
+MuJoCo `mjVIS_GEOM` notes.)*
+
+### Validation workflow
+
+Run these in order when importing a new asset:
+
+1. **Drop test** — spawn slightly above ground; first contact should match where the
+   collision sole is, not where the paint is.
+2. **Light penetration** — start barely embedded; contact should push out smoothly, not
+   explode (bad hull scale or wrong solref/solimp is a separate tuning topic).
+3. **Known configuration** — gripper closed on a box: how many contacts? stable or
+   buzzing?
+4. **FK cross-check** — site / EE frame vs bounding box of **collision** geoms, not
+   the visual mesh ([Forward kinematics](forward-kinematics.qmd#forward-kinematics)).
+5. **Inertia sanity** — is the COM inside the collision envelope? Does the link tip
+   the way you expect when you push it?
+
+### Common failure modes
+
+| Bug | What you see |
+|---|---|
+| Visual mesh used for collision | Slow sim, jitter, “invisible” bumps |
+| STL in mm, sim in m | Giant or microscopic robot |
+| Artist origin ≠ link frame | Whole robot shifted / rotated |
+| Single concave mesh, one hull | Chair seats, bowls, grasps behave wrong |
+| `from_geom` on visuals only | Mass and COM from render mesh |
+| `contype` / `conaffinity` typo | Passes through floor or itself |
+| Duplicated collision geoms | Double contact stiffness, mysterious forces |
+
+**Dynamics** uses these shapes for contact; **kinematics** does not — but bad collision
+geometry still breaks IK targets that assumed you could reach without hitting the table.
+See [Kinematics vs dynamics](kinematics-vs-dynamics.qmd#kinematics-vs-dynamics).
+
+At runtime, contact arrays (e.g. MuJoCo `data.contact`, `mj_contact`) tell you what
+actually touched. Trust those over the viewport when debugging grasps.
+
+## Where this goes in the pipeline
+
+| Topic | Chapter |
+|---|---|
+| Names: body, joint, geom, site | [Scene vocabulary](scene-vocabulary.qmd#scene-vocabulary) |
+| **Shapes, meshes, hulls, validation** | *this chapter* |
+| URDF/MJCF files, `<meshdir>`, compiler | [Asset files](asset-files.qmd#asset-files) |
+| Load model, step sim | [Two simulators](two-simulators.qmd#two-simulators) |
+
+Author collision geometry in the asset file, validate it once in the viewer and with the
+tests above, then leave it alone during control tuning. Mesh paths and “inertia from
+geom” belong in [Asset files](asset-files.qmd#asset-files) — not in the control loop.

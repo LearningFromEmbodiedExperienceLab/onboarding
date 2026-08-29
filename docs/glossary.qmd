@@ -1,3 +1,19 @@
 # Glossary and Terminology
 
-*(To fill: key terms as they come up.)*
+Short definitions for terms used across the tutorial. Expand as chapters land.
+
+| Term | Meaning |
+|---|---|
+| **body / link** | Rigid piece with mass and pose; URDF *link*, MJCF *body*. |
+| **geom** | Collision and/or visual shape attached to a body; not a degree of freedom. |
+| **visual geom** | Mesh or primitive used only for rendering. |
+| **collision geom** | Shape used for contact and constraints; often simpler than the visual. |
+| **compound geom** | Several collision shapes on one link (capsules + boxes, multiple hulls). |
+| **convex hull** | Smallest convex set containing a mesh; simulators use hulls for fast contact. |
+| **watertight mesh** | Closed mesh with well-defined volume (every edge shared by two faces). |
+| **contype / conaffinity** | MuJoCo bitmasks controlling which geoms collide with which. |
+| **from_geom** | MuJoCo option to infer mass/inertia from geom density and shape. |
+| **FK / IK** | Forward / inverse kinematics — joint coordinates ↔ poses. |
+| **site** | Named frame on a body (EE, sensor origin); no mass. |
+
+See also the dedicated [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) chapter for mesh and validation vocabulary.

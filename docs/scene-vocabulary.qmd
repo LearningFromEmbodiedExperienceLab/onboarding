@@ -6,7 +6,7 @@ Names that appear in both formats and both APIs:
 |---|---|---|
 | Rigid piece with inertia | body / link | Mass, pose |
 | Allowed motion | joint | Hinge, slide, ball, free… |
-| Collision / visual shape | geom | Sphere, capsule, mesh; not a DoF |
+| Collision / visual shape | geom | Sphere, capsule, mesh; not a DoF — see [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) |
 | Named frame, no mass | site | End-effector, sensor origin |
 | Map `ctrl` → force/position | actuator | Motor, position, velocity |
 
