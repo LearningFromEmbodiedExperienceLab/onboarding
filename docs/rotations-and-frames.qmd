@@ -1,6 +1,6 @@
 # Rotations and frames
 
-Poses are a position plus a rotation. Reading a body pose (FK) or sending a target to IK only makes sense after you fix two conventions: **how the rotation is stored**, and **which frame it is in**.
+Poses are a position plus a rotation. Reading a body pose (FK) or sending a target to IK only makes sense after you fix three conventions: **which way the axes point**, **how the rotation is stored**, and **which frame the pose is expressed in**.
 
 ## The groups $SO(3)$ and $SE(3)$
 
@@ -70,6 +70,67 @@ Conversions (same file): `matrix_from_quat`, `quat_from_euler_xyz` / `euler_from
 ```bash
 uv run python scripts/rotations.py
 ```
+
+## Axis conventions (sim, vision, graphics) {#axis-conventions}
+
+Most **robotics simulators** (MuJoCo, URDF/ROS, Motrix, Isaac) use a **right-handed** world frame in the same spirit as [ROS REP-103](http://wiki.ros.org/rep103):
+
+| Axis | Typical sim / robot base |
+|---|---|
+| **+X** | Forward |
+| **+Y** | Left (when looking along +X) |
+| **+Z** | Up |
+
+FK poses (`xpos`, `xquat`), joint axes in MJCF/URDF, and gravity (usually along **−Z**) are expressed in this frame. That is the default mental model for the rest of this tutorial.
+
+**Vision and graphics stacks disagree.** They are still mostly right-handed, but they label axes differently — especially for **cameras**. Copying a `(3,)` position or `(4,)` quaternion from sim into OpenCV, OpenGL, or a COLMAP-style pipeline without an explicit change-of-basis looks like a small offset or a 90° “mystery rotation,” not a missing import.
+
+| Stack | +X | +Y | +Z | Camera / viewer habit |
+|---|---|---|---|---|
+| **Sim / ROS-style** | Forward | Left | Up | World-fixed ground frame |
+| **OpenCV** | Right in the image | Down in the image | Forward into the scene | Optical frame; “looks along **+Z**” |
+| **OpenGL (classic camera)** | Right | Up | Back (toward the viewer) | Camera looks down **−Z** |
+
+```text
+  Sim world (Z-up)              OpenCV camera (common)
+       +Z                              +Y ↓
+        |                                |
+        |                                +----→ +X
+   +Y ←--+--→ +X                         /
+       /                                +Z (out of lens, into scene)
+     +X forward
+```
+
+**What to do at boundaries.** Whenever sim meets pixels (rendering, projection, AR, logging from a RealSense/OpenCV pipeline):
+
+1. Name **both** frames (e.g. `world_mujoco` vs `camera_opencv`).
+2. Apply one fixed **change-of-basis** rotation (matrix or quaternion) you document — e.g. “camera optical +Z aligns with robot +X when mounted forward.”
+3. Convert **quaternion order** at the same time if needed (see below and [Rotation representations](#rotation-representations)).
+
+[Never assume “right-handed ⇒ same axes.” Handedness matches; axis *labels* do not. A 4-vector from another tool is ambiguous until you know frame *and* component order.]{.common-bug-warning}
+
+This repo’s `Pose(pos, quat)` and MuJoCo `xquat` use **sim-world axes** and **`(w, x, y, z)`** quaternions. Bridging to another stack is a small adapter (multiply by a constant rotation, swap quaternion layout with `wxyz_to_xyzw` / `xyzw_to_wxyz` in `math_utils.py`) — not a different IK problem.
+
+### Quaternion component order (reminder)
+
+Storage order is independent of axis convention but equally easy to get wrong:
+
+| Source | Layout |
+|---|---|
+| MuJoCo `xquat`, this repo, `Pose.quat` | **`(w, x, y, z)`** — scalar first |
+| ROS `geometry_msgs/Quaternion`, SciPy `Rotation.from_quat` | **`(x, y, z, w)`** — scalar last |
+| USD / some game engines | Varies — read that engine’s docs |
+
+Swapping layout without permuting components rotates about the wrong axis in practice. **Always convert explicitly**; do not reorder four floats by habit.
+
+```python
+from robotics.math_utils import wxyz_to_xyzw, xyzw_to_wxyz
+
+q_sim = body_xquat          # (w, x, y, z) from MuJoCo
+q_ros = wxyz_to_xyzw(q_sim) # safe hand-off to ROS / SciPy
+```
+
+When reading third-party poses (calibration files, SLAM, Unity/Unreal exports), check **both** the axis diagram in their docs and the quaternion order line — manufacturers rarely use the same pair as your sim.
 
 ## Link frame vs inertial frame
 
