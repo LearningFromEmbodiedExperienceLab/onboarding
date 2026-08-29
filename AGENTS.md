@@ -56,6 +56,7 @@ Robotics sim smoke test (after `bash scripts/fetch_menagerie_assets.sh`):
 - `uv run python scripts/ik_substeps_demo.py` — lockstep vs substepped dynamic IK (Euler)
 - `uv run python scripts/actuator_control_demo.py` — position vs motor actuators @ 50 Hz vs substep torque
 - Regenerate doc videos: `uv run python scripts/render_ik_tracking_videos.py` (needs `mujoco` extra + ffmpeg)
+- Regenerate instability clip: `uv run python scripts/render_ik_instability_video.py`
 - Headless MuJoCo rendering: `MUJOCO_GL=egl` or `osmesa` (+ `PYOPENGL_PLATFORM=osmesa` for OSMesa); see `docs/environment-variables.qmd#displays-opengl-headless`.
 - **Env var lookup:** `docs/environment-variables.qmd` (appendix at end of book); concept in `docs/environment-management.qmd#environment-variables`.
 
