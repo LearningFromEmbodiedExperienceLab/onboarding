@@ -9,3 +9,5 @@ typings/mujoco/
 docs/_site/
 .quarto/
 
+# Third-party sim assets (obtain via scripts/fetch_menagerie_assets.sh)
+third_party/mujoco_menagerie/

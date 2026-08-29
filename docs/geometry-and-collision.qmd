@@ -31,8 +31,8 @@ None of the three has to match the others. That is normal and intentional.
 
 ```text
 link / body
-  ├── visual geoms     → pretty mesh (group 1 in MuJoCo)
-  ├── collision geoms  → cheap/convex/compound (group 0, contype set)
+  ├── visual geoms     → pretty mesh (e.g. group 2 in Menagerie MJCF)
+  ├── collision geoms  → capsules / hulls (e.g. group 3; contype set)
   └── inertial block   → mass, COM, inertia (may be from geoms or explicit)
 ```
 
@@ -163,6 +163,12 @@ So simulators **approximate** concave geometry by one or more of:
 **MuJoCo:** a `mesh` geom uses the **convex hull** of the referenced vertices at compile
 time (unless you have moved to alternate representations in your toolchain). The hull
 is often **larger** than the visible mesh: thin walls become thick, holes get plugged.
+That applies to **collision** mesh geoms too — a misconfigured asset may convexify the
+wrong mesh or use a hull where capsules were intended.
+
+[If collision geoms are mesh-backed, the simulator contacts the hull, not the render
+surface. A convexified collision mesh can look “correct” in a viewer and still grasp,
+slide, or support weight incorrectly.]{.common-bug-warning}
 
 **URDF / Isaac-style pipelines:** multiple `<collision>` entries per link are normal —
 each piece is convex or primitive.
@@ -193,8 +199,54 @@ This is the highest-leverage section. Build a habit **before** tuning controller
 - Print or browse the model’s geom list at load time (`model.geom_type`, names, parent
   body).
 
-*(To fill: `scripts/collision_debug.py` — load tutorial MJCF, print geom summary, optional
-MuJoCo `mjVIS_GEOM` notes.)*
+#### Example: MuJoCo Menagerie arms (visual vs collision)
+
+We pin two robots from [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie)
+(**AgileX Piper** and **ARX L5**) as **third-party assets** — not copied into this repo.
+Fetch them once with `bash scripts/fetch_menagerie_assets.sh` (sparse git checkout;
+see [Asset files](asset-files.qmd#menagerie-vendor-assets) and
+[Large files](github-version-control.qmd#third-party-assets-sparse-checkout)).
+
+Both models use the same MJCF pattern: **`class="visual"`** geoms on **group 2**
+(`contype="0"`, mesh for rendering) and **`class="collision"`** geoms on **group 3**
+(capsules, mesh convex hulls, or boxes for contact). The figures below render each
+layer separately at the default pose (offscreen MuJoCo + `trimesh` convex hulls for
+the middle column):
+
+![AgileX Piper: visual meshes, convex hull of each visual mesh, and author collision geoms](imgs/menagerie/piper_compare.png)
+
+![ARX L5: visual meshes, convex hull of each visual mesh, and author collision geoms](imgs/menagerie/arx_l5_compare.png)
+
+Read left → right:
+
+1. **Visual meshes** — what you paint; high detail, not used for contact here.
+2. **Convex hull of each visual mesh** — what MuJoCo (and most engines) would use if
+   you dropped the raw render mesh into a `mesh` collision geom. Hulls **fill concavities**
+   and add volume (orange “shrink-wrap”). Menagerie does **not** use this for contact,
+   but third-party assets sometimes do by mistake.
+3. **Author collision** — what the asset author actually configured (capsules, mesh
+   hulls, boxes on group 3).
+
+[Upstream assets are not guaranteed to be sim-ready. Even when collision geoms exist, they may be misaligned, too coarse, or themselves mesh convex hulls that behave badly (phantom contact, missed gaps, wrong grasp timing). The middle column is the shape you get if someone convexifies the **visual** mesh — often worse than hand-authored collision. Always run the validation workflow below; do not trust the Menagerie / URDF name alone.]{.common-bug-warning}
+
+Piper’s author collision mixes **capsules** with **mesh convex hulls** on some links —
+chunkier than the paint. L5 uses **box** finger collision while visuals stay detailed
+meshes. Compare each column before tuning controllers on a new robot.
+
+Regenerate figures after bumping `third_party/menagerie.lock.json`:
+
+```bash
+bash scripts/fetch_menagerie_assets.sh
+uv sync --extra mujoco
+MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa \
+  uv run python scripts/render_menagerie_geometry_figures.py
+```
+
+On Linux CI, install `libosmesa6` first. GitHub Actions workflow
+`.github/workflows/regenerate-menagerie-images.yml` runs the same steps and commits
+updated PNGs when the lock file or render script changes.
+
+*(To fill: `scripts/collision_debug.py` — print geom summary per link from Menagerie XML.)*
 
 ### Validation workflow
 
@@ -213,9 +265,14 @@ Run these in order when importing a new asset:
 
 ### Common failure modes
 
+Future chapters will mark these patterns in **red** with the `.common-bug-warning`
+style; a few are called out here already.
+
 | Bug | What you see |
 |---|---|
 | Visual mesh used for collision | Slow sim, jitter, “invisible” bumps |
+| Trusting upstream collision without validation | Looks fine in viewer; wrong contact in sim |
+| Mesh collision geom (convex hull) on concave link | Phantom volume, blocked gaps, bad grasps |
 | STL in mm, sim in m | Giant or microscopic robot |
 | Artist origin ≠ link frame | Whole robot shifted / rotated |
 | Single concave mesh, one hull | Chair seats, bowls, grasps behave wrong |

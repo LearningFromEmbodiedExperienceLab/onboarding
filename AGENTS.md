@@ -63,3 +63,10 @@ Docs (Quarto):
 - Reading progress: client-side only via `docs/progress.js` + `progress.css`
   (`localStorage` key `onboarding-book-progress:v1`). Marks `##` sections done;
   highlights unread entries in the page TOC and chapter status in the sidebar.
+- Menagerie vendor assets: `third_party/menagerie.lock.json` +
+  `scripts/fetch_menagerie_assets.sh` → gitignored `third_party/mujoco_menagerie/`.
+  Doc figures: `scripts/render_menagerie_geometry_figures.py` (needs `uv sync --extra
+  mujoco`, OSMesa headless). CI: `.github/workflows/regenerate-menagerie-images.yml`.
+  Doc figure script also needs `trimesh`/`scipy` (included in `mujoco` extra).
+- Common bug warnings in HTML docs use `.common-bug-warning` in `docs/styles.css`
+  (red text); apply `{.common-bug-warning}` on future footgun callouts.

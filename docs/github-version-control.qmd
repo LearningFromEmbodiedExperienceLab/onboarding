@@ -140,3 +140,32 @@ git commit -m "Track robot mesh with Git LFS."
 Everyone who clones needs `git lfs install` once on that machine; otherwise they get tiny pointer files instead of the real meshes.
 
 LFS is not a dataset dump. GitHub's LFS quota is small. Multi-gigabyte motion clips and checkpoints should live outside the repo (and the README should say where). If you accidentally committed a large file, fixing history is painful — ask before rewriting `main`.
+
+## Third-party assets: sparse checkout {#third-party-assets-sparse-checkout}
+
+When a dependency is **large, upstream-maintained, and not your source code** (robot
+models, sim environments, datasets), prefer:
+
+1. **Do not** copy meshes into your repo (even with LFS) unless you own the asset.
+2. **Do** commit a **lock file** + **fetch script** that pins a git ref.
+3. **Do** add the checkout directory to **`.gitignore`**.
+
+This repo’s pattern (`third_party/menagerie.lock.json` + `scripts/fetch_menagerie_assets.sh`):
+
+```bash
+# Creates third_party/mujoco_menagerie/ with only agilex_piper/ and arx_l5/
+bash scripts/fetch_menagerie_assets.sh
+```
+
+Under the hood: `git clone --filter=blob:none --sparse`, then
+`git sparse-checkout set agilex_piper arx_l5`, then `git checkout <pinned-sha>`.
+Everyone gets the same robots without cloning all of Menagerie (~100+ models).
+
+| Pattern | When |
+|---|---|
+| `.gitignore` only | Generated outputs, local envs |
+| Git LFS | Small assets that *must* version with *your* code |
+| Sparse vendor clone | Third-party model packs you pin but do not fork |
+| External URL / HF | Huge datasets, checkpoints |
+
+Attribution: keep upstream `LICENSE` files in the vendor tree; link to Menagerie in docs.

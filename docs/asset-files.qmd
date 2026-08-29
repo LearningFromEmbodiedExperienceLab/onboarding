@@ -6,4 +6,33 @@ Mesh paths, compiler flags, and “inertia from geom” belong here — not in t
 For *what* those meshes and geoms mean (visual vs collision, convex hulls, validation),
 see [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) first.
 
-*(To fill: the tutorial MJCF; `<compiler meshdir="…"/>`; `mujoco.MjModel.from_xml_path` vs `motrixsim.load_model`.)*
+## Menagerie vendor assets {#menagerie-vendor-assets}
+
+Tutorial examples use robots from [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie)
+(**`agilex_piper`**, **`arx_l5`**). We do **not** commit their meshes to this repo.
+
+| Committed | Not committed (local only) |
+|---|---|
+| `third_party/menagerie.lock.json` — repo URL, git ref, folder list | `third_party/mujoco_menagerie/` — sparse checkout |
+
+```bash
+bash scripts/fetch_menagerie_assets.sh   # clone / update vendor tree
+uv sync --extra mujoco
+uv run python -c "
+import mujoco as mj
+m = mj.MjModel.from_xml_path('third_party/mujoco_menagerie/agilex_piper/scene.xml')
+print('piper ngeom', m.ngeom)
+"
+```
+
+Load **`scene.xml`** (includes robot + ground), not the bare `piper.xml` / `arx_l5.xml`,
+unless you are editing the model. Mesh paths inside Menagerie MJCF are relative to each
+robot folder’s `assets/` directory.
+
+Doc figures under `docs/imgs/menagerie/` are **generated PNGs** (committed so the static
+site builds without MuJoCo). Regenerate with
+`scripts/render_menagerie_geometry_figures.py` (visual, convex hull of visual meshes,
+and collision columns) — see
+[Geometry and collision](geometry-and-collision.qmd#inspect-in-the-viewer).
+
+*(To fill: `<compiler meshdir="…"/>` for our own MJCF; `motrixsim.load_model` parity.)*

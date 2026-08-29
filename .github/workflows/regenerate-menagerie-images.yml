@@ -1,0 +1,44 @@
+# Regenerate docs/imgs/menagerie/*.png from MuJoCo Menagerie vendor assets.
+name: Regenerate menagerie images
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, main]
+    paths:
+      - third_party/menagerie.lock.json
+      - scripts/fetch_menagerie_assets.sh
+      - scripts/render_menagerie_geometry_figures.py
+      - .github/workflows/regenerate-menagerie-images.yml
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install OSMesa (headless MuJoCo)
+        run: sudo apt-get update && sudo apt-get install -y libosmesa6 libosmesa6-dev
+
+      - name: Fetch Menagerie assets (sparse)
+        run: bash scripts/fetch_menagerie_assets.sh
+
+      - name: Install Python deps
+        run: uv sync --extra mujoco
+
+      - name: Render geometry figures
+        env:
+          MUJOCO_GL: osmesa
+          PYOPENGL_PLATFORM: osmesa
+        run: uv run python scripts/render_menagerie_geometry_figures.py
+
+      - name: Commit updated PNGs
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Regenerate menagerie geometry doc images [skip ci]"
+          file_pattern: docs/imgs/menagerie/*.png
