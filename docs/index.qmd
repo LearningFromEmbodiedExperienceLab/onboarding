@@ -16,6 +16,11 @@ edited and reviewed independently. Use the sidebar to navigate.
   `uv run python scripts/<name>.py`.
 - Code blocks in these pages are illustrative snippets; the authoritative,
   runnable versions are the files under `scripts/` and `src/`.
+- **Progress:** each major section (`##` heading) has a **Done** checkbox. Your
+  choices are saved in this browser only (`localStorage`). Unread sections are
+  highlighted in the page table of contents; the left sidebar shows chapter
+  status (blue = not finished, orange = partly done, ✓ = all sections on that
+  chapter marked done).
 
 ## Building these docs
 
