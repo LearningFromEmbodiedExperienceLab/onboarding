@@ -33,6 +33,77 @@ If `dt` is too large for the inner loop — especially with **explicit** integra
 converges. **Implicit** integrators treat the stiff PD more stably and tolerate
 much larger `dt` on MuJoCo.
 
+### Instability in motion
+
+Dynamic IK with **Euler** integration and **20 ms** timesteps (one IK tick per
+`mj_step`) blows up within a few control cycles: the arm flails, position error
+ grows to hundreds of millimetres, and joint velocities spike (MuJoCo warns about
+ unstable accelerations).
+
+<video controls preload="metadata" width="100%" style="max-width:640px" title="Dynamic IK instability — Euler integrator, dt=20 ms">
+  <source src="imgs/ik-tracking/piper_ik_instability.mp4" type="video/mp4">
+</video>
+
+Regenerate:
+
+```bash
+uv sync --extra mujoco
+uv run python scripts/render_ik_instability_video.py
+```
+
+The red sphere is the fixed reach target; the overlay tracks position error and
+peak joint speed. Compare with the stable kinematic videos in [Case study: IK
+tracking](case-study-ik-tracking.qmd#case-study-ik-tracking).
+
+## Substeps vs decimation
+
+The instability clip uses **lockstep**: IK runs once per physics step at the same
+20 ms rate. Production stacks almost never do that — **physics is faster than
+control**.
+
+| Symbol | Meaning |
+|---|---|
+| `Δt_sim` | One `step()` — physics timestep (`model.opt.timestep`) |
+| `Δt_ctrl` | Time between IK / policy updates |
+| `n_sub` | **Substeps** per control tick: `n_sub = Δt_ctrl / Δt_sim` |
+| **Decimation** | Same ratio, RL/sim jargon: sim steps per env (control) step |
+
+**Substeps** names the inner loop: integrate the plant `n_sub` times with **held**
+`ctrl` between outer IK updates.
+
+**Decimation** names the outer loop: the controller is **decimated** relative to
+physics — e.g. “decimation = 10” at `Δt_sim = 2 ms` ⇒ `Δt_ctrl = 20 ms` (50 Hz IK,
+500 Hz physics). Isaac Lab’s `decimation` on `sim.step()` is this count ([Simulation
+loop](the-simulation-loop.qmd#the-simulation-loop)).
+
+Lockstep (what failed above):
+
+```text
+ctrl = ik(obs)
+step(Δt_ctrl)          # IK rate = physics rate
+```
+
+Substepped / decimated (typical fix):
+
+```text
+ctrl = ik(obs)         # once per Δt_ctrl
+repeat n_sub times:
+    step(Δt_sim)       # hold ctrl — inner PD + integrator
+```
+
+Menagerie Piper defaults to `Δt_sim = 2 ms`. Running IK at 50 Hz (`Δt_ctrl = 20 ms`)
+means **`n_sub = 10`** (decimation 10): keep Euler if you must, but do **not** set
+`timestep = 20 ms` unless you switch to an implicit integrator.
+
+Runnable comparison (same seed-0 reach target):
+
+```bash
+uv run python scripts/ik_substeps_demo.py
+```
+
+Lockstep Euler @ 20 ms fails; ten 2 ms substeps with the same 20 ms control period
+passes reach tolerance with bounded velocities.
+
 ## Benchmark
 
 `scripts/benchmark_ik_sim_dt.py` runs the same **reach** and **circle** tests as
@@ -98,7 +169,7 @@ use **kinematic IK** (`ik_tracking_demo.py`) on Motrix and treat dynamic
 | Dynamic IK + actuators on Piper | MuJoCo, `implicit` or `implicitfast`, `dt` ≤ 100 ms |
 | Larger `dt` with explicit integrator | Avoid for position-actuator IK; cap near 10–15 ms |
 | Motrix + Piper Menagerie | Kinematic integration; verify dynamic control separately |
-| Policy at 50 Hz, physics faster | See [Simulation loop — substeps](the-simulation-loop.qmd#the-simulation-loop); hold `ctrl` between policy ticks |
+| Policy at 50 Hz, physics faster | Use substeps / decimation (below); hold `ctrl` between IK ticks |
 
 When you move from kinematic `qpos` writes to dynamic `ctrl`, re-tune IK gain and
 re-check stability at your chosen `dt` — the inner PD adds lag and effective
