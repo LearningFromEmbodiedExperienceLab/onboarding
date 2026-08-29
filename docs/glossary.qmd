@@ -5,6 +5,9 @@ Short definitions for terms used across the tutorial. Expand as chapters land.
 | Term | Meaning |
 |---|---|
 | **body / link** | Rigid piece with mass and pose; URDF *link*, MJCF *body*. |
+| **joint** | Model object connecting bodies (hinge, slide, ball, …); not the same as DoF count. |
+| **DoF** | One scalar degree of freedom in `q` / `qvel` / `dq`; see [Joint vs DoF](rotations-and-frames.qmd#joint-vs-dof). |
+| **nq / nv / nu** | MuJoCo: `qpos` length, velocity DoFs, actuator count — often equal on fixed arms, diverge with quaternions or under-actuation. |
 | **geom** | Collision and/or visual shape attached to a body; not a degree of freedom. |
 | **visual geom** | Mesh or primitive used only for rendering. |
 | **collision geom** | Shape used for contact and constraints; often simpler than the visual. |

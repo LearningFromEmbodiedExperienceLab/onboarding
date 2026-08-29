@@ -14,7 +14,7 @@ uv run python scripts/motrix_robot_demo.py
 
 | What | MuJoCo (`MjData`) | Motrix (`SceneData`) | Notes |
 |---|---|---|---|
-| Joint positions | `data.qpos` | `data.dof_pos` or `joint.get_dof_pos(data)` | Shape `(nq,)` / `(num_dof,)` |
+| Joint positions | `data.qpos` | `data.dof_pos` or `joint.get_dof_pos(data)` | Shape `(nq,)` / `(num_dof,)` — **DoF** scalars, not joint-object count; see [Joint vs DoF](rotations-and-frames.qmd#joint-vs-dof) |
 | Joint velocities | `data.qvel` | `data.dof_vel` or `joint.get_dof_vel(data)` | Same |
 | Actuator controls | `data.ctrl` | `data.actuator_ctrls` or `actuator.set_ctrl(data, v)` | **Dynamic** input to `step` |
 | Body pose (world) | `data.xpos[i]`, `data.xquat[i]` | `link.get_pose(data)` | After FK or `step` |

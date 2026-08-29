@@ -1,12 +1,13 @@
 # Scene vocabulary
 
-Names that appear in both formats and both APIs:
+Names that appear in both formats and both APIs. **Joint vs DoF** (mechanism scalars in `q` / `dq` vs XML joint objects): [Rotations and frames — Terminology](rotations-and-frames.qmd#joint-vs-dof).
 
 | Idea | Typical name | What it is |
 |---|---|---|
 | Rigid piece with inertia | body / link | Mass, pose |
-| Allowed motion | joint | Hinge, slide, ball, free… |
-| Collision / visual shape | geom | Sphere, capsule, mesh; not a DoF — see [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) |
+| Allowed motion | joint | Hinge, slide, ball, free… — **one joint can have 1–6 DoFs** |
+| Scalar in `q` / `qvel` | DoF | Independent coordinate; **`nv`** (MuJoCo) or **`num_dof`** (Motrix) counts these, not geoms |
+| Collision / visual shape | geom | Sphere, capsule, mesh; **not** a DoF — see [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) |
 | Named frame, no mass | site | End-effector, sensor origin |
 | Map `ctrl` → force/position | actuator | Motor, position, velocity |
 
