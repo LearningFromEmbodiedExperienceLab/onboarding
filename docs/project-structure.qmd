@@ -90,7 +90,7 @@ Three patterns, from "fine for a one-off" to "how we actually work".
 PYTHONPATH=src python scripts/train.py
 ```
 
-Puts `src/` on `sys.path`. Convenient for an afternoon, fragile: everyone must remember the same [environment variable](environment-variables.qmd#pythonpath), and IDEs / debuggers will not.
+Puts `src/` on `sys.path`. Convenient for an afternoon, fragile: everyone must remember the same [environment variable](environment-variables.qmd#pythonpath), and IDEs / debuggers will not. Same class of problem as `sys.path.insert` in code — see [Things not to do — hacking `sys.path`](things-not-to-do.qmd#hacking-syspath).
 
 **3. Install the package into the environment (what we actually do)**
 
@@ -157,7 +157,7 @@ Do not give a script the same name as a package you need (`robotics.py` next to 
 | You want to… | Mechanism |
 |---|---|
 | Use `numpy`, `torch`, … | Installed into the env's `site-packages` |
-| Use *our* library from anywhere in that env | `pyproject.toml` + `uv sync` / `uv pip install -e .` |
+| Use *our* library from anywhere in that env | `pyproject.toml` + `uv sync` / `uv pip install -e .` — not `sys.path` hacks ([Things not to do](things-not-to-do.qmd#hacking-syspath)) |
 | Run a one-off script that imports a neighbor file | Script directory on `sys.path` (ok for small tutorials) |
 | Load a data file or asset from disk reliably | Anchor with `pathlib.Path(__file__)` — see [Things not to do — paths](things-not-to-do.qmd#hard-coded-absolute-paths-and-naive-relative-paths) |
 | Debug `ModuleNotFoundError` | `sys.executable` (wrong env), then `sys.path` (never installed / shadowed) | 

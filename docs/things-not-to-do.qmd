@@ -139,6 +139,82 @@ If a path must be configurable, expose it as an argument or environment variable
  ([Environment variables](environment-variables.qmd#environment-variables)), with a
  **repo-relative default** built from `Path(__file__)`, not from `os.getcwd()`.
 
+## Hacking `sys.path`
+
+When `import robotics` fails, a common “fix” is to prepend folders at runtime:
+
+```python
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))   # or append, or insert a random checkout
+import robotics
+```
+
+That **does** make the next import succeed — sometimes. It also papers over a
+ packaging problem and creates new ones.
+
+### Bad — runtime path surgery
+
+```python
+# train.py — copied into every script and notebook
+sys.path.insert(0, "/home/alice/onboarding/src")
+
+from robotics.ik import make_ik   # works today on Alice's laptop
+```
+
+Problems:
+
+- **Order and timing** — the hack must run before *any* `import robotics` (including
+  transitive imports). Move one line or import a helper first →
+  `ModuleNotFoundError` again.
+- **First match wins** — anything earlier on `sys.path` shadows the rest. A stray
+  `robotics.py`, an old clone, or a half-installed copy can silently import the
+  wrong tree ([Project structure — what Python searches](project-structure.qmd#what-python-actually-searches-for)).
+- **Tools do not run your preamble** — debuggers, test runners, linters, and “Run
+  cell” in a notebook often skip the `sys.path` block. “Works in the terminal,
+  red squiggles in the IDE” is the usual symptom.
+- **Not how dependencies work** — you would not `sys.path.insert` for `numpy`. Your
+  library code deserves the same contract: installed into the env, discoverable
+  everywhere that env runs.
+
+The shell-level twin is [`PYTHONPATH=src …`](environment-variables.qmd#pythonpath) —
+ same fragility, different file. Prefer neither for team code.
+
+[Do not fix import errors by mutating `sys.path` in application scripts, notebooks, or library modules. Install the package (`uv sync` / `pip install -e .`) or, for a one-off neighbor import in `scripts/`, rely on the script directory being on `sys.path[0]` — do not stack hacks on top.]{.common-bug-warning}
+
+### Better — install the package; debug with `sys.path`, do not depend on it
+
+**Our code** belongs under `src/robotics/` and is registered via `pyproject.toml`:
+
+```bash
+uv sync                              # editable install + deps
+uv run python scripts/train.py      # import robotics from site-packages link
+```
+
+That is the whole mechanism in [Project structure — making our code importable](project-structure.qmd#making-our-code-importable). Re-run install only when metadata changes (new dependency, renamed package), not when you edit `.py` files.
+
+When imports fail, **inspect** instead of patching:
+
+```bash
+uv run python scripts/print_env.py   # shows sys.executable, PYTHONPATH, sys.path
+uv run python -c "import robotics; print(robotics.__file__)"
+```
+
+Check `sys.executable` (wrong venv?), then whether `robotics` is missing from
+ `site-packages` (never ran `uv sync`), then shadowing (unexpected entry at
+ `sys.path[0]`).
+
+| Situation | Do this |
+|---|---|
+| Import our library from scripts, tests, notebooks | `uv sync` once per env; `import robotics` |
+| Import `scripts/helpers.py` from `scripts/train.py` only | Neighbor import — script dir on path by default ([Project structure](project-structure.qmd#making-our-code-importable)) |
+| Quick experiment in a REPL | `uv run python` in the project env — still no `sys.path` edits |
+| Third-party code you cannot install | Rare; isolate in a thin adapter module, document heavily |
+
+Rule of thumb: **`sys.path` is for reading when debugging, not for writing in shared code.**
+
 ## Next
 
 More footguns will land here as the tutorial grows (mutable defaults are already
