@@ -36,15 +36,212 @@ dq = ctrl(J, dx)
 
 The table itself is a **singleton**: `IKRegistry()` and `IKRegistry.instance()` are the same process-wide object (`__new__` returns the cached instance). That is appropriate for "the list of known solvers". It is **not** appropriate for a controller — each `make_ik` returns a **new** instance with its own last `dq`. If two threads shared one `DampedIK`, `__setitem__` would fight.
 
-Importing `robotics.ik` loads `solvers.py` so the `@register` lines run. A solver you never import is invisible.
-
 ## Decorators
 
-A decorator is a function that takes a function (or class) and returns a replacement. `@register("pinv")` is executed at **class definition**, not at each `compute`.
+A **decorator** wraps a function or class to change how it is defined or called. The `@` line is syntax sugar:
 
-`timed` in `src/robotics/context.py` is a decorator that wraps a call in a `Timer`. Use it on a helper you always want timed. Use the context manager (next) when you only want a few lines.
+```python
+@decorator
+def f(...):
+    ...
 
-`functools.wraps` copies `__name__` / `__doc__` onto the wrapper so `help()` and traces still make sense. Always use it.
+# same as:
+def f(...):
+    ...
+f = decorator(f)
+```
+
+Decorators run at **definition time** (import / class body), not on every call — except descriptors like `@property`, which run their logic when you **access** the attribute.
+
+### No parentheses — the decorator receives the function directly
+
+When you write `@timed` with **no** `()`, Python passes the function (or class) **immediately** to `timed`:
+
+```python
+from functools import wraps
+
+def timed(fn):
+    @wraps(fn)  # keep fn.__name__ / __doc__ on the wrapper
+    def wrapped(*args, **kwargs):
+        with Timer(fn.__qualname__):
+            return fn(*args, **kwargs)
+    return wrapped
+
+@timed
+def solve(J, dx):
+    ...
+# solve is now `wrapped`; each call prints timing from Timer
+```
+
+`timed` in `src/robotics/context.py` follows this shape. Use `@timed` when you always want that wrapper. Use `with Timer(...):` when only a few lines need timing.
+
+### Parentheses — the decorator **factory** runs first
+
+When you write `@register("dls")`, Python **calls** `register("dls")` **before** the class exists. That call must **return** a decorator; the returned function then receives the class:
+
+```python
+@register("dls")
+class DampedIK(IKController):
+    ...
+
+# same as:
+def decorator(cls):
+    IKRegistry.instance().add("dls", cls)
+    return cls
+
+class DampedIK(IKController):
+    ...
+DampedIK = register("dls")(DampedIK)
+```
+
+So:
+
+| You write | Step 1 | Step 2 |
+|---|---|---|
+| `@timed` | `timed` gets `solve` | — |
+| `@register("dls")` | `register("dls")` returns `decorator` | `decorator` gets `DampedIK` |
+
+**Why some take arguments:** the factory needs **configuration** (registry name, `frozen=True`, retry count) that is not the function itself. **Why others do not:** the wrapper needs only the callable — no extra knobs.
+
+Same idea elsewhere in this chapter: `@dataclass(frozen=True)` ([NamedTuple and dataclass](#namedtuple-and-dataclass)) calls `dataclass(frozen=True)` first, then applies the result to your class.
+
+Always use `functools.wraps` on function wrappers so `help()`, stack traces, and profilers still show the original name.
+
+### `@property` — computed attribute (runs every read)
+
+`@property` turns a **zero-argument method** into something you read like a field:
+
+```python
+class RobotState:
+    def __init__(self, qpos: np.ndarray):
+        self.qpos = qpos
+
+    @property
+    def n_dof(self) -> int:
+        """DoF count derived from the last axis of qpos."""
+        return int(self.qpos.shape[-1])
+
+state = RobotState(qpos=np.zeros((4, 7)))
+state.n_dof      # 7 — looks like a field, actually calls n_dof()
+# state.n_dof = 8  # AttributeError — no setter unless you add @n_dof.setter
+```
+
+Use `@property` for values **derived** from other state (`shape`, norms, “is this batched?”) where recompute on each access is cheap. Callers stay readable: `state.n_dof` instead of `state.get_n_dof()`.
+
+Optional **`@name.setter`** on the same method name defines assignment (`obj.name = x` calls the setter). Without a setter, the attribute is read-only at the Python level (the objects *inside* may still be mutable — same as `NamedTuple` arrays).
+
+### `@cached_property` — compute once per instance
+
+`functools.cached_property` is also a descriptor, but the **first** read runs the method and **stores** the result on the instance (`__dict__`). Later reads return the cached value with no recomputation:
+
+```python
+from functools import cached_property
+
+class RobotState:
+    def __init__(self, qpos: np.ndarray):
+        self.qpos = qpos
+
+    @cached_property
+    def mass_matrix(self) -> np.ndarray:
+        """Pretend this is an expensive dynamics call."""
+        n = self.qpos.shape[-1]
+        return np.eye(n)  # stand-in for compute_mass_matrix(self.qpos)
+
+state = RobotState(np.zeros(7))
+M1 = state.mass_matrix  # computes, caches on state.__dict__["mass_matrix"]
+M2 = state.mass_matrix  # same array object, no second compute
+```
+
+Use it when:
+
+- The value is **expensive** (dynamics, FK over the whole tree, parsing a big config once).
+- It is **stable for the lifetime of the object** (until you would throw the instance away).
+
+Do **not** use it when `self.qpos` (or other inputs) change but the instance is reused — the cache will be **stale**. Invalidate by deleting the attribute (`del state.mass_matrix`) or create a new instance. For caches keyed on changing tensors, explicit methods or `lru_cache` on immutable arguments are clearer.
+
+### Class members vs instance members
+
+Python stores data on the **class** or on each **instance**:
+
+| Kind | Defined on | Shared by | Typical examples |
+|---|---|---|---|
+| **Instance member** | `self.x = …` in `__init__` or methods | one object only | `ctrl._last_dq`, `state.qpos` |
+| **Class member** | name in the class body (`name = …`) | all instances of that class | `IKRegistry._instance`, default constants |
+
+Lookup is **instance first, then class**:
+
+```python
+ctrl = make_ik("dls")
+ctrl.damping          # instance attribute (set in __init__)
+len(IKRegistry())     # class holds the solver table; each make_ik() still builds a new controller
+```
+
+Each `make_ik("dls")` returns a **new** controller with its own last `dq`. The **registry table** is process-wide class/singleton state — do not confuse “one registry” with “one controller” ([Subclassing, registry, singleton](#subclassing-registry-singleton)).
+
+[Do not use a **mutable** class attribute as a per-instance default (`items = []` on the class — all instances share the same list). Put mutable defaults in `__init__` (`self.items = []`).]{.common-bug-warning}
+
+**Regular methods** take `self` — the instance the call was made on:
+
+```python
+def compute(self, J, dx):
+    ...  # reads/writes self._last_dq
+```
+
+### `@classmethod` and `@staticmethod`
+
+Both are method decorators, but Python binds them differently:
+
+| | First argument | Gets | Use when |
+|---|---|---|---|
+| **instance method** | `self` | the object | needs per-object state |
+| **`@classmethod`** | `cls` | the class (or subclass) | factory, alternate constructor, class-level registry |
+| **`@staticmethod`** | *(none injected)* | — | helper logically grouped with the class but needs neither `self` nor `cls` |
+
+**`@classmethod`** — Python passes the class as the first argument. Subclasses get **their** type, which matters for inheritance:
+
+```python
+class IKRegistry:
+    _instance: IKRegistry | None = None  # class member
+
+    @classmethod
+    def instance(cls) -> IKRegistry:
+        return cls()   # same as IKRegistry(); cls is IKRegistry here
+
+# call site:
+reg = IKRegistry.instance()
+```
+
+`instance()` is an **alternate constructor**: callers do not need to know whether `__new__` caches a singleton. If you subclassed `IKRegistry`, `SubRegistry.instance()` would receive `cls is SubRegistry`.
+
+**`@staticmethod`** — no automatic `self` or `cls`. It is a plain function stored on the class namespace:
+
+```python
+class IKRegistry:
+    @staticmethod
+    def normalize_name(name: str) -> str:
+        """Pure helper — no registry state required."""
+        return name.strip().lower()
+
+# IKRegistry.normalize_name(" DLS ")  →  "dls"
+```
+
+Use `@staticmethod` for utilities that **belong next to** the class in the file but do not touch instance or class state (format checks, unit conversions, parsing). If the function only needs `cls` and class data, prefer `@classmethod`. If it needs `self`, use a normal method.
+
+You can call either form from the class or an instance (`IKRegistry.normalize_name(" DLS ")`) — both work; pick the style that signals intent.
+
+### Quick map (this repo + stdlib)
+
+| Decorator | Args? | When it runs | Role here |
+|---|---|---|---|
+| `@timed` | no | each call of wrapped function | host-side timing (`context.py`) |
+| `@register("dls")` | yes (name) | class definition | fill IK registry (`registry.py`) |
+| `@property` | no (optional `.setter`) | each attribute read | cheap derived fields |
+| `@cached_property` | no | first read only | expensive derived fields |
+| `@classmethod` | no | each call; receives `cls` | `IKRegistry.instance()` (`registry.py`) |
+| `@staticmethod` | no | each call; no `self`/`cls` | grouped helpers with no object state |
+| `@dataclass(…)` | yes (options) | class definition | config objects (`types.py`) |
+
+Importing `robotics.ik` loads `solvers.py` so the `@register` lines run. A solver you never import is invisible.
 
 ## Context managers
 
