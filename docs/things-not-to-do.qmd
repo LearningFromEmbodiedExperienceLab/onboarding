@@ -63,6 +63,253 @@ Rule of thumb: if **you** are the author of the callee and callers are **your**
  teammates, prefer explicit names. If you are writing a **one-line forwarder** to
  code you do not control, `*args` / `**kwargs` is idiomatic.
 
+## Hard-coded absolute paths (and naive relative paths)
+
+File paths in Python are **strings interpreted by the OS**. Two mistakes show up
+ constantly in research scripts:
+
+1. **Absolute paths baked into the repo** — `/home/alice/onboarding/data/run42.npz`,
+   `/workspace/third_party/...`, `C:\Users\...`. They work on one machine and break
+   for everyone else (CI, a lab mate, future you on a laptop).
+2. **Relative paths that assume the current working directory** — `open("data/run42.npz")`
+   or `Path("third_party/mujoco_menagerie/...")`. Those resolve against **where the
+   process was started**, not where the `.py` file lives.
+
+The entrypoint matters. From the repo root (what `uv run python scripts/train.py`
+ does):
+
+```bash
+uv run python scripts/load_data.py    # cwd is usually the repo root
+```
+
+From inside `scripts/`:
+
+```bash
+cd scripts && python load_data.py     # cwd is scripts/ — "data/run42.npz" is wrong
+```
+
+Same script, different cwd, different file (or `FileNotFoundError`). Notebooks and
+ IDE “Run Python File” buttons often start from yet another directory — see
+ [Project structure — why imports depend on cwd](project-structure.qmd#why-pip-install--e).
+
+### Bad — machine-specific or cwd-dependent
+
+```python
+# Breaks on any other machine or in CI
+model = mujoco.MjModel.from_xml_path("/workspace/third_party/mujoco_menagerie/agilex_piper/scene.xml")
+
+# Works only when cwd happens to be the repo root
+with open("data/calibration.json") as f:
+    ...
+```
+
+[Never hard-code absolute paths in shared code. Do not rely on bare relative paths unless you explicitly document and enforce the required working directory — you will forget, and so will your collaborators.]{.common-bug-warning}
+
+### Better — anchor with `pathlib.Path` and `__file__`
+
+Use [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html) for joins,
+ existence checks, and parent navigation. Anchor paths to **the file that knows
+ where it lives**, then walk up to a stable root:
+
+```python
+from pathlib import Path
+
+# This file: scripts/load_data.py  →  parents[1] is the repo root
+REPO_ROOT = Path(__file__).resolve().parents[1]
+CALIBRATION = REPO_ROOT / "data" / "calibration.json"
+PIPER_SCENE = REPO_ROOT / "third_party/mujoco_menagerie/agilex_piper/scene.xml"
+
+with CALIBRATION.open() as f:
+    ...
+```
+
+Our sim demos share the same pattern in `scripts/sim_common.py` (`REPO_ROOT`,
+ `PIPER_SCENE`). One module defines the paths; scripts import `require_piper_scene()`
+ instead of duplicating strings.
+
+Rule of thumb:
+
+| Need | Pattern |
+|---|---|
+| Path next to **this** script | `Path(__file__).resolve().parent / "helper.json"` |
+| Path anywhere in **the repo** | `Path(__file__).resolve().parents[N] / "..."` (pick `N` from where the file sits) or a shared constant like `REPO_ROOT` |
+| Path passed in from CLI | `Path(user_arg).expanduser().resolve()` — still no hard-coded `/home/...` in the library |
+
+If a path must be configurable, expose it as an argument or environment variable
+ ([Environment variables](environment-variables.qmd#environment-variables)), with a
+ **repo-relative default** built from `Path(__file__)`, not from `os.getcwd()`.
+
+## Hacking `sys.path`
+
+When `import robotics` fails, a common “fix” is to prepend folders at runtime:
+
+```python
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))   # or append, or insert a random checkout
+import robotics
+```
+
+That **does** make the next import succeed — sometimes. It also papers over a
+ packaging problem and creates new ones.
+
+### Bad — runtime path surgery
+
+```python
+# train.py — copied into every script and notebook
+sys.path.insert(0, "/home/alice/onboarding/src")
+
+from robotics.ik import make_ik   # works today on Alice's laptop
+```
+
+Problems:
+
+- **Order and timing** — the hack must run before *any* `import robotics` (including
+  transitive imports). Move one line or import a helper first →
+  `ModuleNotFoundError` again.
+- **First match wins** — anything earlier on `sys.path` shadows the rest. A stray
+  `robotics.py`, an old clone, or a half-installed copy can silently import the
+  wrong tree ([Project structure — what Python searches](project-structure.qmd#what-python-actually-searches-for)).
+- **Tools do not run your preamble** — debuggers, test runners, linters, and “Run
+  cell” in a notebook often skip the `sys.path` block. “Works in the terminal,
+  red squiggles in the IDE” is the usual symptom.
+- **Not how dependencies work** — you would not `sys.path.insert` for `numpy`. Your
+  library code deserves the same contract: installed into the env, discoverable
+  everywhere that env runs.
+
+The shell-level twin is [`PYTHONPATH=src …`](environment-variables.qmd#pythonpath) —
+ same fragility, different file. Prefer neither for team code.
+
+[Do not fix import errors by mutating `sys.path` in application scripts, notebooks, or library modules. Install the package (`uv sync` / `pip install -e .`) or, for a one-off neighbor import in `scripts/`, rely on the script directory being on `sys.path[0]` — do not stack hacks on top.]{.common-bug-warning}
+
+### Better — install the package; debug with `sys.path`, do not depend on it
+
+**Our code** belongs under `src/robotics/` and is registered via `pyproject.toml`:
+
+```bash
+uv sync                              # editable install + deps
+uv run python scripts/train.py      # import robotics from site-packages link
+```
+
+That is the whole mechanism in [Project structure — making our code importable](project-structure.qmd#making-our-code-importable). Re-run install only when metadata changes (new dependency, renamed package), not when you edit `.py` files.
+
+When imports fail, **inspect** instead of patching:
+
+```bash
+uv run python scripts/print_env.py   # shows sys.executable, PYTHONPATH, sys.path
+uv run python -c "import robotics; print(robotics.__file__)"
+```
+
+Check `sys.executable` (wrong venv?), then whether `robotics` is missing from
+ `site-packages` (never ran `uv sync`), then shadowing (unexpected entry at
+ `sys.path[0]`).
+
+| Situation | Do this |
+|---|---|
+| Import our library from scripts, tests, notebooks | `uv sync` once per env; `import robotics` |
+| Import `scripts/helpers.py` from `scripts/train.py` only | Neighbor import — script dir on path by default ([Project structure](project-structure.qmd#making-our-code-importable)) |
+| Quick experiment in a REPL | `uv run python` in the project env — still no `sys.path` edits |
+| Third-party code you cannot install | Rare; isolate in a thin adapter module, document heavily |
+
+Rule of thumb: **`sys.path` is for reading when debugging, not for writing in shared code.**
+
+## Import-time side effects
+
+`import train_utils` does not mean “load function definitions.” Python **executes the
+ whole module** from top to bottom the first time it is imported. Any statement at
+ **module scope** runs immediately — before your `main()` or notebook cell that
+ “actually starts” the job.
+
+That includes function *definitions* (cheap) and everything else (often not):
+
+```python
+# train_utils.py — library-ish module
+print("Loading 40 GB dataset…")
+dataset = np.load("data/episodes.npz")          # disk I/O at import
+model = load_checkpoint("/home/alice/best.pt")  # GPU, paths, network
+train(model, dataset)                           # starts training on import
+```
+
+```python
+# elsewhere
+from train_utils import set_seed   # already loading data and training
+```
+
+### Bad — work hidden in imports
+
+```python
+# config.py
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"   # mutates process for everyone
+
+# sim_env.py
+XML = require_piper_scene()
+model = mujoco.MjModel.from_xml_path(str(XML))  # heavy; fails if assets missing
+
+# metrics.py
+RESULTS = json.loads(Path("results/latest.json").read_text())
+```
+
+Problems:
+
+- **Surprise at import** — `import metrics` reads disk and may crash in CI because
+  `results/latest.json` is absent, even though the test only wanted a helper.
+- **Slow and order-dependent** — importing `A` pulls in `B` pulls in `C`; side
+  effects run in import order, not call order. Circular imports become painful.
+- **Hard to test and reuse** — you cannot import a function without paying for
+  training, sim startup, or global env mutation.
+- **Not obvious from the call site** — `from project.sim import step` looks innocent.
+
+[Do not train, load large data, open files, start simulators, mutate `os.environ`, or print progress at module import time in library code. Import should define names; **running** should be explicit.]{.common-bug-warning}
+
+### Better — explicit entrypoints and lazy work
+
+**Scripts** gate execution with `if __name__ == "__main__":` (`scripts/train.py` in this repo):
+
+```python
+def main() -> None:
+    dataset = load_dataset()   # I/O here, when you run the script
+    train_loop(dataset)
+
+
+if __name__ == "__main__":
+    main()
+```
+
+Running `python scripts/train.py` calls `main()`. Importing the file as a module
+ (unusual for `scripts/`, but the pattern matters) would **not** train.
+
+**Libraries** defer expensive or fragile work until a function is called:
+
+```python
+def load_dataset(path: Path | None = None) -> np.ndarray:
+    path = path or default_dataset_path()
+    return np.load(path)
+
+
+def make_model(xml_path: Path) -> mujoco.MjModel:
+    return mujoco.MjModel.from_xml_path(str(xml_path))
+```
+
+Module level is fine for **cheap, pure** bindings: constants, type aliases, a
+ `Path` built from `__file__` (not opened), `logging.getLogger(__name__)`.
+
+### When module-level work *is* intentional
+
+Some patterns run at import **on purpose**, but stay small and predictable:
+
+| Pattern | Example here | Why it is ok |
+|---|---|---|
+| Registry fill at class definition | `@register("dls")` on `DampedIK` ([Useful Patterns — decorators](useful-patterns.qmd#decorators)) | One dict write; no I/O; needed so `make_ik("dls")` works after import |
+| Re-exports in `__init__.py` | `from robotics.math_utils import quat_mul` | Keep thin — heavy imports in `__init__.py` slow every `import robotics` ([Project structure](project-structure.qmd#module-vs-package)) |
+| `@dataclass` / `@register(...)` factory | Decorator runs at class body time | Still avoid doing I/O inside the decorator |
+
+Rule of thumb: if it touches **disk, network, GPU, or global process state**, it
+ belongs in `main()`, a `setup()` function, or a method — not in the import path.
+ If you need “run once at startup,” call that function from your entrypoint; do not
+ rely on someone importing the module.
+
 ## Next
 
 More footguns will land here as the tutorial grows (mutable defaults are already
