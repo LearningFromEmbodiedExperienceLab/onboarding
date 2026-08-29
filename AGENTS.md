@@ -55,6 +55,7 @@ Robotics sim smoke test (after `bash scripts/fetch_menagerie_assets.sh`):
 - `uv run python scripts/benchmark_ik_sim_dt.py` — max stable sim `dt` for dynamic IK + position actuators (MuJoCo integrators; `--quick` for smoke)
 - `uv run python scripts/ik_substeps_demo.py` — lockstep vs substepped dynamic IK (Euler)
 - `uv run python scripts/actuator_control_demo.py` — position vs motor actuators @ 50 Hz vs substep torque
+- `uv run python scripts/pd_gain_stability_demo.py` — high `kp` / zero `kv` PD instability (Euler @ 10 ms)
 - Regenerate doc videos: `uv run python scripts/render_ik_tracking_videos.py` (needs `mujoco` extra + ffmpeg)
 - Regenerate instability clip: `uv run python scripts/render_ik_instability_video.py`
 - Headless MuJoCo rendering: `MUJOCO_GL=egl` or `osmesa` (+ `PYOPENGL_PLATFORM=osmesa` for OSMesa); see `docs/environment-variables.qmd#displays-opengl-headless`.
