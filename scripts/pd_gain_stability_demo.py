@@ -1,11 +1,12 @@
-"""Show that overly stiff or under-damped joint PD can destabilize the sim.
+"""Show joint PD gain too large *or* too small on dynamic IK reach.
 
-Uses dynamic IK + position actuators on Piper (same seed-0 reach as
-``actuator_control_demo.py``). At ``Δt_sim = 10 ms`` with Euler integration:
+Uses dynamic IK + position actuators on Piper (seed-0 reach). At ``Δt_sim = 10 ms``
+with Euler integration (lockstep):
 
   - Nominal Menagerie ``kp`` / ``kv`` → stable reach
-  - ``5×`` stiffness (`kp`) → FAIL (large |qvel|, poor tracking)
-  - ``kv = 0`` (no damping) → FAIL (oscillation / drift)
+  - ``5× kp`` → FAIL (numerically unstable — large |qvel|)
+  - ``kv = 0`` → FAIL (under-damped oscillation)
+  - ``0.2× kp`` → FAIL (stable but **sluggish** — cannot track ``q*``, large EE error)
 
 Run::
 
@@ -129,15 +130,19 @@ def main() -> None:
 
     cases = [
         (1.0, False, "nominal Menagerie kp/kv"),
-        (5.0, False, "5× kp (stiffer position servos)"),
+        (0.2, False, "0.2× kp (sluggish servos — stable but won't track)"),
+        (5.0, False, "5× kp (stiffer servos — unstable)"),
         (1.0, True, "kv = 0 (no joint damping)"),
     ]
 
     results: dict[str, bool] = {}
+    sluggish: tuple[bool, float, float] | None = None
     for kp_scale, zero_kv, desc in cases:
         ok, err, qv = _run_reach(kp_scale=kp_scale, zero_kv=zero_kv, seed=seed)
         key = f"kp{kp_scale}_kv0={zero_kv}"
         results[key] = ok
+        if kp_scale == 0.2 and not zero_kv:
+            sluggish = (ok, err, qv)
         print(
             f"{'ok' if ok else 'FAIL':4s}  err={err:6.1f} mm  peak |qvel|={qv:6.1f}  — {desc}"
         )
@@ -150,6 +155,12 @@ def main() -> None:
         raise SystemExit(1)
     if results["kp1.0_kv0=True"]:
         print("warning: expected kv=0 case to fail", file=sys.stderr)
+        raise SystemExit(1)
+    if results.get("kp0.2_kv0=False"):
+        print("warning: expected 0.2× kp case to fail reach (sluggish tracking)", file=sys.stderr)
+        raise SystemExit(1)
+    if sluggish is not None and sluggish[2] > 5.0:
+        print("warning: expected 0.2× kp to stay numerically calm (low |qvel|)", file=sys.stderr)
         raise SystemExit(1)
 
 

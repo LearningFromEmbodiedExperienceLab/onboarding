@@ -41,17 +41,21 @@ $$
 $$
 
 - **`K_p`** (stiffness): pulls `q` toward `q*`. Larger ⇒ snappier tracking, but
-  harder to integrate stably at large `Δt_sim`.
+  harder to integrate stably at large `Δt_sim`. **Too small** ⇒ the joint lags
+  its target: motion stays numerically calm (low `qvel`) but tracking error stays
+  large — the arm never “catches up” to `q*` or the EE goal in time.
 - **`K_d`** (damping): opposes velocity error. When **`q̇* = 0`** (the common case —
   “hold this angle”), this reduces to **`-K_d q̇`**, i.e. viscous damping that
   fights overshoot and oscillation.
 
 **Too much stiffness or too little damping** can destabilize the integrator even
  when `Δt_sim` is modest — the inner PD behaves like a stiff spring-mass that
- explicit integrators (and large steps) cannot resolve. Symptoms match other
- instability modes: growing `qvel`, oscillation, poor tracking. Runnable examples
- at `Δt_sim = 10 ms` (Euler): **`5× kp`** or **`kv = 0`** on Piper position
- actuators fail the seed-0 reach test; nominal Menagerie gains pass
+ explicit integrators (and large steps) cannot resolve. Symptoms: growing `qvel`,
+ oscillation, poor tracking. **Too little stiffness** is the opposite failure mode:
+ the sim stays stable but **sluggish** — `q` barely moves toward `q*`, so outer
+ loops (IK, teleop) see persistent error. Runnable examples at `Δt_sim = 10 ms`
+ (Euler): **`5× kp`** or **`kv = 0`** fail explosively; **`0.2× kp`** fails reach
+ with ~20 mm error and near-zero `qvel`; nominal gains pass
  (`scripts/pd_gain_stability_demo.py`). See also [Simulation
  stability](simulation-stability.qmd#stiff-pd-gains).
 
