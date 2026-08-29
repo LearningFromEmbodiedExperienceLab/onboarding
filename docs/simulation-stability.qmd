@@ -104,6 +104,66 @@ uv run python scripts/ik_substeps_demo.py
 Lockstep Euler @ 20 ms fails; ten 2 ms substeps with the same 20 ms control period
 passes reach tolerance with bounded velocities.
 
+## Position vs motor actuators
+
+Menagerie Piper uses **position** actuators: `ctrl[i]` is a **target joint angle**
+and MuJoCo’s built-in PD (from `kp` / `kv` in MJCF) converts error into torque
+inside every `step()`.
+
+**Motor** actuators are the other common MJCF type: `ctrl[i]` is a **joint
+torque** (Nm). Nothing servos the joint for you — your controller must compute
+`τ` and write it each tick.
+
+| | Position (`<position>`) | Motor (`<motor>`) |
+|---|---|---|
+| `ctrl` | Target `q*` | Torque `τ` |
+| Inner loop | Inside simulator (PD) | Your code (PD, impedance, RL, …) |
+| Hold `ctrl` across substeps? | **Usually fine** — PD re-computes force from current `(q, q̇)` vs held `q*` every substep | **Risky** — held `τ` is wrong once `q` moves (zero-order hold on force) |
+| Typical command rate | Controller / IK rate (50 Hz) | **Physics rate** (500 Hz) or faster |
+
+### Same decimation, different hold semantics
+
+At `Δt_sim = 2 ms`, `Δt_ctrl = 20 ms`, **`n_sub = 10`** (50 Hz IK, 500 Hz physics):
+
+**Position + IK** — update `q_des` at 50 Hz, hold across substeps:
+
+```text
+q_des = ik(...)
+repeat 10 times:
+    ctrl = q_des          # held target; inner PD runs each substep
+    step(2 ms)
+```
+
+**Motor + IK** — map `q_des` to torque. Holding `τ` computed once at 50 Hz fails
+ on the Piper reach test (large error, |qvel| spikes). Recompute PD every substep:
+
+```text
+q_des = ik(...)           # still at 50 Hz
+repeat 10 times:
+    tau = Kp*(q_des - q) - Kd*qdot   # fresh torque every 2 ms
+    ctrl = tau
+    step(2 ms)
+```
+
+Runnable comparison (seed 0, implicitfast, same IK gains as Menagerie `kp`/`kv`):
+
+```bash
+uv run python scripts/actuator_control_demo.py
+```
+
+Example output:
+
+```text
+position control  ok    err=   5.0 mm  peak |qvel|=   0.4  — ctrl = q_des @ 50 Hz, held 10 substeps
+motor    control  FAIL  err=  35.4 mm  peak |qvel|=  98.3  — ctrl = tau @ 50 Hz (PD once), held 10 substeps
+motor    substep  ok    err=   5.0 mm  peak |qvel|=   0.4  — ctrl = tau recomputed every 2 ms substep
+```
+
+**Takeaway:** decimation/substeps solve “physics faster than IK.” For **position**
+ actuators, holding **targets** at controller rate is standard. For **motor**
+ actuators, holding **torques** at controller rate is not — run the force loop at
+ substep rate (or use position actuators / implicit servos).
+
 ## Benchmark
 
 `scripts/benchmark_ik_sim_dt.py` runs the same **reach** and **circle** tests as
