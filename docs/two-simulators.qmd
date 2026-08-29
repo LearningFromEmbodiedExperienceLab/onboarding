@@ -52,7 +52,7 @@ data.ctrl[0] = 0.8
 mj.mj_step(model, data)
 ```
 
-**Headless rendering:** if you add a viewer later, set `MUJOCO_GL=egl` or `MUJOCO_GL=osmesa` when no display is available.
+**Headless rendering:** if you add a viewer later, set `MUJOCO_GL=egl` or `MUJOCO_GL=osmesa` when no display is available — see [Displays, OpenGL, and headless rendering](environment-management.qmd#displays-opengl-headless).
 
 ## Motrix minimal example
 
