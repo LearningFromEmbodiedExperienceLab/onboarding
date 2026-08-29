@@ -1,6 +1,8 @@
 project:
   type: book
   output-dir: _site
+  resources:
+    - progress.js
 
 website:
   site-url: https://learningfromembodiedexperiencelab.github.io/onboarding/
@@ -47,11 +49,14 @@ book:
 format:
   html:
     theme: cosmo
-    css: styles.css
+    css:
+      - styles.css
+      - progress.css
     toc: true
     code-copy: true
     code-overflow: wrap
     html-math-method: mathjax
+    include-after-body: progress.html
 
 execute:
   enabled: false

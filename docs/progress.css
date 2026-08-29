@@ -1,0 +1,71 @@
+/* Client-side reading progress (localStorage). */
+
+.progress-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: normal;
+  color: var(--bs-secondary, #6c757d);
+  vertical-align: middle;
+  cursor: pointer;
+  user-select: none;
+}
+
+.progress-mark input {
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Page TOC: unread vs done */
+#TOC a.nav-link.progress-unread {
+  font-weight: 600;
+}
+
+#TOC a.nav-link.progress-unread:not(.active) {
+  color: var(--bs-primary, #2780e3);
+}
+
+#TOC a.nav-link.progress-done {
+  opacity: 0.65;
+  font-weight: normal;
+}
+
+#TOC a.nav-link.progress-done::before {
+  content: "✓ ";
+  font-size: 0.85em;
+}
+
+/* Left sidebar: chapter-level hints (from stored section keys) */
+#quarto-sidebar a.sidebar-link.progress-chapter-unread:not(.active) .menu-text {
+  border-left: 3px solid var(--bs-primary, #2780e3);
+  padding-left: 0.35rem;
+  margin-left: -0.35rem;
+}
+
+#quarto-sidebar a.sidebar-link.progress-chapter-partial:not(.active) .menu-text {
+  border-left: 3px solid var(--bs-warning, #ff7518);
+  padding-left: 0.35rem;
+  margin-left: -0.35rem;
+}
+
+#quarto-sidebar a.sidebar-link.progress-chapter-done:not(.active) .menu-text::after {
+  content: " ✓";
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
+.progress-summary {
+  font-size: 0.8rem;
+  color: var(--bs-secondary, #6c757d);
+  margin: 0.5rem 0 0;
+  padding: 0 0.5rem;
+}
+
+.progress-summary button {
+  font-size: inherit;
+  padding: 0;
+  margin-left: 0.35rem;
+  vertical-align: baseline;
+}

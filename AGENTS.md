@@ -60,3 +60,6 @@ Docs (Quarto):
   `master`/`main` (when `docs/` changes) and deploys `docs/_site/`. One-time UI:
   Settings → Pages → Source: **GitHub Actions**. Live URL is set in
   `docs/_quarto.yml` (`website.site-url`).
+- Reading progress: client-side only via `docs/progress.js` + `progress.css`
+  (`localStorage` key `onboarding-book-progress:v1`). Marks `##` sections done;
+  highlights unread entries in the page TOC and chapter status in the sidebar.
