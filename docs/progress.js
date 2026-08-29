@@ -96,9 +96,27 @@
     return { total: ids.length, done: done, state: state };
   }
 
+  function tocHeadingId(link) {
+    var target =
+      link.getAttribute("data-scroll-target") || link.getAttribute("href") || "";
+    var hashIndex = target.indexOf("#");
+    if (hashIndex === -1) {
+      return "";
+    }
+    var id = target.slice(hashIndex + 1);
+    try {
+      return decodeURIComponent(id);
+    } catch (_err) {
+      return id;
+    }
+  }
+
   function applyTocStyles(store, page) {
-    document.querySelectorAll("#TOC a.nav-link[href^='#']").forEach(function (link) {
-      var id = link.getAttribute("href").slice(1);
+    document.querySelectorAll("#TOC a.nav-link").forEach(function (link) {
+      var id = tocHeadingId(link);
+      if (!id) {
+        return;
+      }
       link.classList.remove("progress-done", "progress-unread");
       if (isDone(store, sectionKey(page, id))) {
         link.classList.add("progress-done");
@@ -150,26 +168,28 @@
       } else {
         toc.prepend(summary);
       }
-    }
-    summary.textContent =
-      doneCount + " / " + total + " sections marked done on this page.";
-    var reset = summary.querySelector("button");
-    if (!reset) {
-      reset = document.createElement("button");
+
+      var count = document.createElement("span");
+      count.className = "progress-summary-count";
+      summary.appendChild(count);
+
+      var reset = document.createElement("button");
       reset.type = "button";
-      reset.className = "btn btn-link btn-sm p-0";
+      reset.className = "progress-reset";
       reset.textContent = "Clear this page";
+      reset.title = "Clear progress for this page";
       reset.addEventListener("click", function () {
         var data = readStore();
         (data.pages[page] || []).forEach(function (id) {
           delete data.sections[sectionKey(page, id)];
         });
         writeStore(data);
-        refresh();
+        refresh(data);
       });
-      summary.appendChild(document.createTextNode(" "));
       summary.appendChild(reset);
     }
+    summary.querySelector(".progress-summary-count").textContent =
+      doneCount + " of " + total + " sections marked done";
   }
 
   function attachHeadingControls(store, sections) {
@@ -197,7 +217,7 @@
           })
         );
         writeStore(data);
-        refresh();
+        refresh(data);
       });
 
       label.appendChild(box);
@@ -206,8 +226,8 @@
     });
   }
 
-  function refresh() {
-    var store = readStore();
+  function refresh(currentStore) {
+    var store = currentStore || readStore();
     var sections = discoverSections();
     var page = pageBasename();
     var ids = sections.map(function (s) {

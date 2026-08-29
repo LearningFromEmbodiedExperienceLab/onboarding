@@ -11,6 +11,8 @@ website:
 book:
   title: "Onboarding: Python & Robotics"
   subtitle: "A working tutorial for the `robotics` example package"
+  sidebar:
+    title: '<span class="sidebar-brand-title">Onboarding</span><span class="sidebar-brand-subtitle">Python & Robotics</span>'
   favicon: favicon.svg
   repo-url: https://github.com/LearningFromEmbodiedExperienceLab/onboarding
   repo-subdir: docs

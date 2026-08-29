@@ -17,3 +17,42 @@
   color: #c0392b;
   font-weight: 600;
 }
+
+/* Keep the book identity and repository action aligned at narrow widths. */
+#quarto-sidebar .sidebar-title {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 0.35rem;
+  align-items: center;
+  line-height: 1.2;
+}
+
+#quarto-sidebar .sidebar-title > a {
+  display: contents;
+}
+
+#quarto-sidebar .sidebar-brand-title {
+  grid-column: 1;
+  grid-row: 1;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+#quarto-sidebar .sidebar-brand-subtitle {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  margin-top: 0.12rem;
+  color: var(--bs-secondary-color, #6c757d);
+  font-size: 1.0rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+#quarto-sidebar .sidebar-title .sidebar-tools-main {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: start;
+  margin-top: 0;
+}
