@@ -123,6 +123,9 @@ def run_differential_ik(
     circle_center: np.ndarray | None = None,
     circle_radius: float = 0.035,
     circle_omega: float = 1.5,
+    on_step: None | (
+        callable[[int, np.ndarray, np.ndarray, float], None]
+    ) = None,
 ) -> TrackingResult:
     """Position-only differential IK loop (headless, kinematic integration)."""
     ctrl = make_ik("dls", damping=DLS_DAMPING)
@@ -134,6 +137,7 @@ def run_differential_ik(
     if test is TrackingTest.REACH:
         target = random_proximal_target(ee_home, rng)
         max_steps = MAX_STEPS_REACH
+        center = ee_home.copy()
     else:
         center = circle_center if circle_center is not None else ee_home.copy()
         target = circle_target(center, circle_radius, phase=0.0)
@@ -150,6 +154,9 @@ def run_differential_ik(
         dx = target - ee_pos
         err = float(np.linalg.norm(dx))
         pos_errors.append(err)
+
+        if on_step is not None:
+            on_step(step, target.copy(), ee_pos.copy(), err)
 
         if test is TrackingTest.REACH and err < POS_TOL_M:
             break

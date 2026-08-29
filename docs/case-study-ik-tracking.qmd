@@ -36,6 +36,29 @@ Headless script — **no viewer**, two test cases on the Menagerie Piper arm (`l
 | `reach` | Random **proximal** target (small workspace offset from the nominal pose); stops when \(\lVert dx \rVert < 5\,\text{mm}\). |
 | `circle` | Track a horizontal circle (35 mm radius) for 600 ticks; reports mean / final position error. |
 
+### Videos
+
+MuJoCo headless renders of the same seed-0 trajectories (`scripts/render_ik_tracking_videos.py`). The red sphere is the **target**; the overlay shows position error in millimetres. Motrix runs the identical IK loop (numerical Jacobian) — see the terminal demo — but doc videos use MuJoCo because Motrix's viewer is interactive-only today.
+
+### Reach {.unnumbered}
+
+<video controls preload="metadata" width="100%" style="max-width:640px" title="Differential IK reaching a random proximal target on the Piper arm">
+  <source src="imgs/ik-tracking/piper_ik_reach.mp4" type="video/mp4">
+</video>
+
+### Circle track {.unnumbered}
+
+<video controls preload="metadata" width="100%" style="max-width:640px" title="Differential IK tracking a horizontal circle on the Piper arm">
+  <source src="imgs/ik-tracking/piper_ik_circle.mp4" type="video/mp4">
+</video>
+
+Regenerate after changing the tracking scripts:
+
+```bash
+uv sync --extra mujoco
+uv run python scripts/render_ik_tracking_videos.py
+```
+
 ```bash
 bash scripts/fetch_menagerie_assets.sh
 uv sync --extra sim
