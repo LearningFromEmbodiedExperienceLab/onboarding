@@ -38,10 +38,10 @@ Keep hints honest and simple (`np.ndarray`, `float`, `str`, `list[int]`). Over-p
 
 ## Editor and stubs
 
-The language server (Pylance in VS Code, Cursor's Pyright) is a second program. It does **not** use your shell's [`PYTHONPATH`](environment-management.qmd#environment-variables). It uses:
+The language server (Pylance in VS Code, Cursor's Pyright) is a second program. It does **not** use your shell's [`PYTHONPATH`](environment-variables.qmd#pythonpath). It uses:
 
 1. The **selected interpreter** (status bar → `.venv/bin/python`). That is how it finds `numpy` and an editable `robotics`.
-2. **`extraPaths`** — extra folders to search, the editor's analogue of [`PYTHONPATH`](environment-management.qmd#environment-variables).
+2. **`extraPaths`** — extra folders to search, the editor's analogue of [`PYTHONPATH`](environment-variables.qmd#pythonpath).
 3. **`stubPath`** — a folder of `.pyi` files that overlay types onto installed packages.
 
 `.vscode/settings.json` in this folder sets both (Cursor reads `cursorpyright.analysis.*`; VS Code reads `python.analysis.*`). They apply when this folder is the workspace root; if you opened a parent folder, copy the same keys into that workspace's settings.

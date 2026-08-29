@@ -78,7 +78,7 @@ Curated **official** links for standards, install guides, and APIs cited in this
 | OpenGL overview | [Khronos OpenGL](https://www.khronos.org/opengl/) |
 | Vulkan overview | [Khronos Vulkan](https://www.vulkan.org/) |
 | PyOpenGL platforms | [PyOpenGL](https://pyopengl.sourceforge.io/) |
-| DISPLAY / headless on Linux | [Environment management — Displays, OpenGL, headless](environment-management.qmd#displays-opengl-headless) |
+| DISPLAY / headless on Linux | [Common environment variables — Displays / GL](environment-variables.qmd#displays-opengl-headless) |
 
 ## Contact models
 
@@ -127,5 +127,6 @@ Curated **official** links for standards, install guides, and APIs cited in this
 | Library source | `src/robotics/` |
 | Menagerie vendor fetch | `scripts/fetch_menagerie_assets.sh`, `third_party/assets.lock.json` |
 | Published tutorial | [GitHub Pages site](https://learningfromembodiedexperiencelab.github.io/onboarding/) (after one-time Pages setup in `readme.md`) |
+| Common env vars | [Common environment variables](environment-variables.qmd#common-environment-variables) |
 
 When a chapter mentions a PEP, tool, or simulator by name, check this page for the canonical URL.

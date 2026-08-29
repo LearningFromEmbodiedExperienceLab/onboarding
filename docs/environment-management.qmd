@@ -60,7 +60,7 @@ print("\n".join(sys.path))
 Typical entries, **in order**:
 
 1. **The script's directory** (or `""` = current working directory in a REPL). This is why `import helpers` works when `helpers.py` sits next to the file you just ran.
-2. Directories from the **[`PYTHONPATH`](#environment-variables)** environment variable, if you set it.
+2. Directories from **[`PYTHONPATH`](environment-variables.qmd#pythonpath)** if you set it.
 3. The environment's **`site-packages`**. That is where `uv pip install numpy` put NumPy. Each environment has its own `site-packages`. Switch env → different (or missing) `numpy`.
 
 So "the environment" is: **this Python binary** + **this `site-packages` on `sys.path`**. Local files win if they appear earlier on the list. A classic footgun:
@@ -82,139 +82,34 @@ python -c "import sys; print(sys.executable)"   # wrong env?
 python -c "import numpy; print(numpy.__file__)" # which copy did I get?
 ```
 
-## Environment variables
+## Environment variables {#environment-variables}
 
-A conda/uv **environment** is a Python + `site-packages`. An **environment variable** is a different thing: a `NAME=value` string the parent process (your shell, `launch.json`, a job scheduler) hands to the child. Python reads them through `os.environ`. They are how we pass *process-wide* knobs without changing code.
+A conda/uv **environment** is a Python + `site-packages`. An **environment variable** is a different thing: a `NAME=value` string the parent process (shell, `launch.json`, Slurm, …) copies into each **child process**. Libraries read them through C or OS APIs; in Python:
 
-`scripts/print_env.py` prints the ones we care about and the `sys.path` they affect:
+```python
+import os
+os.environ.get("CUDA_VISIBLE_DEVICES")   # str or None
+os.environ["PYTHONPATH"] = "src"         # visible to this process and its children
+```
+
+They are how you pass *process-wide* knobs without editing code — which GPU, extra import paths, debugger choice, headless GL backend.
+
+**Prefix vs export.** `NAME=value command` sets the variable for **one** command. `export NAME=value` keeps it for the rest of that shell and everything started from it. Prefer the prefix for experiments so values do not leak into the next job.
+
+**Shell vs Python.** The terminal and your script are not always the same process:
+
+```bash
+echo "$CUDA_VISIBLE_DEVICES"
+uv run python -c "import os; print(os.environ.get('CUDA_VISIBLE_DEVICES'))"
+```
+
+If those disagree, F5 / `uv run` / a notebook kernel inherited different env vars than your interactive shell. Set them in `launch.json` `"env"` when debugging ([Debugging — launch configs](debugging-repl-notebooks.qmd#vscode-debugger)).
+
+Try it with `scripts/print_env.py`:
 
 ```bash
 uv run python scripts/print_env.py
 CUDA_VISIBLE_DEVICES=1 PYTHONPATH=src uv run python scripts/print_env.py
 ```
 
-The prefix form (`NAME=value command`) lasts **one command**. `export NAME=value` lasts for the rest of that shell (and everything you start from it). Prefer the prefix for experiments: it cannot leak into the next job. Do not put `CUDA_VISIBLE_DEVICES` in `~/.bashrc` unless you really want every process on that machine pinned to the same GPU.
-
-Check what the **Python process** sees, not only the shell:
-
-```bash
-echo "$CUDA_VISIBLE_DEVICES"                          # the shell
-uv run python -c "import os; print(os.environ.get('CUDA_VISIBLE_DEVICES'))"
-```
-
-If those disagree, F5 / `uv run` / a notebook kernel is not the same process as that terminal.
-
-### `PYTHONPATH`
-
-Colon-separated directories prepended to `sys.path` (item 2 in the list above). That is why `PYTHONPATH=src python scripts/train.py` can `import robotics` without an editable install — and why we still prefer `pip install -e .` (see [Project structure](project-structure.qmd#project-structure)).
-
-```bash
-PYTHONPATH=src uv run python -c "import robotics; print(robotics.__file__)"
-```
-
-Several paths: `PYTHONPATH=/a:/b` on Linux. A stale `PYTHONPATH` in your bashrc is a common source of "I import the *wrong* `robotics`".
-
-The editor does **not** read your shell's `PYTHONPATH`. That is `extraPaths` (see [Editor and stubs](making-life-easier.qmd#editor-and-stubs)).
-
-### `CUDA_VISIBLE_DEVICES`
-
-CUDA enumerates GPUs as `0, 1, 2, …`. This variable is a **mask**: the process only sees the IDs you list, **renumbered from zero**.
-
-```bash
-nvidia-smi                    # physical IDs on this machine
-CUDA_VISIBLE_DEVICES=1 uv run python scripts/print_env.py
-```
-
-| You set | The process sees |
-|---|---|
-| unset | all GPUs, `cuda:0` is physical 0 |
-| `1` | only physical 1, which appears as `cuda:0` |
-| `1,3` | those two, as `cuda:0` and `cuda:1` |
-| `""` or `-1` | no GPU (CPU fallback if the library allows it) |
-
-So `tensor.to("cuda:0")` after `CUDA_VISIBLE_DEVICES=1` is **physical GPU 1**. That is the usual way to share a box without everyone stacking on GPU 0. Check `nvidia-smi` first.
-
-PyTorch example (needs `torch` installed; not in the default extra):
-
-```python
-import os, torch
-print(os.environ.get("CUDA_VISIBLE_DEVICES"), torch.cuda.device_count())
-```
-
-### Displays, OpenGL, and headless rendering {#displays-opengl-headless}
-
-Physics (`mj_step`, tensor matmul) does **not** need a screen. **Drawing** triangles does — and simulators, viewers, and figure scripts choose *how* to talk to the GPU (or a software rasterizer). On Linux this is where `DISPLAY`, OpenGL backend env vars, and sometimes Vulkan show up.
-
-#### What `DISPLAY` is
-
-On Linux with an X11 desktop or remote desktop, **`DISPLAY`** names the X server socket (e.g. `:0`, or `localhost:10.0` over SSH with X forwarding). GUI programs that open a **window** — MuJoCo’s GLFW viewer, many Matplotlib backends, some Motrix viewers — expect a working display.
-
-| Situation | Typical `DISPLAY` |
-|---|---|
-| Local desktop session | `:0` or `:1` |
-| SSH without X forwarding | **unset** — windowed apps fail with “cannot open display” |
-| CI / cloud VM / batch node | **unset** — use headless backends (below) |
-
-**Symptom:** `Error: GLFW may only be used from the main thread` or `cannot connect to X server` when you wanted a popup viewer. **Fix:** run on a machine with a display, enable X forwarding, or switch to offscreen rendering and save images instead of opening a window.
-
-This is separate from **CUDA**: you can train on GPU with no `DISPLAY`. You only need display/GL when something **renders** pixels.
-
-#### OpenGL backends (MuJoCo and PyOpenGL)
-
-[OpenGL](https://www.khronos.org/opengl/) is the graphics API MuJoCo’s built-in renderer uses. The **backend** is how OpenGL gets a drawable surface:
-
-| Backend | Env hint | Needs `DISPLAY`? | Typical use |
-|---|---|---|---|
-| **GLFW + X11/Wayland** | `MUJOCO_GL=glfw` (often default on desktop) | Yes (window) | Interactive viewer on your laptop |
-| **EGL** | `MUJOCO_GL=egl` | No | Headless **GPU** rendering (server with NVIDIA driver, no monitor) |
-| **OSMesa** | `MUJOCO_GL=osmesa` + `PYOPENGL_PLATFORM=osmesa` | No | Headless **software** GL (CI, no GPU display stack) |
-
-Set **`MUJOCO_GL` before `import mujoco`** — the library picks the GL loader at import time. Our doc figure script does that in `scripts/render_menagerie_geometry_figures.py`:
-
-```bash
-bash scripts/fetch_menagerie_assets.sh
-uv sync --extra mujoco
-MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa \
-  uv run python scripts/render_menagerie_geometry_figures.py
-```
-
-On a headless Linux box **with** an NVIDIA driver but no X session, try **`MUJOCO_GL=egl`** first (uses the same GPU as CUDA, different stack). If EGL is misconfigured, fall back to OSMesa (slower, but works in minimal CI images after `libosmesa6` is installed). See [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) for when we regenerate Menagerie figures.
-
-**`PYOPENGL_PLATFORM`** tells [PyOpenGL](https://pyopengl.sourceforge.io/) which platform plugin to load. Pair **`osmesa`** with `MUJOCO_GL=osmesa`. Mismatch (e.g. OSMesa MuJoCo + default PyOpenGL) is a common “black image” or import-order bug.
-
-MuJoCo docs: [Rendering / GL backends](https://mujoco.readthedocs.io/en/stable/programming/index.html#rendering). More links: [References — Graphics and displays](references.qmd#graphics-and-displays).
-
-#### Vulkan (when you outgrow OpenGL viewers)
-
-**Vulkan** is a lower-level GPU API (like OpenGL’s successor). **MuJoCo’s Python viewer path here is OpenGL**, not Vulkan. You **will** meet Vulkan in **NVIDIA Omniverse / Isaac Sim**, some game-engine pipelines, and modern ML visualization stacks that bypass X11.
-
-Rough mental model:
-
-| | OpenGL (this tutorial’s MuJoCo path) | Vulkan (Isaac / Omniverse class) |
-|---|---|---|
-| Role | Draw meshes in MuJoCo viewer / offscreen | Isaac Sim viewport, RTX sensors, Omniverse kit |
-| Linux display | Often X11/EGL/OSMesa as above | Surface through Omniverse; driver must expose Vulkan ICD |
-| Env vars you might see | `MUJOCO_GL`, `PYOPENGL_PLATFORM`, `DISPLAY` | `VK_ICD_FILENAMES`, `VK_LOADER_DEBUG`, `__NV_PRIME_RENDER_OFFLOAD` (hybrid laptops) |
-
-You rarely set Vulkan vars for NumPy IK or `mj_step` without a viewer. When Isaac Lab install docs mention **Vulkan-capable drivers** or **RTX**, they mean the **rendering** stack, not your PyTorch `cuda:0` matmuls. Same physical GPU, different APIs — both need a working [NVIDIA driver](cuda.qmd#cuda) on Linux.
-
-#### Quick checklist
-
-1. **No window needed** (training, FK-only demos): ignore `DISPLAY`; you do not need `MUJOCO_GL` unless you import a renderer.
-2. **Popup viewer on laptop**: use desktop session; leave `MUJOCO_GL` unset or `glfw`.
-3. **Headless PNG / CI**: `MUJOCO_GL=osmesa` + `PYOPENGL_PLATFORM=osmesa` (install OSMesa libs) *or* `MUJOCO_GL=egl` on a GPU node.
-4. **“Wrong GPU” for GL vs CUDA**: less common than `CUDA_VISIBLE_DEVICES`; on laptops with hybrid graphics, the OS may route the display to integrated graphics while CUDA uses the NVIDIA chip — use vendor docs / `__NV_PRIME_RENDER_OFFLOAD=1` only when you understand the machine’s PRIME setup.
-
-`scripts/print_env.py` prints `DISPLAY`, `MUJOCO_GL`, and `PYOPENGL_PLATFORM` alongside CUDA and `PYTHONPATH`.
-
-### Other knobs you will meet
-
-| Variable | Typical use |
-|---|---|
-| `PYTHONBREAKPOINT` | debugger for `breakpoint()` (`ipdb.set_trace`, or `0` to disable) |
-| `OMP_NUM_THREADS` / `MKL_NUM_THREADS` | cap CPU threads so many jobs do not oversubscribe |
-| `CUDA_LAUNCH_BLOCKING` | `1` makes CUDA kernels run synchronously (see [Bells and whistles](bells-and-whistles.qmd#bells-and-whistles)) |
-
-(`MUJOCO_GL` and display-related vars are covered [above](#displays-opengl-headless).)
-
-The GUI debugger is a *different* parent process. Set the same names under `"env"` in `launch.json` (see [VS Code / Cursor debugger](debugging-repl-notebooks.qmd#vscode-debugger)); a prefix in the terminal does not apply to F5.
+**Lookup.** Names, typical values, and longer notes for `PYTHONPATH`, CUDA, MuJoCo GL, `DISPLAY`, and the rest live in [Common environment variables](environment-variables.qmd#common-environment-variables) — use that chapter when you need a specific variable; this section is the concept only.

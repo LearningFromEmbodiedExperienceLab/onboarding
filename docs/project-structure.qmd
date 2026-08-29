@@ -84,13 +84,13 @@ Three patterns, from "fine for a one-off" to "how we actually work".
 
 `scripts/train.py` can do `from helpers import greet` because running `python scripts/train.py` puts `scripts/` on `sys.path[0]`. Fine for a tiny helper that only that script needs. Breaks as soon as two scripts in different folders both want `helpers`, or you want `from robotics.ik import …` from a notebook started elsewhere.
 
-**2. [`PYTHONPATH`](environment-management.qmd#environment-variables) (temporary; do not rely on this in a team)**
+**2. [`PYTHONPATH`](environment-variables.qmd#pythonpath) (temporary; do not rely on this in a team)**
 
 ```bash
 PYTHONPATH=src python scripts/train.py
 ```
 
-Puts `src/` on `sys.path`. Convenient for an afternoon, fragile: everyone must remember the same [environment variable](environment-management.qmd#environment-variables), and IDEs / debuggers will not.
+Puts `src/` on `sys.path`. Convenient for an afternoon, fragile: everyone must remember the same [environment variable](environment-variables.qmd#pythonpath), and IDEs / debuggers will not.
 
 **3. Install the package into the environment (what we actually do)**
 

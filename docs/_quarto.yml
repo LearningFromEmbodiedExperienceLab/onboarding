@@ -24,6 +24,7 @@ book:
     - part: "Python Basics"
       chapters:
         - environment-management.qmd
+        - environment-variables.qmd
         - project-structure.qmd
         - debugging-repl-notebooks.qmd
         - github-version-control.qmd

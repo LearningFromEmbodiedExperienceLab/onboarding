@@ -32,7 +32,7 @@ At the first stop, `dq` does not exist yet. `n` over the `damped_lstsq` line, th
 uv run python -m pdb scripts/debug_ik.py
 ```
 
-**ipdb** is pdb with IPython tab-completion and nicer tracebacks. [`PYTHONBREAKPOINT`](environment-management.qmd#environment-variables) selects which debugger `breakpoint()` starts:
+**ipdb** is pdb with IPython tab-completion and nicer tracebacks. [`PYTHONBREAKPOINT`](environment-variables.qmd#pythonbreakpoint) selects which debugger `breakpoint()` starts:
 
 ```bash
 uv pip install ipdb
@@ -47,7 +47,7 @@ uv run python scripts/debug_ik.py
 # (Pdb++) sticky    ← side-by-side source; stay in this mode
 ```
 
-[`PYTHONBREAKPOINT=0`](environment-management.qmd#environment-variables) disables every `breakpoint()` for one run (handy when you left one in by mistake).
+[`PYTHONBREAKPOINT=0`](environment-variables.qmd#pythonbreakpoint) disables every `breakpoint()` for one run (handy when you left one in by mistake).
 
 `breakpoint()` is for "I know this line is interesting". An exception you did not expect is **post-mortem**:
 
@@ -101,7 +101,7 @@ What the keys mean:
 | `console` | `integratedTerminal` so `input()` and pdb work |
 | `justMyCode` | `true` skips NumPy/site-packages. `false` on `debug_ik` so **Step Into** reaches `damped_lstsq` |
 | `args` | CLI arguments, as a JSON list of strings |
-| `env` | Environment variables for **this** debug session (see [Environment variables](environment-management.qmd#environment-variables)). The **print_env** config sets `CUDA_VISIBLE_DEVICES` and `PYTHONPATH` |
+| `env` | Environment variables for **this** debug session ([Common environment variables](environment-variables.qmd#common-environment-variables)). The **print_env** config sets `CUDA_VISIBLE_DEVICES` and `PYTHONPATH` |
 
 Run: open `scripts/debug_ik.py` → red gutter dot on the `dq = …` line → Run and Debug → **debug_ik** (or Current file) → F5. The Variables / Watch panes are `p` / `pp` with less typing.
 
