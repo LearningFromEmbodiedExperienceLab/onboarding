@@ -150,7 +150,7 @@ models, sim environments, datasets), prefer:
 2. **Do** commit a **lock file** + **fetch script** that pins a git ref.
 3. **Do** add the checkout directory to **`.gitignore`**.
 
-This repo’s pattern (`third_party/menagerie.lock.json` + `scripts/fetch_menagerie_assets.sh`):
+This repo’s pattern (`third_party/assets.lock.json` + `scripts/fetch_menagerie_assets.sh`):
 
 ```bash
 # Creates third_party/mujoco_menagerie/ with only agilex_piper/ and arx_l5/

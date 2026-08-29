@@ -6,7 +6,7 @@ on:
   push:
     branches: [master, main]
     paths:
-      - third_party/menagerie.lock.json
+      - third_party/assets.lock.json
       - scripts/fetch_menagerie_assets.sh
       - scripts/render_menagerie_geometry_figures.py
       - .github/workflows/regenerate-menagerie-images.yml

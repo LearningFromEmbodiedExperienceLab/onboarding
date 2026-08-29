@@ -1,10 +1,9 @@
 # Third-party assets
 
-Robot models from [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie)
-are fetched locally — not stored in this repository.
+Robot models and upstream URDFs are fetched locally — not stored in this repository.
 
-- **Lock:** `menagerie.lock.json` (pinned git ref + sparse paths)
+- **Lock:** `assets.lock.json` (pinned git refs + sparse paths for each vendor)
 - **Fetch:** `bash scripts/fetch_menagerie_assets.sh` from repo root
-- **Checkout:** `mujoco_menagerie/` (gitignored)
+- **Checkouts:** `mujoco_menagerie/`, `piper_ros/`, `arx_model/` (all gitignored)
 
-See [Asset files](../docs/asset-files.qmd#menagerie-vendor-assets) in the tutorial.
+See [Asset files](../docs/asset-files.qmd) in the tutorial.

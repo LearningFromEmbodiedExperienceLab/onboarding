@@ -1,38 +1,190 @@
 # Asset files
 
-How a robot is stored on disk: **URDF** (ROS, tree of links) vs **MJCF** (MuJoCo XML: compiler, defaults, actuators, sensors, keyframes). Motrix `load_model` accepts MJCF, URDF, or USD. We will author **one MJCF** and load it in both simulators.
+How a robot is stored on disk: **URDF** (ROS, tree of links) vs **MJCF** (MuJoCo XML: compiler, defaults, actuators, sensors, keyframes). Motrix `load_model` accepts MJCF, URDF, or USD.
 
-Mesh paths, compiler flags, and “inertia from geom” belong here — not in the control loop.
-For *what* those meshes and geoms mean (visual vs collision, convex hulls, validation),
-see [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) first.
+Mesh paths, compiler flags, and “inertia from geom” belong here — not in the control loop. For *what* those meshes and geoms mean (visual vs collision, convex hulls, validation), see [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) first.
 
-## Menagerie vendor assets {#menagerie-vendor-assets}
+## URDF vs MJCF at a glance
 
-Tutorial examples use robots from [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie)
-(**`agilex_piper`**, **`arx_l5`**). We do **not** commit their meshes to this repo.
+Both describe a **kinematic tree** (links/bodies, joints, inertial tags, geometry). The vocabulary overlap is in [Scene vocabulary](scene-vocabulary.qmd#scene-vocabulary); the **file shape** differs.
 
-| Committed | Not committed (local only) |
-|---|---|
-| `third_party/menagerie.lock.json` — repo URL, git ref, folder list | `third_party/mujoco_menagerie/` — sparse checkout |
+| | URDF | MJCF (MuJoCo) |
+|---|---|---|
+| Root element | `<robot name="…">` | `<mujoco model="…">` |
+| Rigid segment | `<link>` | `<body>` |
+| Parent/child | `<joint>` between links | `<joint>` on child `<body>` |
+| Visual / collision | `<visual>` / `<collision>` siblings on `<link>` | `<geom>` (often duplicated; `group`, `class`, `contype`) |
+| Inertia | `<inertial>` on `<link>` | `<inertial>` on `<body>` |
+| Actuators | *Not in URDF* (ROS packages add separately) | `<actuator>` block (motors, position servos, …) |
+| Contact rules | Often implicit / Gazebo plugins | `<contact>` (`<exclude>`, …) |
+| Coupled joints (gripper mimic) | `<mimic>` (optional) | `<equality>` |
+| Meshes | `package://…` ROS paths, often `.STL` | `<compiler meshdir="assets"/>` + `<mesh file="…"/>` |
+| Simulation options | Outside the URDF | `<option>`, `<default>`, `<keyframe>` |
+
+URDF is the ROS **lingua franca** — good for CAD export and MoveIt. MJCF is MuJoCo’s **native** format — good for contact, actuators, and reproducible sim. Menagerie ships **MJCF** that was **derived from** vendor URDFs, then hand-tuned for MuJoCo.
+
+## Vendor layout (fetch, do not commit) {#vendor-layout}
+
+Tutorial robots come from three sparse git checkouts pinned in `third_party/assets.lock.json`:
+
+| Vendor | Local path (gitignored) | What you get |
+|---|---|---|
+| [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie) | `third_party/mujoco_menagerie/` | `agilex_piper/`, `arx_l5/` MJCF + `scene.xml` |
+| [AgileX Piper_ros](https://github.com/agilexrobotics/Piper_ros) | `third_party/piper_ros/` | Upstream URDF + STL meshes |
+| [ARX_Model](https://github.com/ARXroboticsX/ARX_Model) | `third_party/arx_model/` | Upstream URDF + STL meshes (L5 / X5A) |
 
 ```bash
-bash scripts/fetch_menagerie_assets.sh   # clone / update vendor tree
+bash scripts/fetch_menagerie_assets.sh   # all vendors in assets.lock.json
 uv sync --extra mujoco
-uv run python -c "
-import mujoco as mj
-m = mj.MjModel.from_xml_path('third_party/mujoco_menagerie/agilex_piper/scene.xml')
-print('piper ngeom', m.ngeom)
-"
 ```
 
-Load **`scene.xml`** (includes robot + ground), not the bare `piper.xml` / `arx_l5.xml`,
-unless you are editing the model. Mesh paths inside Menagerie MJCF are relative to each
-robot folder’s `assets/` directory.
+Load Menagerie **`scene.xml`** for sim (robot + ground). Compare URDF sources side-by-side with the MJCF in the same tutorial — paths after fetch:
 
-Doc figures under `docs/imgs/menagerie/` are **generated PNGs** (committed so the static
-site builds without MuJoCo). Regenerate with
-`scripts/render_menagerie_geometry_figures.py` (visual, convex hull of visual meshes,
-and collision columns) — see
-[Geometry and collision](geometry-and-collision.qmd#inspect-in-the-viewer).
+| Robot | Menagerie MJCF | Upstream URDF |
+|---|---|---|
+| AgileX Piper | `third_party/mujoco_menagerie/agilex_piper/piper.xml` | `third_party/piper_ros/src/piper_description/urdf/piper_description.urdf` |
+| ARX L5 | `third_party/mujoco_menagerie/arx_l5/arx_l5.xml` | `third_party/arx_model/X5/X5A/urdf/X5A.urdf` |
 
-*(To fill: `<compiler meshdir="…"/>` for our own MJCF; `motrixsim.load_model` parity.)*
+Doc figures under `docs/imgs/menagerie/` are generated PNGs — see [Geometry and collision](geometry-and-collision.qmd#inspect-in-the-viewer).
+
+### Loading notes
+
+- **MJCF:** `mujoco.MjModel.from_xml_path("…/scene.xml")` — mesh paths resolve via `<compiler meshdir="assets"/>`.
+- **URDF:** meshes use `package://…` URLs. MuJoCo can compile URDF, but you usually add a `<mujoco><compiler meshdir="…" balanceinertia="true" discardvisual="false"/></mujoco>` block (Menagerie step 1) and fix paths, or load through ROS-aware tooling. For inspection, opening the URDF next to the MJCF is enough; sims in this tutorial use Menagerie MJCF.
+
+[Upstream URDF collision is often the same mesh as visual — convex hull at contact time. Menagerie re-authors collision in MJCF; do not assume the URDF and MJCF contact the same way without checking.]{.common-bug-warning}
+
+## Case study: AgileX Piper (URDF → MJCF)
+
+Menagerie documents the pipeline in `agilex_piper/README.md`. The MJCF is derived from AgileX’s public URDF ([Piper_ros](https://github.com/agilexrobotics/Piper_ros), `piper_description` package). Menagerie cites branch `ros-noetic-no-aloha`; that branch name is stale — we pin commit `ac41fcbc…` on branch **`noetic`** in `assets.lock.json`.
+
+**Derivation steps (summary):**
+
+1. Add `<mujoco><compiler balanceinertia="true" discardvisual="false"/></mujoco>` on the URDF root so MuJoCo keeps visuals when compiling.
+2. Load URDF in MuJoCo and export MJCF.
+3. Convert meshes `.stl` → `.obj` (one material per obj), merge materials.
+4. Add `<default>` classes for joints, actuators, visual/collision geoms.
+5. Gripper: equality constraint (mimic), hand-tuned box collision on fingers.
+6. `<contact><exclude …/></contact>`, position actuators, sim `<option>`, `scene.xml`.
+
+### Side-by-side: same joint, two formats
+
+**URDF** — parent/child links and `<limit>` on the joint:
+
+```xml
+<joint name="joint1" type="revolute">
+  <origin xyz="0 0 0.123" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="link1"/>
+  <axis xyz="0 0 1"/>
+  <limit lower="-2.618" upper="2.618" effort="100" velocity="5"/>
+</joint>
+```
+
+**MJCF** — nested `<body>` and `range` on the joint (Menagerie adds body `quat`/`pos` and defaults):
+
+```xml
+<body name="link1" pos="0 0 0.123" quat="0.707105 0 0 -0.707108">
+  <joint name="joint1" axis="0 0 1" range="-2.618 2.618"/>
+  …
+</body>
+```
+
+### Side-by-side: geometry on one link
+
+**URDF** — separate visual and collision tags; same STL in both (typical CAD export):
+
+```xml
+<link name="link1">
+  <visual>
+    <geometry>
+      <mesh filename="package://piper_description/meshes/link1.STL"/>
+    </geometry>
+  </visual>
+  <collision>
+    <geometry>
+      <mesh filename="package://piper_description/meshes/link1.STL"/>
+    </geometry>
+  </collision>
+</link>
+```
+
+**Menagerie MJCF** — two `<geom>` elements, `class="visual"` vs `class="collision"` (groups 2 and 3), collision **not** the same as copying visual:
+
+```xml
+<geom class="visual" mesh="link1" material="gray_mat"/>
+<geom class="collision" mesh="link1"/>
+```
+
+Menagerie then replaces many link collision meshes with **capsules**, splits multi-material visuals into many objs, and adds MJCF-only blocks:
+
+```xml
+<contact>
+  <exclude body1="base_link" body2="link1"/>
+</contact>
+<equality>
+  <joint joint1="joint8" joint2="joint7" polycoef="0 -1 0 0 0"/>
+</equality>
+<actuator>
+  <position name="joint1" joint="joint1" class="piper" kp="80" kv="5"/>
+  …
+</actuator>
+```
+
+None of `<contact>`, `<equality>`, `<actuator>`, or `<keyframe>` exist in the URDF — they are why we sim from **`piper.xml`**, not the raw export.
+
+## Case study: ARX L5 (URDF → MJCF)
+
+Same pattern as Piper; see `arx_l5/README.md`. Upstream URDF at [ARX_Model `X5/X5A`](https://github.com/ARXroboticsX/ARX_Model/tree/af6fe43c873008a85bce6195c0f2160f1a1c14ce/X5/X5A) (`X5A.urdf` + `meshes/*.STL`). Menagerie commit pin matches `assets.lock.json`.
+
+Derivation steps mirror Piper (compiler tag → import → mesh/obj cleanup → defaults → gripper boxes → exclude → actuators → `scene.xml`). MJCF uses **`joint7` / `joint8`** slide fingers with equality mimic; collision on the gripper is **box** geoms, not the finger meshes — see the three-column figures in [Geometry and collision](geometry-and-collision.qmd#inspect-in-the-viewer).
+
+**URDF mesh path:**
+
+```xml
+<mesh filename="package://X5A/meshes/base_link.STL"/>
+```
+
+**MJCF compiler + asset:**
+
+```xml
+<compiler angle="radian" meshdir="assets"/>
+…
+<mesh name="base_link" file="base_link.obj"/>
+```
+
+STL → OBJ, `package://` → relative `assets/`, plus sim metadata — that is the usual URDF→MJCF migration path.
+
+## `<compiler meshdir="…"/>`
+
+Menagerie sets `<compiler meshdir="assets"/>` at the top of `piper.xml` / `arx_l5.xml`. All `<mesh file="…"/>` entries are **relative to that directory** (each robot’s `assets/` folder). If you author MJCF:
+
+- Keep meshes beside the XML or set `meshdir` explicitly.
+- Do not rely on `package://` in MJCF — that is URDF/ROS.
+
+## What to load in code
+
+```python
+import mujoco as mj
+
+# Tutorial default: Menagerie scene (robot + floor)
+piper = mj.MjModel.from_xml_path(
+    "third_party/mujoco_menagerie/agilex_piper/scene.xml"
+)
+l5 = mj.MjModel.from_xml_path(
+    "third_party/mujoco_menagerie/arx_l5/scene.xml"
+)
+```
+
+*(To fill: `motrixsim.load_model` on the same paths; URDF load after `package://` path fix for local inspection.)*
+
+## Where this fits
+
+| Topic | Chapter |
+|---|---|
+| Names: link, body, geom | [Scene vocabulary](scene-vocabulary.qmd#scene-vocabulary) |
+| Meshes, hulls, validation | [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) |
+| **URDF vs MJCF, vendor paths** | *this chapter* |
+| Load model, step sim | [Two simulators](two-simulators.qmd#two-simulators) |
+
+Author and pin assets once; validate collision; then leave files alone during control tuning.

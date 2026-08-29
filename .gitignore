@@ -11,3 +11,5 @@ docs/_site/
 
 # Third-party sim assets (obtain via scripts/fetch_menagerie_assets.sh)
 third_party/mujoco_menagerie/
+third_party/piper_ros/
+third_party/arx_model/

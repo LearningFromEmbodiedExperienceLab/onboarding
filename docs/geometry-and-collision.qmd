@@ -204,7 +204,7 @@ This is the highest-leverage section. Build a habit **before** tuning controller
 We pin two robots from [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie)
 (**AgileX Piper** and **ARX L5**) as **third-party assets** — not copied into this repo.
 Fetch them once with `bash scripts/fetch_menagerie_assets.sh` (sparse git checkout;
-see [Asset files](asset-files.qmd#menagerie-vendor-assets) and
+see [Asset files](asset-files.qmd#vendor-layout) and
 [Large files](github-version-control.qmd#third-party-assets-sparse-checkout)).
 
 Both models use the same MJCF pattern: **`class="visual"`** geoms on **group 2**
@@ -233,7 +233,7 @@ Piper’s author collision mixes **capsules** with **mesh convex hulls** on some
 chunkier than the paint. L5 uses **box** finger collision while visuals stay detailed
 meshes. Compare each column before tuning controllers on a new robot.
 
-Regenerate figures after bumping `third_party/menagerie.lock.json`:
+Regenerate figures after bumping `third_party/assets.lock.json`:
 
 ```bash
 bash scripts/fetch_menagerie_assets.sh
