@@ -8,14 +8,7 @@ from __future__ import annotations
 
 import time
 
-from async_ipc_common import (
-    PLANT_DAMPING,
-    PLANT_MASS,
-    PLANT_STIFFNESS,
-    SIM_DT,
-    AsyncIpcBus,
-    rate_sleep,
-)
+from async_ipc_common import SIM_DT, AsyncIpcBus, integrate_plant, rate_sleep
 
 
 def sim_loop(bus: AsyncIpcBus, *, duration_s: float) -> None:
@@ -34,9 +27,7 @@ def sim_loop(bus: AsyncIpcBus, *, duration_s: float) -> None:
         ctrl_ticks = snap.ctrl_ticks
 
         # Held position target (zero-order hold between controller updates).
-        accel = (PLANT_STIFFNESS * (cmd_q - q) - PLANT_DAMPING * qdot) / PLANT_MASS
-        qdot += SIM_DT * accel
-        q += SIM_DT * qdot
+        q, qdot = integrate_plant(q, qdot, cmd_q)
         sim_steps += 1
         sim_time = sim_steps * SIM_DT
 

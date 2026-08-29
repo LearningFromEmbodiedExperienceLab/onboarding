@@ -1613,6 +1613,9 @@ dependencies = [
 debug = [
     { name = "pdbpp" },
 ]
+ipc = [
+    { name = "pyzmq" },
+]
 mujoco = [
     { name = "mujoco" },
     { name = "pillow" },
@@ -1650,13 +1653,14 @@ requires-dist = [
     { name = "pdbpp", marker = "extra == 'debug'" },
     { name = "pillow", marker = "extra == 'mujoco'", specifier = ">=12.3.0" },
     { name = "pillow", marker = "extra == 'sim'", specifier = ">=12.3.0" },
+    { name = "pyzmq", marker = "extra == 'ipc'" },
     { name = "scipy", marker = "extra == 'mujoco'", specifier = ">=1.17.1" },
     { name = "scipy", marker = "extra == 'sim'", specifier = ">=1.17.1" },
     { name = "torch", marker = "extra == 'torch'" },
     { name = "trimesh", marker = "extra == 'mujoco'", specifier = ">=5.0.0" },
     { name = "trimesh", marker = "extra == 'sim'", specifier = ">=5.0.0" },
 ]
-provides-extras = ["mujoco", "sim", "debug", "notebooks", "torch"]
+provides-extras = ["mujoco", "sim", "debug", "notebooks", "torch", "ipc"]
 
 [[package]]
 name = "scipy"

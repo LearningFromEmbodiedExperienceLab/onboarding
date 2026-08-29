@@ -6,10 +6,9 @@ writes ``cmd_q`` without blocking the sim process. Run via ``async_ipc_demo.py``
 
 from __future__ import annotations
 
-import math
 import time
 
-from async_ipc_common import CTRL_DT, AsyncIpcBus, rate_sleep
+from async_ipc_common import CTRL_DT, AsyncIpcBus, command_for_tick, rate_sleep
 
 
 def controller_loop(bus: AsyncIpcBus, *, duration_s: float) -> None:
@@ -22,9 +21,7 @@ def controller_loop(bus: AsyncIpcBus, *, duration_s: float) -> None:
         if snap.shutdown:
             break
 
-        # Sinusoidal setpoint — controller only retargets every 1/CTRL_HZ seconds.
-        t = ctrl_ticks * CTRL_DT
-        cmd_q = 0.35 * math.sin(2.0 * math.pi * 0.5 * t)
+        cmd_q = command_for_tick(ctrl_ticks)
 
         ctrl_ticks += 1
         bus.write_command(cmd_q=cmd_q, ctrl_ticks=ctrl_ticks, shutdown=False)

@@ -2,7 +2,7 @@
 
 Once sim, control, and logging live in **different processes** (or machines), you need a way to move observations and commands without sharing one Python interpreter. That is **inter-process communication (IPC)** — the plumbing behind “policy process ↔ sim process,” hardware drivers, and multi-rate loops.
 
-This chapter compares three patterns you will see in robotics labs: **shared memory**, **ZeroMQ**, and **LCM**. A runnable **shared-memory** example ships in `scripts/async_ipc_demo.py` (sim and controller in separate processes at different rates).
+This chapter compares three patterns you will see in robotics labs: **shared memory**, **ZeroMQ**, and **LCM**. Runnable examples ship in `scripts/async_ipc_demo.py` (shared memory) and `scripts/async_ipc_zmq_demo.py` (ZeroMQ PUB/SUB).
 
 ## Why split processes at all?
 
@@ -114,6 +114,8 @@ Between controller updates the sim **holds** the last command — identical to t
 uv run python scripts/async_ipc_demo.py
 ```
 
+The launcher passes a bounded `join` timeout (`duration + 3 s` by default; override with `--join-timeout`) so a crashed child cannot block the parent forever.
+
 Expected summary (≈2 s wall clock):
 
 ```text
@@ -131,7 +133,56 @@ Files:
 | `scripts/async_ipc_controller.py` | Lower-rate setpoint writer |
 | `scripts/async_ipc_demo.py` | Spawns both processes, prints summary |
 
-The plant is intentionally minimal (no MuJoCo) so the example runs with **stdlib only**. Swap the sim process for `mj_step` or Motrix `step` and keep the same SHM contract — or replace SHM with ZMQ/LCM on the command channel when you need cross-host messaging.
+The plant is intentionally minimal (no MuJoCo) so the shared-memory example runs with **stdlib only**. Swap the sim process for `mj_step` or Motrix `step` and keep the same SHM contract — or use the ZeroMQ variant below when you want explicit messages and an path to remote hosts.
+
+## Example: async sim + controller (ZeroMQ)
+
+The ZMQ demo runs the **same plant and rates** as above, but moves data over **PUB/SUB** sockets on localhost:
+
+| Socket | Pattern | Direction | Payload |
+|---|---|---|---|
+| `tcp://127.0.0.1:15555` | PUB → SUB | sim → controller | `state`: `q`, `qdot`, counters |
+| `tcp://127.0.0.1:15556` | PUB → SUB | controller → sim | `cmd`: `cmd_q`, `ctrl_ticks` |
+
+Both subscribers **drain** pending frames each tick and keep only the **latest** message — the right semantics when the reader is slower than the writer (here, 50 Hz controller vs 500 Hz sim). Topics (`state`, `cmd`, `shutdown`) are multipart frame prefixes; payloads are fixed **`struct`** layouts (same spirit as the SHM block, but copied over TCP).
+
+```text
+sim (500 Hz):
+    drain latest cmd from SUB (conflated)
+    integrate plant
+    PUB state multipart
+
+controller (50 Hz):
+    drain latest state from SUB (optional — policy is open-loop here)
+    PUB cmd multipart
+```
+
+```bash
+uv sync --extra ipc
+uv run python scripts/async_ipc_zmq_demo.py
+```
+
+Expected summary matches the shared-memory run (~10 sim steps per controller tick).
+
+| File | Role |
+|---|---|
+| `scripts/async_ipc_zmq_common.py` | Endpoints, topics, pack/unpack |
+| `scripts/async_ipc_zmq_sim.py` | High-rate sim + state publisher |
+| `scripts/async_ipc_zmq_controller.py` | Lower-rate command publisher |
+| `scripts/async_ipc_zmq_demo.py` | Spawns both processes, prints summary |
+
+**Slow joiner:** the launcher starts the controller first (it **binds** the command PUB), waits briefly, then starts the sim — otherwise early messages can be dropped before SUB sockets connect.
+
+**Timeouts (do not block forever):**
+
+| Layer | Behavior |
+|---|---|
+| ZMQ sockets | `RCVTIMEO` / `SNDTIMEO` (100 ms) + `LINGER=0` on close |
+| Sim startup | Waits up to 2 s for the first command (`--startup-timeout`) |
+| Parent launcher | `Process.join(timeout= duration + 3 s)`; terminates hung children |
+| Result queue | Bounded `get(timeout=…)` if the sim never posts a summary |
+
+Pass `--join-timeout` to tighten or loosen the parent wait. Production stacks add heartbeats and watchdogs on the same principle.
 
 ## Where this fits
 

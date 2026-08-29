@@ -17,9 +17,10 @@ from __future__ import annotations
 
 import argparse
 import multiprocessing as mp
+import sys
 import time
 
-from async_ipc_common import CTRL_HZ, SIM_HZ, AsyncIpcBus
+from async_ipc_common import CTRL_HZ, JOIN_GRACE_S, SIM_HZ, AsyncIpcBus
 from async_ipc_controller import controller_loop
 from async_ipc_sim import sim_loop
 from sim_common import section
@@ -41,6 +42,18 @@ def _run_controller(duration_s: float) -> None:
         bus.close()
 
 
+def _join_or_terminate(proc: mp.Process, timeout_s: float, label: str) -> None:
+    proc.join(timeout=timeout_s)
+    if proc.is_alive():
+        print(f"error: {label} did not exit within {timeout_s:.1f}s — terminating", file=sys.stderr)
+        proc.terminate()
+        proc.join(timeout=1.0)
+        if proc.is_alive():
+            proc.kill()
+            proc.join(timeout=1.0)
+        raise SystemExit(f"{label} process hung")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -49,17 +62,28 @@ def parse_args() -> argparse.Namespace:
         default=2.0,
         help="wall-clock run time in seconds (default: 2.0)",
     )
+    parser.add_argument(
+        "--join-timeout",
+        type=float,
+        default=None,
+        help="max seconds to wait for each child (default: duration + grace)",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    join_timeout = args.join_timeout
+    if join_timeout is None:
+        join_timeout = args.duration + JOIN_GRACE_S
+
     mp.set_start_method("spawn", force=True)
 
     section("async IPC demo (shared memory)")
     print(f"sim rate      {SIM_HZ:.0f} Hz")
     print(f"controller    {CTRL_HZ:.0f} Hz")
     print(f"duration      {args.duration:.1f} s wall clock")
+    print(f"join timeout  {join_timeout:.1f} s")
 
     bus = AsyncIpcBus.create()
 
@@ -71,8 +95,8 @@ def main() -> None:
     t0 = time.perf_counter()
     sim_proc.start()
     ctrl_proc.start()
-    sim_proc.join()
-    ctrl_proc.join()
+    _join_or_terminate(sim_proc, join_timeout, "sim")
+    _join_or_terminate(ctrl_proc, join_timeout, "controller")
     elapsed = time.perf_counter() - t0
 
     snap = bus.read_snapshot()

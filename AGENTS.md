@@ -20,6 +20,8 @@ Running / smoke test (this is the end-to-end check):
   `scripts/rotations.py`, `scripts/print_env.py`.
 - `uv run python scripts/async_ipc_demo.py` — async sim (500 Hz) + controller
   (50 Hz) in separate processes via shared memory (stdlib only).
+- `uv sync --extra ipc && uv run python scripts/async_ipc_zmq_demo.py` — same
+  rates over ZeroMQ PUB/SUB on localhost.
 - Scripts under `scripts/` import a sibling `helpers.py` and rely on the script
   directory being on `sys.path[0]`; this works automatically with
   `uv run python scripts/<name>.py` (don't `cd` into `scripts/` to run them).
@@ -39,9 +41,10 @@ Tests / lint:
   tutorial code); a clean file to sanity-check against is `src/robotics/math_utils.py`.
 
 Optional extras (only needed for the corresponding demo scripts, not installed by
-default): `torch`, `mujoco`, `sim`, `notebooks`, `debug` — install with
+default): `torch`, `mujoco`, `sim`, `ipc`, `notebooks`, `debug` — install with
 `uv sync --extra <name>`. **`sim`** = `mujoco` + `motrixsim` (robotics sim chapters);
-**`mujoco`** alone is enough for menagerie figure rendering and MuJoCo-only scripts.
+**`ipc`** = `pyzmq` (ZeroMQ async IPC demo); **`mujoco`** alone is enough for
+menagerie figure rendering and MuJoCo-only scripts.
 `torch`/`motrixsim` are large.
 
 Robotics sim smoke test (after `bash scripts/fetch_menagerie_assets.sh`):
@@ -65,8 +68,8 @@ Docs (Quarto):
   (from `launch.json`). Reuse an explicit `{#id}` for any new heading whose title
   contains punctuation you want to link to.
 - **Advanced** (after Robotics Basics): `inter-process-communication.qmd` (IPC:
-  shared memory, ZMQ, LCM; runnable `scripts/async_ipc_demo.py`) and
-  `advanced-more-topics.qmd` (placeholder). No scripts in-repo yet for ZMQ/LCM.
+  shared memory, ZMQ, LCM; runnable `async_ipc_demo.py` + `async_ipc_zmq_demo.py`) and
+  `advanced-more-topics.qmd` (placeholder). No scripts in-repo yet for LCM.
 - Pages currently contain no executable (`{python}`) Quarto cells, so rendering needs
   only the Quarto CLI. Adding executable cells later would require `jupyter` in
   the env (e.g. via a new `docs` extra).

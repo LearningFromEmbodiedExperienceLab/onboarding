@@ -7,6 +7,7 @@ on the hot path.
 
 from __future__ import annotations
 
+import math
 import struct
 from dataclasses import dataclass
 from multiprocessing import shared_memory
@@ -219,7 +220,34 @@ CTRL_HZ = 50.0
 SIM_DT = 1.0 / SIM_HZ
 CTRL_DT = 1.0 / CTRL_HZ
 
+# Parent process: max wait for child exit after run duration.
+JOIN_GRACE_S = 3.0
+
 # Simple 1-DoF plant: position target tracking with PD-style acceleration.
 PLANT_MASS = 1.0
 PLANT_DAMPING = 4.0
 PLANT_STIFFNESS = 40.0
+
+
+def integrate_plant(q: float, qdot: float, cmd_q: float) -> tuple[float, float]:
+    """One PD-style integration step toward ``cmd_q``."""
+    accel = (PLANT_STIFFNESS * (cmd_q - q) - PLANT_DAMPING * qdot) / PLANT_MASS
+    qdot_next = qdot + SIM_DT * accel
+    q_next = q + SIM_DT * qdot_next
+    return q_next, qdot_next
+
+
+def command_for_tick(ctrl_ticks: int) -> float:
+    """Sinusoidal setpoint used by both IPC demos."""
+    t = ctrl_ticks * CTRL_DT
+    return 0.35 * math.sin(2.0 * math.pi * 0.5 * t)
+
+
+@dataclass(frozen=True)
+class RunSummary:
+    sim_steps: int
+    ctrl_ticks: int
+    sim_time: float
+    q: float
+    qdot: float
+    cmd_q: float
