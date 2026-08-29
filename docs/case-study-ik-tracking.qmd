@@ -75,7 +75,7 @@ Implementation split:
 
 MuJoCo uses the analytic position Jacobian (`3 × 6` arm columns). Motrix exposes FK on named links but no Jacobian API in the current SDK, so the demo builds `J` with central differences on `link8` position — same `make_ik("dls")` call site, different `J` source.
 
-Arm IK uses the six hinge joints `joint1`–`joint6`; gripper DoFs stay at zero. Integration is **kinematic** (`qpos` write + `forward` / `forward_kinematic`), not dynamics + `ctrl`, so the example isolates IK from actuator tracking.
+Arm IK uses the six hinge joints `joint1`–`joint6`; gripper DoFs stay at zero. Integration is **kinematic** (`qpos` write + `forward` / `forward_kinematic`), not dynamics + `ctrl`, so the example isolates IK from actuator tracking. For the dynamic path (position actuators + `step`) and maximum stable `timestep` per integrator, see [Simulation stability and actuators](simulation-stability.qmd#simulation-stability-and-actuators).
 
 ## Building blocks elsewhere
 
@@ -85,4 +85,4 @@ Arm IK uses the six hinge joints `joint1`–`joint6`; gripper DoFs stay at zero.
 | Load Piper + state I/O + step | `scripts/mujoco_robot_demo.py`, `scripts/motrix_robot_demo.py` |
 | Damped IK debug plot | `scripts/debug_ik.py`, `notebooks/inspect_ik.ipynb` |
 
-To extend: add orientation rows to `dx` and `J`, swap in global IK for offline goals, or replace kinematic integration with the lockstep `ctrl` loop from section 4 of the robot demos.
+To extend: add orientation rows to `dx` and `J`, swap in global IK for offline goals, replace kinematic integration with the lockstep `ctrl` loop from section 4 of the robot demos, or benchmark dynamic stability with `scripts/benchmark_ik_sim_dt.py` ([Simulation stability](simulation-stability.qmd#simulation-stability-and-actuators)).

@@ -1,0 +1,112 @@
+# Simulation stability and actuators
+
+How large a physics timestep can you use when differential IK drives **position
+actuators** and you call `step()` every tick? That depends on the **integrator**
+(MuJoCo) and on whether the engine’s PD tracking matches what you expect (Motrix
+on Menagerie Piper today does not).
+
+The case study ([IK tracking](case-study-ik-tracking.qmd#case-study-ik-tracking))
+defaults to **kinematic** integration — write `qpos`, call `forward`, never
+`step`. That isolates Jacobian IK from actuator dynamics. Production stacks almost
+always use the **dynamic** path: each tick compute a joint target, write `ctrl`,
+integrate. This page measures that path.
+
+## Control stack
+
+Menagerie Piper uses `<position … kp="…" kv="…"/>` actuators: `ctrl` is a **target
+joint angle**, and an internal PD produces torques during `step` ([State
+I/O](state-sensors-and-actuators.qmd#state-sensors-and-actuators)).
+
+Lockstep differential IK on top looks like:
+
+```text
+read EE pose  →  J, dx  →  q_des  →  ctrl[:] = q_des  →  step(dt)
+```
+
+Two loops are stacked:
+
+1. **Outer (IK):** small workspace correction each tick (`α · dls(J, dx)`).
+2. **Inner (actuator):** PD pulls `qpos` toward `ctrl` with stiffness `kp`.
+
+If `dt` is too large for the inner loop — especially with **explicit** integrators
+(`euler`, `rk4`) — joint velocities explode, the arm overshoots, and IK never
+converges. **Implicit** integrators treat the stiff PD more stably and tolerate
+much larger `dt` on MuJoCo.
+
+## Benchmark
+
+`scripts/benchmark_ik_sim_dt.py` runs the same **reach** and **circle** tests as
+`ik_tracking_demo.py`, but integrates with position actuators instead of writing
+`qpos` directly:
+
+```bash
+bash scripts/fetch_menagerie_assets.sh
+uv sync --extra sim
+uv run python scripts/benchmark_ik_sim_dt.py          # full dt sweep
+uv run python scripts/benchmark_ik_sim_dt.py --quick  # smoke (5 dt values)
+```
+
+Setup:
+
+| Setting | Value |
+|---|---|
+| Robot | Menagerie Piper (`scene.xml`), seed 0 |
+| Control | DLS IK, gain 0.35, damping 1e-2 |
+| Per tick | `ctrl = q_des`, one `step(dt)` |
+| Horizon | Scaled so wall-clock span ≈ kinematic demo (20 ms nominal tick) |
+| Pass (reach) | final position error \< 5 mm, \|qvel\| \< 20 rad/s |
+| Pass (circle) | final tracking error \< 26 mm (75% of 35 mm radius), stable |
+
+MuJoCo sweeps all four integrators (`euler`, `rk4`, `implicit`, `implicitfast`).
+Motrix exposes only `model.options.timestep` — MJCF `<option integrator=…>` is
+ignored (same warning as [Two simulators](two-simulators.qmd#two-simulators)).
+
+### Maximum stable `dt` (MuJoCo, seed 0)
+
+| Integrator | Max `dt` | Notes |
+|---|---|---|
+| `euler` | **10 ms** | Explicit; blows up by 15 ms (large \|qvel\|) |
+| `rk4` | **15 ms** | Slightly better than Euler, still explicit |
+| `implicit` | **100 ms** | Fails at 125 ms (reach diverges) |
+| `implicitfast` | **100 ms** | Menagerie default; same ceiling as `implicit` here |
+
+Menagerie ships `timestep="0.002"` and `integrator="implicitfast"` — conservative
+and appropriate for generic dynamics. For **position-actuator IK loops** on this
+arm, MuJoCo tolerates up to **100 ms** with implicit integrators while explicit
+ones cap out near **10–15 ms**.
+
+### Motrix (dynamic path)
+
+On the same Piper scene, **no tested `dt` passed both reach and circle** with
+position actuators + `step`. Numerically the sim stays bounded (no NaNs), but the
+EE error stays at centimetre scale (≈ 200 mm) even at 2 ms — far from the 5 mm
+reach tolerance.
+
+A minimal sanity check shows why: holding five joints fixed and commanding
+`ctrl = 0.6` on `joint1` for 500 steps at 2 ms, MuJoCo reaches ≈ 0.60 rad on
+joint1 while Motrix drifts joint2/joint5 to large angles and joint1 stalls near
+0.47 rad. That is an **engine / model parity** issue on Menagerie Piper, not a
+tuning knob in this repo. Until Motrix position-actuator tracking matches MuJoCo,
+use **kinematic IK** (`ik_tracking_demo.py`) on Motrix and treat dynamic
+`ctrl` + `step` IK as MuJoCo-only for this asset.
+
+## Practical guidance
+
+| Goal | Recommendation |
+|---|---|
+| Learn / debug IK Jacobian | Kinematic loop in `ik_tracking_demo.py` (both backends) |
+| Dynamic IK + actuators on Piper | MuJoCo, `implicit` or `implicitfast`, `dt` ≤ 100 ms |
+| Larger `dt` with explicit integrator | Avoid for position-actuator IK; cap near 10–15 ms |
+| Motrix + Piper Menagerie | Kinematic integration; verify dynamic control separately |
+| Policy at 50 Hz, physics faster | See [Simulation loop — substeps](the-simulation-loop.qmd#the-simulation-loop); hold `ctrl` between policy ticks |
+
+When you move from kinematic `qpos` writes to dynamic `ctrl`, re-tune IK gain and
+re-check stability at your chosen `dt` — the inner PD adds lag and effective
+stiffness the Jacobian loop never sees in FK-only mode.
+
+## Next
+
+[Case study: IK tracking](case-study-ik-tracking.qmd#case-study-ik-tracking) —
+kinematic reference implementation. To extend: add dynamic mode behind a flag, or
+wire the async IPC demos so a slow policy sends `ctrl` targets to a fast sim
+([Inter-process communication](inter-process-communication.qmd#inter-process-communication)).
