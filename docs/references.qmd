@@ -70,6 +70,16 @@ Curated **official** links for standards, install guides, and APIs cited in this
 | CUDA toolkit | [developer.nvidia.com/cuda-downloads](https://developer.nvidia.com/cuda-downloads) |
 | `nvidia-smi` | [NVIDIA System Management Interface](https://developer.nvidia.com/nvidia-system-management-interface) |
 
+## Graphics and displays
+
+| Topic | Link |
+|---|---|
+| MuJoCo rendering / `MUJOCO_GL` | [MuJoCo — Rendering](https://mujoco.readthedocs.io/en/stable/programming/index.html#rendering) |
+| OpenGL overview | [Khronos OpenGL](https://www.khronos.org/opengl/) |
+| Vulkan overview | [Khronos Vulkan](https://www.vulkan.org/) |
+| PyOpenGL platforms | [PyOpenGL](https://pyopengl.sourceforge.io/) |
+| DISPLAY / headless on Linux | [Environment management — Displays, OpenGL, headless](environment-management.qmd#displays-opengl-headless) |
+
 ## Robotics assets
 
 | Format / tool | Link |

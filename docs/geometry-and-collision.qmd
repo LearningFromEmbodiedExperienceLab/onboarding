@@ -244,7 +244,8 @@ MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa \
 
 On Linux CI, install `libosmesa6` first. GitHub Actions workflow
 `.github/workflows/regenerate-menagerie-images.yml` runs the same steps and commits
-updated PNGs when the lock file or render script changes.
+updated PNGs when the lock file or render script changes. Background on `DISPLAY`,
+`MUJOCO_GL`, and OSMesa vs EGL: [Environment management — headless rendering](environment-management.qmd#displays-opengl-headless).
 
 *(To fill: `scripts/collision_debug.py` — print geom summary per link from Menagerie XML.)*
 
