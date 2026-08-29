@@ -18,6 +18,8 @@ Running / smoke test (this is the end-to-end check):
 - `uv run python scripts/train.py` — imports the library and runs quaternion math +
   an IK solver. Other demo scripts: `scripts/ik_controllers.py`,
   `scripts/rotations.py`, `scripts/print_env.py`.
+- `uv run python scripts/async_ipc_demo.py` — async sim (500 Hz) + controller
+  (50 Hz) in separate processes via shared memory (stdlib only).
 - Scripts under `scripts/` import a sibling `helpers.py` and rely on the script
   directory being on `sys.path[0]`; this works automatically with
   `uv run python scripts/<name>.py` (don't `cd` into `scripts/` to run them).
@@ -63,8 +65,8 @@ Docs (Quarto):
   (from `launch.json`). Reuse an explicit `{#id}` for any new heading whose title
   contains punctuation you want to link to.
 - **Advanced** (after Robotics Basics): `inter-process-communication.qmd` (IPC:
-  shared memory, ZMQ, LCM) and `advanced-more-topics.qmd` (placeholder). No scripts
-  in-repo yet — conceptual chapters only.
+  shared memory, ZMQ, LCM; runnable `scripts/async_ipc_demo.py`) and
+  `advanced-more-topics.qmd` (placeholder). No scripts in-repo yet for ZMQ/LCM.
 - Pages currently contain no executable (`{python}`) Quarto cells, so rendering needs
   only the Quarto CLI. Adding executable cells later would require `jupyter` in
   the env (e.g. via a new `docs` extra).

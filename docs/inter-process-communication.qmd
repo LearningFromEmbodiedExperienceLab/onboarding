@@ -2,7 +2,7 @@
 
 Once sim, control, and logging live in **different processes** (or machines), you need a way to move observations and commands without sharing one Python interpreter. That is **inter-process communication (IPC)** — the plumbing behind “policy process ↔ sim process,” hardware drivers, and multi-rate loops.
 
-This chapter is conceptual: we do not ship IPC examples in `scripts/` yet. It compares three patterns you will see in robotics labs: **shared memory**, **ZeroMQ**, and **LCM**.
+This chapter compares three patterns you will see in robotics labs: **shared memory**, **ZeroMQ**, and **LCM**. A runnable **shared-memory** example ships in `scripts/async_ipc_demo.py` (sim and controller in separate processes at different rates).
 
 ## Why split processes at all?
 
@@ -84,6 +84,54 @@ Nobody forces a single choice:
 3. **Lab robot bus, typed messages, multicast + logs** → **LCM** (or something LCM-shaped in your org).
 
 Whichever you pick: define **one canonical state message** (joint `q`, `qdot`, timestamp, frame id), version it, and log enough to reproduce a bug without guessing wire format.
+
+## Example: async sim + controller (shared memory)
+
+The demo splits a tiny 1-DoF plant across **two processes**:
+
+| Process | Rate | Role |
+|---|---|---|
+| **sim** (`async_ipc_sim.py`) | 500 Hz | Integrate `q`, `qdot`; read held `cmd_q`; publish state |
+| **controller** (`async_ipc_controller.py`) | 50 Hz | Read `q`; write a new sinusoidal `cmd_q` target |
+
+Both sides attach to one named segment (`robotics_async_ipc_demo_v1`) via `multiprocessing.shared_memory`. Updates use a **seqlock** on a `seq` counter so readers never accept a half-written struct — the same “read twice, compare sequence” trick used beside large SHM image buffers.
+
+```text
+every sim tick (500 Hz):
+    snap = read_snapshot()          # seqlock
+    integrate plant toward snap.cmd_q
+    write_state(q, qdot, ...)
+
+every controller tick (50 Hz):
+    snap = read_snapshot()
+    cmd_q = policy(snap.q, t)
+    write_command(cmd_q)
+```
+
+Between controller updates the sim **holds** the last command — identical to the async schedule in [The simulation loop](the-simulation-loop.qmd#the-simulation-loop), but the policy no longer shares an interpreter with `step()`.
+
+```bash
+uv run python scripts/async_ipc_demo.py
+```
+
+Expected summary (≈2 s wall clock):
+
+```text
+sim steps     ~1000  (~500 Hz)
+ctrl ticks    ~100   (~50 Hz)
+sim/ctrl      ~10 steps per controller tick
+```
+
+Files:
+
+| File | Role |
+|---|---|
+| `scripts/async_ipc_common.py` | SHM layout, seqlock, rate helpers |
+| `scripts/async_ipc_sim.py` | High-rate plant integrator |
+| `scripts/async_ipc_controller.py` | Lower-rate setpoint writer |
+| `scripts/async_ipc_demo.py` | Spawns both processes, prints summary |
+
+The plant is intentionally minimal (no MuJoCo) so the example runs with **stdlib only**. Swap the sim process for `mj_step` or Motrix `step` and keep the same SHM contract — or replace SHM with ZMQ/LCM on the command channel when you need cross-host messaging.
 
 ## Where this fits
 
