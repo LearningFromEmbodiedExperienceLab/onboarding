@@ -47,9 +47,10 @@ and reviewed independently. Use the sidebar to navigate.
   link there or inline where a tool is first introduced.
 - **Progress:** each major section (`##` heading) has a **Done** checkbox. Your
   choices are saved in this browser only (`localStorage`). Unread sections are
-  highlighted in the page table of contents; the left sidebar shows chapter
-  status (blue = not finished, orange = partly done, ✓ = all sections on that
-  chapter marked done).
+  highlighted in the page table of contents; **red `!`** marks warning sections
+  (footguns and `.common-bug-warning` callouts) not yet marked done; the left
+  sidebar shows chapter status (blue = not finished, orange = partly done, ✓ =
+  all sections on that chapter marked done).
 
 ## Building these docs
 
