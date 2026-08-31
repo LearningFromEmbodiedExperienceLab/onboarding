@@ -37,6 +37,14 @@
   font-size: 0.85em;
 }
 
+/* Red ! for warning sections (`.common-bug-warning`; all do-not entries) not yet done */
+#TOC a.nav-link.progress-warning:not(.progress-done)::before {
+  content: "! ";
+  font-size: 0.85em;
+  font-weight: 700;
+  color: var(--bs-danger, #d9534f);
+}
+
 /* Left sidebar: chapter-level hints (from stored section keys) */
 #quarto-sidebar a.sidebar-link.active {
   margin-left: -0.4rem;

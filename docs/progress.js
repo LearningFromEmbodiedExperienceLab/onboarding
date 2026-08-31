@@ -111,17 +111,51 @@
     }
   }
 
+  function level2Section(section) {
+    if (!section) {
+      return null;
+    }
+    if (section.classList.contains("level2")) {
+      return section;
+    }
+    return section.closest("section.level2");
+  }
+
+  function sectionHasWarning(section, page) {
+    if (!section) {
+      return false;
+    }
+    var level2 = level2Section(section);
+    if (page === "things-not-to-do" && level2 && level2.id !== "next") {
+      return true;
+    }
+    return section.querySelector(".common-bug-warning") !== null;
+  }
+
+  function progressKeyForTocTarget(page, section) {
+    var level2 = level2Section(section);
+    if (!level2 || !level2.id) {
+      return "";
+    }
+    return sectionKey(page, level2.id);
+  }
+
   function applyTocStyles(store, page) {
     document.querySelectorAll("#TOC a.nav-link").forEach(function (link) {
       var id = tocHeadingId(link);
       if (!id) {
         return;
       }
-      link.classList.remove("progress-done", "progress-unread");
-      if (isDone(store, sectionKey(page, id))) {
+      var section = document.getElementById(id);
+      var key = progressKeyForTocTarget(page, section);
+      link.classList.remove("progress-done", "progress-unread", "progress-warning");
+      if (key && isDone(store, key)) {
         link.classList.add("progress-done");
       } else {
         link.classList.add("progress-unread");
+        if (sectionHasWarning(section, page)) {
+          link.classList.add("progress-warning");
+        }
       }
     });
   }
