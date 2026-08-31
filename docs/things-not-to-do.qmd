@@ -4,6 +4,11 @@ Short list of Python habits that look flexible but usually make code harder to r
 refactor, and debug. Each item is a **footgun** — fine in libraries with a narrow
 purpose, costly in application and research code. See [Useful Patterns](useful-patterns.qmd#useful-patterns) for the constructive counterpart.
 
+A thread through several entries — gratuitous `*args` / `**kwargs`, silent NaN
+ cleanup, swallowed exceptions — is **explicit over implicit** ([The Zen of Python](https://peps.python.org/pep-0020/): “Explicit is better than implicit”). Make failures
+ visible at the boundary where they happen; name what you mean instead of guessing
+ defaults.
+
 Future entries will use the same red callout style as [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision).
 
 ## `*args` and `**kwargs` without a reason
@@ -61,7 +66,8 @@ call site without hiding names.
 
 Rule of thumb: if **you** are the author of the callee and callers are **your**
  teammates, prefer explicit names. If you are writing a **one-line forwarder** to
- code you do not control, `*args` / `**kwargs` is idiomatic.
+ code you do not control, `*args` / `**kwargs` is idiomatic. Same **explicit over
+ implicit** idea as [Hiding errors instead of failing fast](#hiding-errors-instead-of-failing-fast) — name parameters and name failures.
 
 ## Hard-coded absolute paths (and naive relative paths)
 
@@ -309,6 +315,93 @@ Rule of thumb: if it touches **disk, network, GPU, or global process state**, it
  belongs in `main()`, a `setup()` function, or a method — not in the import path.
  If you need “run once at startup,” call that function from your entrypoint; do not
  rely on someone importing the module.
+
+## Hiding errors instead of failing fast
+
+Research code often “recovers” from bad numbers or exceptions so a long job keeps
+ running. That trades a **clear stop** for a **silent lie** downstream.
+
+### Bad — sanitize and continue
+
+```python
+def ik_step(J, dx):
+    dq = damped_lstsq(J, dx)
+    if not np.isfinite(dq).all():
+        dq = np.nan_to_num(dq, nan=0.0)   # pretend IK succeeded
+    return dq
+
+
+def run_episode(env):
+    try:
+        return collect_rollout(env)
+    except Exception:
+        return []   # “empty episode” — caller thinks that is valid data
+
+
+def load_config(path: Path) -> dict:
+    try:
+        return json.loads(path.read_text())
+    except FileNotFoundError:
+        return {}   # defaults nobody asked for
+```
+
+Problems:
+
+- **NaN → zero** — the arm stops moving *look* healthy; metrics and learning absorb
+  garbage. In sim, zero `dq` one step often becomes NaN `qvel` ten steps later
+  ([Simulation stability](simulation-stability.qmd#simulation-stability)).
+- **Broad `except`** — any bug (typo, shape mismatch, OOM) becomes an empty list;
+  you debug the wrong layer days later.
+- **Default-on-failure** — missing config reads as “use implicit defaults” that
+  were never documented.
+
+[When a precondition or computation fails, **fail fast** with a clear error at the point of failure. Do not replace invalid numbers with zeros, swallow exceptions, or return empty sentinels unless that behavior is an explicit, documented part of the API.]{.common-bug-warning}
+
+### Better — validate early; raise with context
+
+**Check inputs and outputs at the boundary** — especially after linear algebra,
+ sim steps, and file I/O:
+
+```python
+def ik_step(J: np.ndarray, dx: np.ndarray, *, damping: float = 1e-3) -> np.ndarray:
+    if J.shape[-2] != dx.shape[-1]:
+        raise ValueError(f"J {J.shape} and dx {dx.shape} mismatch")
+    dq = damped_lstsq(J, dx, damping=damping)
+    if not np.isfinite(dq).all():
+        raise ValueError("IK produced non-finite dq — singular J or bad dx?")
+    return dq
+```
+
+**Fail fast on missing prerequisites** — our sim scripts use
+ `require_piper_scene()` in `scripts/sim_common.py`: if assets are absent, exit
+ immediately with fetch instructions instead of crashing obscurely mid-rollout.
+
+**Let registry / factory errors surface** — `make_ik("typo")` raises
+ `KeyError` with known solver names; that is preferable to returning a dummy controller.
+
+**Separate “expected empty” from “error”** — if an empty rollout is valid, return
+ it only when the env truly finished; if something broke, re-raise or wrap:
+
+```python
+def run_episode(env) -> list:
+    try:
+        return collect_rollout(env)
+    except KeyboardInterrupt:
+        raise
+    except SimConfigError as exc:
+        raise RuntimeError(f"episode aborted: bad sim setup") from exc
+```
+
+| Situation | Fail fast | Avoid |
+|---|---|---|
+| IK / solve returned NaN | `raise ValueError(...)` with shapes and solver name | `nan_to_num`, `np.where(isfinite, dq, 0)` in the controller |
+| Config file missing | `FileNotFoundError` or explicit `load_config(..., required=True)` | `{}` or hard-coded fallbacks |
+| Unknown registry key | `KeyError` / custom error listing valid keys | `None` controller, no-op object |
+| Sim blew up (`qvel` exploded) | Stop rollout; log seed and timestep | Clip state and continue training |
+
+Rule of thumb: **explicit over implicit** — same principle as named parameters over
+ `**kwargs`. If the result is not trustworthy, **say so loudly** (exception or
+ logged abort), do not smuggle a plausible-looking substitute into the pipeline.
 
 ## Next
 
