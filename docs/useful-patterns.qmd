@@ -260,7 +260,7 @@ print(timer.elapsed)  # seconds
 
 On CUDA, pair it with a synchronize or CUDA events ([Bells and whistles](bells-and-whistles.qmd#bells-and-whistles)); otherwise you time the launch, not the kernel.
 
-**Controlled random state** — pin `np.random` for a reproducible snippet, then put the global RNG back so the rest of the process is not stuck on seed `0`:
+**Controlled random state** — prefer an isolated NumPy generator or a scoped legacy pin; full discussion in [Writing batch-agnostic operations — Randomness](batch-agnostic-operations.qmd#randomness). Short form:
 
 ```python
 from robotics.context import numpy_seed
@@ -269,7 +269,7 @@ with numpy_seed(0):
     noise = np.random.randn(*dx.shape)
 ```
 
-New code should prefer an isolated generator, `rng = np.random.default_rng(0)`, which never touches globals. `numpy_seed` exists for blocks that still call `np.random.randn` (or a library that does). Torch's analogue is `with torch.random.fork_rng(): torch.manual_seed(0)`.
+New code should use `rng = np.random.default_rng(0)` and pass `rng` into helpers. Torch: `torch.manual_seed(0)` or `with torch.random.fork_rng(): …`.
 
 `contextlib.contextmanager` turns a generator with one `yield` into `__enter__` / `__exit__` so you do not write a class for the seed helper. `Timer` is a class because callers need `.elapsed` after the block.
 
