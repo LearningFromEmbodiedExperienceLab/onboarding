@@ -34,3 +34,88 @@ uv run python scripts/batch_ops.py
 ```
 
 The script calls the *same* functions at three ranks. If a new helper only works for `(n_env, 4)`, it is not done.
+
+## Randomness
+
+Training, sim rollouts, and data shuffling all use **pseudo-random** numbers: deterministic
+ sequences from a **seed**, not true noise. You control randomness so runs are **debuggable**
+ and **comparable** — same seed should mean same target pose, same init, same shuffle order
+ (within limits below).
+
+### Why bother
+
+| Goal | What seeding buys you |
+|---|---|
+| Debug a crash | Re-run the exact trajectory that blew up |
+| Compare algorithms | Same random targets / init, only the method changes |
+| CI / regression tests | `pytest` or a script passes on every push |
+| Paper numbers | Document `--seed` (and env versions) so results are inspectable |
+
+Without an explicit seed, “run again” is not the same experiment. Log the seed with metrics
+ ([Things not to do — fail fast](things-not-to-do.qmd#hiding-errors-instead-of-failing-fast)
+ also applies when you hide a bad rollout instead of recording *which* seed failed).
+
+### NumPy: prefer an explicit generator
+
+**Do not** rely on hidden global state (`np.random.randn()` after someone else called
+ `np.random.seed`) unless you must. **Do** create and pass a generator:
+
+```python
+rng = np.random.default_rng(0)
+noise = rng.standard_normal(dx.shape)
+```
+
+Our IK demos take `rng` as an argument — see `random_proximal_target` in
+ `scripts/ik_tracking_common.py` and `--seed` on `scripts/ik_tracking_demo.py` /
+ `scripts/benchmark_ik_sim_dt.py`. Same pattern for any stochastic helper: **`rng`
+ in, random samples out**, so callers decide the seed.
+
+Legacy code (and some libraries) still use the **global** `np.random` API. For a short
+ reproducible block without poisoning the rest of the process, use `numpy_seed` from
+ `robotics.context` ([Useful Patterns — Context managers](useful-patterns.qmd#context-managers)):
+
+```bash
+uv run python scripts/ik_controllers.py   # demonstrates numpy_seed vs default_rng
+```
+
+### PyTorch
+
+Same ideas: one **global** torch RNG per device, plus optional **per-generator** objects.
+
+```python
+import torch
+
+torch.manual_seed(0)                    # CPU (and default CUDA generator)
+torch.cuda.manual_seed_all(0)           # all GPU devices
+
+g = torch.Generator(device="cuda")
+g.manual_seed(0)
+x = torch.randn(n, device="cuda", generator=g)
+```
+
+For a scoped block that must not disturb surrounding training:
+
+```python
+with torch.random.fork_rng():
+    torch.manual_seed(0)
+    ...
+```
+
+**GPU caveat:** even with seeds set, some CUDA ops are **nondeterministic** by default
+ (atomic adds, certain convolutions). PyTorch can force deterministic algorithms
+ (`torch.use_deterministic_algorithms(True)`), often at a speed cost — see
+ [CUDA semantics — reproducibility](https://pytorch.org/docs/stable/notes/randomness.html).
+ For onboarding-level scripts, “same seed → same *rough* behavior” is usually enough;
+ do not expect bitwise-identical GPU tensors across driver versions.
+
+### Habits that scale
+
+1. **One seed knob per script** — `parser.add_argument("--seed", type=int, default=0)` at the top of `main()`.
+2. **Print it** — first line of output: `seed 0` (our benchmarks do this).
+3. **Thread it** — `rng = np.random.default_rng(seed)` once; pass `rng` down.
+4. **Separate concerns** — data shuffle seed ≠ env reset seed ≠ weight init seed; use
+   `seed`, `seed + 1`, … or `default_rng(seed).spawn(n)` if you need independent streams.
+5. **Do not seed inside library functions** — callers own reproducibility; libraries take `rng` or a seed parameter.
+
+NumPy and PyTorch each maintain their own RNG state — seeding one does **not** seed the other.
+ Seed both if a script uses `np` and `torch`.
