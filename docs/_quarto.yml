@@ -52,6 +52,7 @@ book:
     - part: "Advanced"
       chapters:
         - inter-process-communication.qmd
+        - trajectory-parameterization.qmd
         - advanced-more-topics.qmd
     - references.qmd
     - glossary.qmd

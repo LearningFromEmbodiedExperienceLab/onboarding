@@ -1,6 +1,6 @@
 # More topics (TBD) {#advanced-more-topics}
 
-Placeholder for a second **Advanced** chapter. Candidates (not finalized):
+Placeholder for further **Advanced** chapters. [Trajectory parameterization](trajectory-parameterization.qmd#trajectory-parameterization) covers paths, Bézier/B-spline geometry, and time laws (sections 1–6). Candidates still open:
 
 - Real-time scheduling and `SCHED_FIFO` on Linux
 - ROS 2 / DDS vs the IPC patterns in [Inter-process communication](inter-process-communication.qmd#inter-process-communication)
