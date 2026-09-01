@@ -1,0 +1,166 @@
+# Trajectory parameterization
+
+How do you move from pose A to pose B **smoothly** and **on a schedule**? This chapter
+covers the geometry (path) and the clock (trajectory) for **one** joint or a point in
+space. Orientation splines, full manipulator execution, and motion planning around
+obstacles are separate topics — here we build the vocabulary for joint-space and
+Cartesian **paths**, then assign **time**.
+
+Runnable walkthrough (NumPy + SciPy for B-splines):
+
+```bash
+uv sync --extra sim
+uv run python scripts/trajectory_spline_demo.py
+```
+
+See also [Kinematics vs dynamics](kinematics-vs-dynamics.qmd#kinematics-vs-dynamics)
+(path vs forces), [Case study: IK tracking](case-study-ik-tracking.qmd#case-study-ik-tracking)
+(Cartesian target motion via differential IK each tick), and
+[The simulation loop](the-simulation-loop.qmd#the-simulation-loop) (sampling `ctrl`
+at control rate).
+
+## Path vs trajectory; joint vs Cartesian
+
+| Term | Meaning |
+|---|---|
+| **Path** | Geometry in space: a curve $C(u)$ with **path parameter** $u \in [0,1]$ (or arc length $s$). No clock yet — “where on the curve,” not “when.” |
+| **Trajectory** | Path + **time**: $q(t)$ or $x(t)$ for $t \in [0,T]$. You can ask for velocity $\dot q(t)$ and acceleration $\ddot q(t)$. |
+| **Joint-space** | $q(u)$ or $q(t)$ — each component is a joint angle. Simple to limit joints; shape in workspace is indirect. |
+| **Cartesian** | $x(u) \in \mathbb{R}^3$ (EE position). Natural for tasks; you still need IK or a kinematic model to get $q(t)$. |
+
+The IK **circle** demo is a Cartesian **path** (target moves on a circle) sampled at
+fixed $\Delta t$ without an explicit spline — useful, but not the same as planning
+$C(u)$ then choosing $u(t)$.
+
+```text
+waypoints  →  path C(u)  →  time law u(t)  →  samples q(t), q̇(t)  →  ctrl / IK
+```
+
+## Waypoints and continuity
+
+A **waypoint** is a knot in space: joint vector $q_k$ or position $x_k$. Smooth motion
+usually requires more than “linear blend” between them.
+
+| Label | Meaning | Typical symptom if violated |
+|---|---|---|
+| **C⁰** | Position continuous | Obvious gap or jump |
+| **C¹** | Velocity continuous | Jerky corners, actuator chatter |
+| **C²** | Acceleration continuous | Snappy torque spikes, vibration |
+| **Jerk** | Derivative of acceleration | High jerk → hardware wear, tracking error |
+
+**Rule of thumb:** pick the **lowest** continuity you can justify. Pick-and-place in
+joint space often wants C¹ or C²; aggressive hardware may need jerk limits on top
+(see [Time parameterization](#time-parameterization) below).
+
+[Do not confuse **path parameter** $u$ with **time** $t$. A cubic spline in $u$ can
+have wildly varying speed along the curve unless you choose $u(t)$ explicitly.]{.common-bug-warning}
+
+## Piecewise cubics and quintics
+
+Between two waypoints $(q_0, t_0)$ and $(q_1, t_1)$, a **cubic** polynomial has four
+coefficients — enough to match position and velocity at both ends:
+
+$$
+q(t) = a_0 + a_1 t + a_2 t^2 + a_3 t^3
+$$
+
+**Quintic** (fifth order) adds two degrees of freedom so you can also match
+acceleration at both ends — common for point-to-point joint moves when C² matters.
+
+For **many** waypoints, stringing cubics segment-by-segment is fine when you only
+care about local smoothness. You must **enforce** matching derivatives at interior
+knots (or accept velocity kinks).
+
+```python
+# One segment: q(0)=q0, q(1)=q1, q̇(0)=q̇0, q̇(1)=q̇1  (normalized t∈[0,1])
+# Solve 4×4 linear system for [a0, a1, a2, a3] — see scripts/trajectory_spline_demo.py
+```
+
+## Bézier curves
+
+A **Bézier curve** of degree $n$ is defined by $n+1$ **control points** $P_0,\ldots,P_n$:
+
+$$
+B(u) = \sum_{i=0}^{n} \binom{n}{i} (1-u)^{n-i} u^i P_i, \quad u \in [0,1]
+$$
+
+**Cubic** ($n=3$) is the usual choice for a single spatial span.
+
+Properties worth remembering:
+
+- The curve lies in the **convex hull** of its control points — handy for conservative
+  bounds, but control placement is not “the path goes through these poses” unless
+  endpoints are the only points you care about.
+- Moving one control point affects the **whole** curve (global support) — unlike
+  B-splines below.
+- **de Casteljau** algorithm: repeated linear interpolation for stable evaluation
+  (the demo uses the closed form for cubics).
+
+For an EE path in the plane or in $\mathbb{R}^3$, $P_i$ are positions; timing is
+still a separate step ($u(t)$).
+
+## B-splines
+
+A **B-spline** (here: uniform cubic) is built from a **knot vector** and **control
+points**. Compared to Bézier:
+
+| | Bézier (one piece) | B-spline |
+|---|---|---|
+| Through waypoints? | Endpoints only (unless you raise degree / split) | Can interpolate or approximate many points |
+| Local edits | One control moves entire curve | Moving one control affects a **local** span |
+| Degree | Fixed by number of controls − 1 | Fixed degree (e.g. cubic) with many controls |
+
+In Python, [`scipy.interpolate.make_interp_spline`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.make_interp_spline.html)
+builds a interpolating spline through waypoints (with optional endpoint derivative
+constraints). [`BSpline`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.BSpline.html)
+evaluates $C(u)$ and derivatives for sampling.
+
+```python
+from scipy.interpolate import make_interp_spline
+
+u_way = np.linspace(0, 1, len(q_waypoints))
+spline = make_interp_spline(u_way, q_waypoints, k=3)  # cubic
+q_at_u = spline(0.37)       # position
+qdot_at_u = spline(0.37, 1) # d/du
+```
+
+Use **joint-space** splines when you control $q$ directly; use **Cartesian** splines
+when the task is defined in workspace — then map samples through IK each control tick
+([Case study](case-study-ik-tracking.qmd#case-study-ik-tracking)).
+
+## Time parameterization
+
+A spatial path $C(u)$ tells you **where** you are for $u \in [0,1]$. A **time law**
+$u(t)$ (or arc-length law $s(t)$) tells you **how fast** you move along it.
+
+### Trapezoidal velocity profile
+
+Classic **trapezoid** in $u$ over duration $T$:
+
+1. **Ramp up** at max $\dot u$ until cruise.
+2. **Cruise** at constant $\dot u$.
+3. **Ramp down** to $u=1$.
+
+Easy to implement; velocity is piecewise linear, acceleration jumps (C¹ position in
+$u$, not jerk-limited).
+
+### Jerk limits
+
+Industrial arms often cap **jerk** (derivative of acceleration). **S-curves** smooth
+the trapezoid corners. Same idea: choose $u(t)$ so $\ddot u$ and $\dddot u$ stay
+within limits, then $q(t) = C(u(t))$ (chain rule gives $\dot q$ and $\ddot q$).
+
+### Arc length
+
+For **constant speed** along a spatial curve, parameterize by **arc length** $s$
+(distance along $C$), then $s(t)$ with a trapezoid or S-curve. Without this,
+equal steps in $u$ produce unequal steps in Cartesian distance — visible on long EE
+paths.
+
+```text
+u(t) trapezoid  →  u ∈ [0,1]  →  q(t) = spline(u(t))
+```
+
+The demo prints position/velocity samples for a joint-space B-spline with a
+trapezoidal $u(t)$ — the pattern you would plug into
+[The simulation loop](the-simulation-loop.qmd#the-simulation-loop) at control rate.

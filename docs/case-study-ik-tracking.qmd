@@ -36,6 +36,8 @@ Headless script — **no viewer**, two test cases on the Menagerie Piper arm (`l
 | `reach` | Random **proximal** target (small workspace offset from the nominal pose); stops when \(\lVert dx \rVert < 5\,\text{mm}\). |
 | `circle` | Track a horizontal circle (35 mm radius) for 600 ticks; reports mean / final position error. |
 
+The circle test is a simple **Cartesian path** sampled in time; see [Trajectory parameterization](trajectory-parameterization.qmd#trajectory-parameterization) for splines and time laws ($u(t)$).
+
 ### Videos
 
 MuJoCo headless renders of the same seed-0 trajectories (`scripts/render_ik_tracking_videos.py`). The red sphere is the **target**; the overlay shows position error in millimetres. Motrix runs the identical IK loop (numerical Jacobian) — see the terminal demo — but doc videos use MuJoCo because Motrix's viewer is interactive-only today.
