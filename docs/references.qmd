@@ -36,6 +36,8 @@ Curated **official** links for standards, install guides, and APIs cited in this
 | pip | [pip.pypa.io](https://pip.pypa.io/en/stable/) |
 | PyPA overview | [packaging.python.org](https://packaging.python.org/en/latest/) |
 | `src` layout | [src layout vs flat](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/) |
+| structlog (basic layout case study) | [github.com/hynek/structlog](https://github.com/hynek/structlog) |
+| LeRobot (advanced layout case study) | [github.com/huggingface/lerobot](https://github.com/huggingface/lerobot) |
 | Miniconda | [docs.anaconda.com/miniconda](https://docs.anaconda.com/miniconda/) |
 | Mamba | [mamba.readthedocs.io](https://mamba.readthedocs.io/en/latest/) |
 

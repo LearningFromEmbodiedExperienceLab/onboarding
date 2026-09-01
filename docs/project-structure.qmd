@@ -152,6 +152,72 @@ Importable packages live under `src/`; scripts you *run* live under `scripts/`. 
 
 Do not give a script the same name as a package you need (`robotics.py` next to the `robotics/` package). First match on `sys.path` wins.
 
+## Case studies: two repos to read
+
+This onboarding repo is intentionally tiny. To see the same ideas at real scale, skim **two**
+ public trees — one **basic** (single library you could fork tomorrow), one **advanced**
+ (research codebase with experiments, extras, and CI). You are learning **layout**, not
+ cloning every file.
+
+### How to read any repo (10 minutes)
+
+1. Open **`pyproject.toml`** (or legacy `setup.cfg` / `setup.py`) — package name, dependencies, optional extras, where code lives.
+2. Find **importable code** — usually `src/<package>/` ([src layout](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/)).
+3. Find **runnable entrypoints** — `scripts/`, `examples/`, `benchmarks/`, or console scripts declared in `pyproject.toml`. These are what you *run*; they should import the library, not be imported themselves.
+4. Glance at **`tests/`** — how they import the package (editable install in CI?).
+5. Ignore noise on first pass: `.github/`, Docker, pre-commit — note they exist, copy patterns later.
+
+### Basic — [hynek/structlog](https://github.com/hynek/structlog)
+
+A single-purpose library: structured logging. The tree is close to **our** layout, with
+ grown-up packaging.
+
+| Path | Lesson |
+|---|---|
+| `src/structlog/` | One importable package; submodules by topic (`_config.py`, processors, …) |
+| `pyproject.toml` | `[project]`, dependencies, `[tool.*]` for ruff/mypy/pytest |
+| `tests/` | Mirrors package layout; shows `pip install -e .` / `pytest` workflow |
+| `docs/` | Sphinx site — separate from importable code |
+| `show_off.py` | Small runnable demo at repo root (like our `scripts/`, but minimal) |
+
+**Study questions:** Where would you add a new public function? How does `tests/` import
+ `structlog` without `sys.path` hacks? What is *not* shipped to PyPI (docs, bench, tox)?
+
+Good **first clone** when you want “one package, done right” without robot hardware.
+
+### Advanced — [huggingface/lerobot](https://github.com/huggingface/lerobot)
+
+A robot-learning stack: datasets, policies, hardware drivers, training scripts. Same
+ **src/** discipline, but many moving parts.
+
+| Path | Lesson |
+|---|---|
+| `src/lerobot/` | Library code split into subpackages (`common`, `datasets`, `policies`, …) |
+| `examples/` | Runnable training / eval scripts — import `lerobot`, not the other way around |
+| `tests/` | Broad coverage; CI runs against editable install |
+| `pyproject.toml` | Core deps vs **`[project.optional-dependencies]`** (hardware, sim, dev) |
+| `.github/workflows/` | How the maintainers enforce lint/test on every PR |
+
+**Study questions:** What lives in the library vs `examples/`? Which extras would you
+ `uv sync --extra …` for sim-only vs real hardware? Where would a one-off ablation script
+ go so it does not become import-time baggage?
+
+Good **second clone** when your thesis repo needs scripts *and* a reusable package —
+ typical in imitation learning and RL.
+
+### Basic vs advanced (at a glance)
+
+| | **structlog** (basic) | **LeRobot** (advanced) |
+|---|---|---|
+| Goal | Small library on PyPI | Research + hardware + training |
+| Importable code | `src/structlog/` | `src/lerobot/` + many subpackages |
+| Runnable work | `show_off.py`, docs examples | `examples/`, CLI entrypoints |
+| Optional deps | Few | Many (`[project.optional-dependencies]`) |
+| What to copy first | `src/` + `pyproject.toml` + `tests/` | Splitting library vs experiments, extras groups |
+
+Neither repo is a template to copy wholesale into a paper-sized project — borrow **structure**,
+ not every workflow file. When in doubt, stay closer to **structlog** until you outgrow it.
+
 ## A mental model
 
 | You want to… | Mechanism |
