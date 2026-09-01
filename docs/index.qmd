@@ -1,56 +1,46 @@
 # Preface {.unnumbered}
 
-Most research code is not a homework hand-in. It grows for months or years: new
-dependencies, shared repos, experiments you need to reproduce, and collaborators
-who were not in the room when you wrote the first script. Yet many students arrive
-with experience only from introductory programming or algorithms courses — a few
-files, a single deadline, no version control, no package layout, and no plan for
-what happens after the grade is posted.
+Most research code outlives a semester: new dependencies, shared repos, experiments
+to reproduce, and collaborators who were not there for the first script. Many students
+still arrive with homework habits — a few files, no version control, no package layout,
+and no plan after the deadline.
 
-Robotics and robot learning add a second gap. The **ecosystem is fragmented**:
-MuJoCo next to Isaac/Omniverse, URDF/MJCF next to USD, ROS-adjacent tooling next
-to bare Python repos, `conda` next to `uv`, sim next to real hardware — and every
-lab picks a different slice. People entering from mechanical engineering, EE,
-computer science, or ML rarely share the same baseline; some have never opened a
-terminal outside a notebook. Excellent **courses** exist, but they usually **teach
-the science, not the workshop**. A typical university robotics class covers models
-and control; open RL courses such as [Berkeley CS285](http://rail.eecs.berkeley.edu/deeprlcourse/) go deep on policies, value functions, and sample complexity — not on editable installs, git hygiene, why your quaternion convention disagrees with the sim, or which contact model your stack assumes. The result is talented students who can derive a Bellman backup but stall on “clone this repo, sync the env, and get `step()` to run headless on the cluster.”
+Robotics widens the gap. The **ecosystem is fragmented**: MuJoCo next to Isaac,
+URDF/MJCF next to USD, ROS-adjacent tooling next to bare Python repos, `conda` next
+to `uv`, sim next to hardware — every lab picks a different slice. People arrive from
+mechanical engineering, EE, CS, or ML with uneven baselines; some have never left a
+notebook terminal. Excellent **courses** teach models and control; open RL classes such as
+[Berkeley CS285](http://rail.eecs.berkeley.edu/deeprlcourse/) go deep on policies and
+sample complexity — not on editable installs, git hygiene, quaternion conventions, or
+getting `step()` to run headless on a cluster. The gap shows up fast: clone a repo,
+sync the env, make `step()` run — before the interesting science starts.
 
-This tutorial fills both gaps. It is onboarding for the `robotics` example package
-and, more broadly, for **how to start, develop, organize, and maintain a research
-project in practice**: Python environments and imports, project structure,
-debugging, version control, NumPy/PyTorch tensor work, and the robotics concepts
-(kinematics, rotations, simulators, IK, contact models) that `src/robotics/`
-illustrates. It does **not** replace an RL or controls course — it gives you a
-**single coherent path** through the engineering layer those courses usually skip,
-so you can actually run experiments, compare simulators sensibly, and collaborate
-without re-learning the stack every rotation. The tone is closer to [MIT's *The Missing Semester*](https://missing.csail.mit.edu/) than to a language syntax cheat sheet — tools and habits you use every week, not once on an exam.
+This tutorial fills that workshop gap. It is onboarding for the `robotics` example
+package and for **how to start, develop, organize, and maintain a research project**:
+Python environments and imports, project structure, debugging, version control,
+NumPy/PyTorch tensor work, and the robotics concepts in `src/robotics/` (kinematics,
+rotations, simulators, IK, contact). It does **not** replace controls or RL coursework
+— it is a **single coherent path** through the engineering layer those courses usually
+skip, closer to [MIT's *The Missing Semester*](https://missing.csail.mit.edu/) than a
+syntax cheat sheet, so you can run experiments, compare simulators sensibly, and
+collaborate without re-learning the stack every rotation.
 
-We deliberately stay **narrow and runnable** rather than cataloguing every framework.
-One small repo, two simulators on the same MJCF, one IK registry — enough structure
-to transfer when your lab switches to Isaac, ROS 2, or a custom GPU env. When you
-outgrow this book, use [References and external docs](references.qmd#references)
-for official install guides and APIs; use your RL/control coursework for the math.
+We stay **narrow and runnable** rather than cataloguing every framework: one small repo,
+two simulators on the same MJCF, one IK registry — enough structure to transfer when
+your lab moves on. Official install guides and APIs:
+[References and external docs](references.qmd#references). Math: your coursework.
 
-The book is split into short, self-contained chapters so sections can be edited
-and reviewed independently. Use the sidebar to navigate.
+Chapters are short and self-contained; use the sidebar to navigate.
 
 ## How to use it
 
-- The runnable examples live in `scripts/` and the library in `src/robotics/`.
-  Set the environment up once with `uv sync`, then run any example with
-  `uv run python scripts/<name>.py`.
-- Code blocks in these pages are illustrative snippets; the authoritative,
-  runnable versions are the files under `scripts/` and `src/`.
-- **External links:** standards (PEPs), install guides, and simulator docs are
-  collected in [References and external docs](references.qmd#references). Chapters
-  link there or inline where a tool is first introduced.
-- **Progress:** each major section (`##` heading) has a **Done** checkbox. Your
-  choices are saved in this browser only (`localStorage`). Unread sections are
-  highlighted in the page table of contents; **red `!`** marks warning sections
-  (footguns and `.common-bug-warning` callouts) not yet marked done; the left
-  sidebar shows chapter status (blue = not finished, orange = partly done, ✓ =
-  all sections on that chapter marked done).
+- Runnable examples: `scripts/`; library: `src/robotics/`. Setup once with `uv sync`,
+  then `uv run python scripts/<name>.py`.
+- Code blocks here are snippets; authoritative versions are under `scripts/` and `src/`.
+- Tool and simulator links: [References](references.qmd#references).
+- **Progress:** each `##` section has a **Done** checkbox (saved in this browser).
+  Unread sections are highlighted in the page TOC; **red `!`** marks warning sections
+  not yet done; the sidebar shows chapter status (blue / orange / ✓).
 
 ## Building these docs
 
