@@ -260,7 +260,7 @@ print(timer.elapsed)  # seconds
 
 On CUDA, pair it with a synchronize or CUDA events ([Bells and whistles](bells-and-whistles.qmd#bells-and-whistles)); otherwise you time the launch, not the kernel.
 
-**Controlled random state** — prefer an isolated NumPy generator or a scoped legacy pin; full discussion in [Writing batch-agnostic operations — Randomness](batch-agnostic-operations.qmd#randomness). Short form:
+**Controlled random state** — prefer an isolated NumPy generator or a scoped legacy pin; full discussion in [Randomness](randomness.qmd#randomness). Short form:
 
 ```python
 from robotics.context import numpy_seed

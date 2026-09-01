@@ -34,6 +34,7 @@ book:
       chapters:
         - tensor-array-indexing.qmd
         - batch-agnostic-operations.qmd
+        - randomness.qmd
         - cuda.qmd
         - bells-and-whistles.qmd
     - part: robotics-basics.qmd
