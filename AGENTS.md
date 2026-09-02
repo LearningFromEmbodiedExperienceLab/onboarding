@@ -57,6 +57,7 @@ Robotics sim smoke test (after `bash scripts/fetch_menagerie_assets.sh`):
 - `uv run python scripts/actuator_control_demo.py` — position vs motor actuators @ 50 Hz vs substep torque
 - `uv run python scripts/pd_gain_stability_demo.py` — high `kp` / zero `kv` PD instability (Euler @ 10 ms)
 - Regenerate doc videos: `uv run python scripts/render_ik_tracking_videos.py` (needs `mujoco` extra + ffmpeg)
+- Regenerate trajectory chapter clips: `uv run python scripts/render_trajectory_2d_videos.py` (needs `sim` extra + ffmpeg)
 - Regenerate instability clip: `uv run python scripts/render_ik_instability_video.py`
 - Headless MuJoCo rendering: `MUJOCO_GL=egl` or `osmesa` (+ `PYOPENGL_PLATFORM=osmesa` for OSMesa); see `docs/environment-variables.qmd#displays-opengl-headless`.
 - **Env var lookup:** `docs/environment-variables.qmd` (appendix at end of book); concept in `docs/environment-management.qmd#environment-variables`.
@@ -86,6 +87,9 @@ Docs (Quarto):
 - **In-browser exercises** on `tensor-array-indexing.qmd` use Pyodide + NumPy
   (`docs/tensor-exercises.js`, loaded via `tensor-exercises.html`). They need network
   access on first **Check** (CDN). No `uv` / local kernel required for readers.
+- **Trajectory splines** on `trajectory-parameterization.qmd` use vanilla canvas JS
+  (`docs/trajectory-splines.js`) — draggable Bézier control points and B-spline
+  waypoints; no network required.
 - GitHub Pages: `.github/workflows/publish-docs.yml` renders on push to
   `master`/`main` (when `docs/` changes) and deploys `docs/_site/`. One-time UI:
   Settings → Pages → Source: **GitHub Actions**. Live URL is set in

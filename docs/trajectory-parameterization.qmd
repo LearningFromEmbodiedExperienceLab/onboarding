@@ -96,8 +96,26 @@ Properties worth remembering:
 - **de Casteljau** algorithm: repeated linear interpolation for stable evaluation
   (the demo uses the closed form for cubics).
 
-For an EE path in the plane or in $\mathbb{R}^3$, $P_i$ are positions; timing is
+For a path in the plane or in $\mathbb{R}^3$, $P_i$ are positions; timing is
 still a separate step ($u(t)$).
+
+<video controls preload="metadata" class="trajectory-chapter-video" title="Cubic Bézier in the plane — control polygon, convex hull, path parameter u">
+  <source src="imgs/trajectory-parameterization/bezier_2d.mp4" type="video/mp4">
+</video>
+
+Regenerate: `uv run python scripts/render_trajectory_2d_videos.py` (needs `uv sync --extra sim` and ffmpeg).
+
+```{=html}
+<div class="trajectory-splines-intro">
+  <strong>Interactive (browser):</strong> drag the control points on the canvas.
+  The curve stays inside the convex hull; moving one control affects the whole span.
+</div>
+
+<div class="trajectory-spline-demo" data-demo="bezier">
+  <p class="demo-caption">Cubic Bézier — drag P0–P3. Orange dot in the video sweeps <em>u</em> from 0 to 1.</p>
+  <canvas aria-label="Draggable cubic Bézier control points in the plane"></canvas>
+</div>
+```
 
 ## B-splines
 
@@ -125,8 +143,25 @@ qdot_at_u = spline(0.37, 1) # d/du
 ```
 
 Use **joint-space** splines when you control $q$ directly; use **Cartesian** splines
-when the task is defined in workspace — then map samples through IK each control tick
-([Case study](case-study-ik-tracking.qmd#case-study-ik-tracking)).
+when the task is defined in workspace — then map samples to joint commands at control
+rate ([The simulation loop](the-simulation-loop.qmd#the-simulation-loop)).
+
+<video controls preload="metadata" class="trajectory-chapter-video" title="Cubic interpolating B-spline in the plane — waypoints and path parameter u">
+  <source src="imgs/trajectory-parameterization/bspline_2d.mp4" type="video/mp4">
+</video>
+
+```{=html}
+<div class="trajectory-splines-intro">
+  <strong>Interactive (browser):</strong> drag the waypoints (W0–W4). The curve is a
+  cubic interpolating spline through them — same idea as <code>make_interp_spline</code>
+  in the snippet above, evaluated in 2D for clarity.
+</div>
+
+<div class="trajectory-spline-demo" data-demo="bspline">
+  <p class="demo-caption">Interpolating cubic spline — drag waypoints. Local edits change a neighborhood of the curve, not the whole span.</p>
+  <canvas aria-label="Draggable B-spline waypoints in the plane"></canvas>
+</div>
+```
 
 ## Time parameterization
 
