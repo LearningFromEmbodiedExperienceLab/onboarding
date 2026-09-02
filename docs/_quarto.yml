@@ -4,6 +4,7 @@ project:
   resources:
     - progress.js
     - tensor-exercises.js
+    - trajectory-splines.js
 
 website:
   site-url: https://learningfromembodiedexperiencelab.github.io/onboarding/
@@ -66,6 +67,7 @@ format:
       - styles.css
       - progress.css
       - tensor-exercises.css
+      - trajectory-splines.css
     toc: true
     code-copy: true
     code-overflow: wrap
@@ -73,6 +75,7 @@ format:
     include-after-body:
       - progress.html
       - tensor-exercises.html
+      - trajectory-splines.html
 
 execute:
   enabled: false
