@@ -21,7 +21,7 @@ Both describe a **kinematic tree** (links/bodies, joints, inertial tags, geometr
 | Meshes | `package://…` ROS paths, often `.STL` | `<compiler meshdir="assets"/>` + `<mesh file="…"/>` |
 | Simulation options | Outside the URDF | `<option>`, `<default>`, `<keyframe>` |
 
-URDF is the ROS **lingua franca** — good for CAD export and MoveIt. MJCF is MuJoCo’s **native** format — good for contact, actuators, and reproducible sim. Menagerie ships **MJCF** that was **derived from** vendor URDFs, then hand-tuned for MuJoCo.
+URDF is the ROS **lingua franca** — good for CAD export and MoveIt. MJCF is MuJoCo’s **native** format — good for contact, actuators, and reproducible sim. Menagerie ships **MJCF** that was **derived from** vendor URDFs, then hand-tuned for MuJoCo. Using URDF as a **file** does not mean adopting the ROS middleware — see [ROS / ROS 2](ros.qmd#ros-ros-2).
 
 ## Kinematic tree: two mental models {#kinematic-tree-two-mental-models}
 

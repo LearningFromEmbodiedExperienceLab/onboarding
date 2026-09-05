@@ -3,7 +3,7 @@
 Placeholder for further **Advanced** chapters. [Trajectory parameterization](trajectory-parameterization.qmd#trajectory-parameterization) covers paths, Bézier/B-spline geometry, and time laws (sections 1–6). Candidates still open:
 
 - Real-time scheduling and `SCHED_FIFO` on Linux
-- ROS 2 / DDS vs the IPC patterns in [Inter-process communication](inter-process-communication.qmd#inter-process-communication)
+- DDS-style discovery vs the explicit IPC patterns in [Inter-process communication](inter-process-communication.qmd#inter-process-communication) (we recommend against adopting ROS / ROS 2 — see [ROS / ROS 2](ros.qmd#ros-ros-2))
 - Recording and time synchronization (`clock`, PTP, sim time vs wall time)
 
 *(To fill: pick one topic, add runnable minimal example, link from case study or sim loop.)*
