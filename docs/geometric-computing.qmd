@@ -1,0 +1,228 @@
+# Geometric computing
+
+Robotics code constantly asks geometric questions: *which way does this surface
+face*, *does this ray hit the ear*, *is this cell free*, *what mesh approximates
+this distance field*? Those questions need a **representation** of shape — and the
+same object can be stored in very different ways.
+
+This chapter uses the classic **Stanford Bunny**
+([Stanford 3D Scanning Repository](http://graphics.stanford.edu/data/3Dscanrep/);
+vendored at `assets/stanford_bunny/bunny.obj`) as a single running example across
+four representations and their usual operations:
+
+1. **Point cloud** — sample the bunny surface; estimate normals with PCA  
+2. **Triangle mesh** — ray queries with Möller–Trumbore  
+3. **Voxel grid** — occupancy from samples; world ↔ index maps  
+4. **Implicit field** — approximate SDF via distance transform; **marching cubes**
+   back to a mesh  
+
+It complements [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision)
+(visual vs collision vs inertial *assets* in simulators). Here the focus is
+**algorithms and data structures**, not MJCF/URDF tags.
+
+```bash
+uv sync --extra geometry
+uv run python scripts/geometric_computing_demo.py
+```
+
+## Explicit vs implicit {#explicit-vs-implicit}
+
+| Representation | Kind | Stores | Good at | Painful for |
+|---|---|---|---|---|
+| **Point cloud** | Explicit | Samples $\mathbf{x}_i \in \mathbb{R}^3$ (maybe normals, color) | Sensors (depth, LiDAR), learning | Connectivity, exact volume, thin structures |
+| **Triangle mesh** | Explicit | Vertices + faces (and optional UVs/normals) | Rendering, contacts, CAD | Topology bugs, non-watertight scans |
+| **Voxel grid** | Explicit lattice (payload may be implicit) | Regular 3D array: occupancy, TSDF, density, labels | Uniform indexing, fusion maps, ML volumes | $O(n^3)$ memory, staircasing / aliasing |
+| **SDF / implicit field** | Implicit | Function $f(\mathbf{x})$ (often signed distance) | Smooth surfaces, offsets, gradients | Needs an evaluation structure; meshing to render |
+
+**Explicit** means you store the surface (or samples / cells on it) directly.
+**Implicit** means you store a rule for space — typically a scalar field whose
+**zero level set** is the surface:
+
+$$
+S = \{\mathbf{x} \mid f(\mathbf{x}) = 0\}
+$$
+
+A voxel grid sits in between in practice: the **indexing** is explicit, but the
+**values** can be a sampled SDF (TSDF fusion, neural fields on a grid). For a
+**signed distance function (SDF)**, $|f(\mathbf{x})|$ is distance to $S$ and the
+sign encodes inside vs outside (convention varies; many robotics stacks use
+**negative inside**). On the surface, $\nabla f / \|\nabla f\|$ is a unit normal.
+
+[Do not treat “we have a mesh,” “we have voxels,” and “we have an SDF” as
+interchangeable. A mesh does not give you a cheap closest-point query; occupancy
+voxels are not metric distances; an SDF does not give you texture coordinates.
+Convert deliberately and track which representation each module expects.]{.common-bug-warning}
+
+```text
+bunny.obj (mesh)
+   ├─ sample surface     → point cloud → PCA normals
+   ├─ ray query          → first hit on an ear / back
+   ├─ voxelize samples   → occupancy grid
+   └─ voxelize + EDT     → approx SDF → marching cubes → mesh
+```
+
+The reduced bunny in this repo is **not watertight** — that is intentional. Many
+real scans and CAD exports are the same; algorithms that assume a closed volume
+will lie until you repair topology.
+
+## Point clouds and normal estimation {#point-cloud-normals}
+
+Depth cameras and LiDAR emit clouds; from a mesh we **sample** the surface
+(`trimesh.sample.sample_surface` in the demo) to get $\{\mathbf{x}_i\}$ on the bunny.
+
+**Surface normals** are not in the raw cloud unless the sensor provides them. The
+usual estimate: for each point, take $k$ nearest neighbors, center them, and read
+the normal from a PCA / SVD of the covariance — the eigenvector for the **smallest**
+eigenvalue is the local plane normal.
+
+```python
+# Neighborhood PCA (see scripts/geometric_computing_demo.py)
+C = (X - X.mean(0)).T @ (X - X.mean(0)) / len(X)
+w, V = np.linalg.eigh(C)
+normal = V[:, 0]  # smallest eigenvalue
+```
+
+The demo compares PCA normals to the supporting **face normals** of the bunny mesh
+(after fixing PCA sign against a viewpoint). Agreement is high on smooth regions and
+worse near ears and other high curvature.
+
+Footguns:
+
+- **Sign is arbitrary** — PCA normals flip. Propagate consistency (e.g. toward a
+  viewpoint) if you need oriented normals.
+- **$k$ and scale** — too small → noise; too large → smooths out edges (bunny ears).
+- **No topology** — a cloud does not know genus or watertightness.
+
+## Triangle meshes and ray queries {#mesh-ray-queries}
+
+The bunny file is already a triangle mesh: vertices $V \in \mathbb{R}^{n \times 3}$
+and faces $F \in \mathbb{N}^{m \times 3}$. Simulators and renderers live here; see
+[Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) for
+convex hulls and visual vs collision meshes.
+
+A **ray query** asks where $\mathbf{o} + t\mathbf{d}$ ($t \ge 0$) first hits the
+mesh. The textbook building block is **Möller–Trumbore**: ray–triangle intersection
+with barycentric coordinates.
+
+```python
+# One triangle (v0, v1, v2), ray origin o, direction d
+# Returns t along ray, or None — full mesh loops triangles / uses a BVH.
+```
+
+The demo shoots a ray from $(0,0,2)$ toward $-\mathbf{z}$ at the centered bunny and
+reports the hit point. Production code wraps a **BVH** so you do not test every
+triangle; [`trimesh`](https://trimesh.org/) can use `rtree` / Embree backends. The
+demo keeps a clear NumPy scan so the math stays visible.
+
+Footguns:
+
+- **Back faces / two-sided hits** — decide whether $t$ through the back of a
+  triangle counts (rendering vs physics differ).
+- **Non-watertight meshes** — rays may leak through holes in the bunny’s base;
+  occupancy tests that assume a closed shell will fail.
+- **Scale** — keep $t$ in world units.
+
+## Voxel grids {#voxel-grids}
+
+A **voxel grid** is a regular 3D lattice over a bounding box. Each cell stores a
+scalar (or small vector): empty/occupied, a truncated signed distance (**TSDF**),
+a density, a semantic label, etc.
+
+World $\leftrightarrow$ index for an axis-aligned box with lower corner
+$\mathbf{o}$ and voxel size $h$:
+
+$$
+\mathbf{i} = \left\lfloor (\mathbf{x} - \mathbf{o}) / h \right\rfloor,
+\qquad
+\mathbf{x}_{\text{center}} = \mathbf{o} + \bigl(\mathbf{i} + \tfrac{1}{2}\bigr)\, h
+$$
+
+| Operation | What it does |
+|---|---|
+| **Voxelize points** | Mark cells hit by at least one bunny sample (occupancy) |
+| **Carve / insert** | Clear free space along depth rays; mark hits occupied |
+| **Dilate / erode** | Morphological inflation for planning margins |
+| **Trilinear sample** | Continuous readout of a TSDF / density between centers |
+| **Marching cubes** | If the payload is a distance field → triangle mesh |
+
+```python
+# Occupancy from bunny surface samples (see demo)
+origin = points.min(axis=0) - margin
+ijk = np.floor((points - origin) / h).astype(int)
+occ = np.zeros((n_i, n_j, n_k), dtype=bool)
+occ[ijk[:, 0], ijk[:, 1], ijk[:, 2]] = True
+```
+
+**Occupancy** is binary (or probabilistic). A **TSDF** stores a truncated signed
+distance per cell — still a voxel grid, but the values *are* a sampled implicit
+surface and can go straight into marching cubes.
+
+Footguns:
+
+- **Resolution vs memory** — doubling linear resolution costs $\times 8$ storage.
+  Sparse / hashed voxels help; a dense `float32[512³]` volume is already 512 MiB.
+- **Aliasing** — thin ear geometry disappears between cell centers; inflate
+  occupancy before using it for clearance.
+- **Index vs world** — pick one `origin` + `h` convention; `floor` vs `round`
+  off-by-ones show up as one-voxel shifts.
+- **Occupancy ≠ metric SDF** — `True`/`False` is not a distance. For clearance,
+  run a distance transform or store a TSDF.
+
+## Implicit fields and marching cubes {#marching-cubes}
+
+Once the bunny occupies a voxel grid, an approximate SDF is
+
+$$
+f = h \cdot \bigl(\mathrm{EDT}(\neg \mathrm{occ}) - \mathrm{EDT}(\mathrm{occ})\bigr)
+$$
+
+(Euclidean distance transform; negative inside occupied cells). **Marching cubes**
+then walks each cell, looks at the eight corner signs, and emits triangles for the
+$f = 0$ isosurface.
+
+```python
+from skimage.measure import marching_cubes
+from scipy.ndimage import distance_transform_edt
+
+sdf = pitch * (distance_transform_edt(~occ) - distance_transform_edt(occ))
+verts, faces, normals, _ = marching_cubes(sdf, level=0.0, spacing=(pitch,) * 3)
+```
+
+Why it matters:
+
+- Neural SDFs, TSDF fusion, and soft-contact prototypes often live on grids or
+  MLPs; tools and humans still want a **mesh**.
+- Remeshing a deformed implicit (offset surface, boolean) is often easier than
+  editing triangle topology by hand.
+
+Footguns:
+
+- **Grid resolution** — coarse grids stair-step the bunny; fine grids explode
+  memory ($O(n^3)$).
+- **EDT ≠ true mesh SDF** — distance is to the *voxelized* shape, not the
+  analytic surface; expect millimeter-scale bias at coarse pitch.
+- **Closed mesh ≠ correct inside** — the source bunny is open at the base; do not
+  trust volume integrals without a repair step.
+
+## Which representation when?
+
+| Task | Prefer | Why |
+|---|---|---|
+| Depth / LiDAR pipeline | Point cloud | Native sensor output |
+| Mapping / free-space carving | Voxel occupancy or TSDF | Uniform indexing, easy fusion |
+| Grasp contact, MuJoCo geom | Mesh (often convex) | Contact APIs expect geoms |
+| Obstacle distance for control | SDF / sphere tree | Fast closest distance / gradient |
+| Novel view / differentiable render | Mesh or NeRF-style implicit | Depends on the renderer |
+| Publish to CAD / Menagerie | Mesh | File formats are mesh-centric |
+
+The demo round-trips the Stanford Bunny through all four representations and prints
+alignment / hit / occupancy / reconstruction metrics you can reuse as sanity checks.
+
+## See also
+
+| Topic | Chapter |
+|---|---|
+| Visual vs collision vs inertial assets | [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) |
+| URDF / MJCF mesh paths | [Asset files](asset-files.qmd#asset-files) |
+| Path curves (different “geometry”) | [Trajectory parameterization](trajectory-parameterization.qmd#trajectory-parameterization) |
+| Library links | [References — Geometry computing](references.qmd#geometry-computing) |

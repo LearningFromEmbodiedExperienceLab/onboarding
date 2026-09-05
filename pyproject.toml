@@ -27,6 +27,11 @@ debug = ["pdbpp"]
 notebooks = ["ipython", "ipykernel", "matplotlib"]
 torch = ["torch"]
 ipc = ["pyzmq"]
+geometry = [
+    "scipy>=1.17.1",
+    "trimesh>=5.0.0",
+    "scikit-image>=0.25.0",
+]
 
 [tool.pyright]
 stubPath = "typings"

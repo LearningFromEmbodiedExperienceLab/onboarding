@@ -1,9 +1,15 @@
 # More topics (TBD) {#advanced-more-topics}
 
-Placeholder for further **Advanced** chapters. [Trajectory parameterization](trajectory-parameterization.qmd#trajectory-parameterization) covers paths, Bézier/B-spline geometry, and time laws (sections 1–6). Candidates still open:
+Placeholder for further **Advanced** chapters. Already in this part:
+
+- [Inter-process communication](inter-process-communication.qmd#inter-process-communication)
+- [Trajectory parameterization](trajectory-parameterization.qmd#trajectory-parameterization)
+- [Geometric computing](geometric-computing.qmd#geometric-computing) (explicit vs implicit
+  shape, normals, rays, marching cubes)
+
+Candidates still open:
 
 - Real-time scheduling and `SCHED_FIFO` on Linux
-- ROS 2 / DDS vs the IPC patterns in [Inter-process communication](inter-process-communication.qmd#inter-process-communication)
 - Recording and time synchronization (`clock`, PTP, sim time vs wall time)
 
 *(To fill: pick one topic, add runnable minimal example, link from case study or sim loop.)*

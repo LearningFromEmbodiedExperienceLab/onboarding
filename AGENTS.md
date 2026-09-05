@@ -41,9 +41,10 @@ Tests / lint:
   tutorial code); a clean file to sanity-check against is `src/robotics/math_utils.py`.
 
 Optional extras (only needed for the corresponding demo scripts, not installed by
-default): `torch`, `mujoco`, `sim`, `ipc`, `notebooks`, `debug` — install with
+default): `torch`, `mujoco`, `sim`, `ipc`, `geometry`, `notebooks`, `debug` — install with
 `uv sync --extra <name>`. **`sim`** = `mujoco` + `motrixsim` (robotics sim chapters);
-**`ipc`** = `pyzmq` (ZeroMQ async IPC demo); **`mujoco`** alone is enough for
+**`ipc`** = `pyzmq` (ZeroMQ async IPC demo); **`geometry`** = `scipy` + `trimesh` + `scikit-image`
+(`scripts/geometric_computing_demo.py` on `assets/stanford_bunny/`); **`mujoco`** alone is enough for
 menagerie figure rendering and MuJoCo-only scripts.
 `torch`/`motrixsim` are large.
 
@@ -76,7 +77,9 @@ Docs (Quarto):
   (from `launch.json`). Reuse an explicit `{#id}` for any new heading whose title
   contains punctuation you want to link to.
 - **Advanced** (after Robotics Basics): `inter-process-communication.qmd` (IPC:
-  shared memory, ZMQ, LCM; runnable `async_ipc_demo.py` + `async_ipc_zmq_demo.py`) and
+  shared memory, ZMQ, LCM; runnable `async_ipc_demo.py` + `async_ipc_zmq_demo.py`),
+  `trajectory-parameterization.qmd`, `geometric-computing.qmd` (explicit vs implicit
+  shape; `scripts/geometric_computing_demo.py` needs `uv sync --extra geometry`), and
   `advanced-more-topics.qmd` (placeholder). No scripts in-repo yet for LCM.
 - Pages currently contain no executable (`{python}`) Quarto cells, so rendering needs
   only the Quarto CLI. Adding executable cells later would require `jupyter` in
