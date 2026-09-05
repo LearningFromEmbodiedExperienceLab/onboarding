@@ -11,7 +11,8 @@ vendored at `assets/stanford_bunny/bunny.obj`) as a single running example acros
 four representations and their usual operations:
 
 1. **Point cloud** — sample the bunny surface; estimate normals with PCA  
-2. **Triangle mesh** — ray queries with Möller–Trumbore  
+2. **Triangle mesh** — ray queries with Möller–Trumbore; **convex hull /
+   approximate convex decomposition via Qhull**  
 3. **Voxel grid** — occupancy from samples; world ↔ index maps  
 4. **Implicit field** — approximate SDF via distance transform; **marching cubes**
    back to a mesh  
@@ -57,6 +58,7 @@ Convert deliberately and track which representation each module expects.]{.commo
 bunny.obj (mesh)
    ├─ sample surface     → point cloud → PCA normals
    ├─ ray query          → first hit on an ear / back
+   ├─ Qhull              → one convex hull, or AABB-split pieces → many hulls
    ├─ voxelize samples   → occupancy grid
    └─ voxelize + EDT     → approx SDF → marching cubes → mesh
 ```
@@ -121,6 +123,46 @@ Footguns:
 - **Non-watertight meshes** — rays may leak through holes in the bunny’s base;
   occupancy tests that assume a closed shell will fail.
 - **Scale** — keep $t$ in world units.
+
+## Convex hulls and decomposition (Qhull) {#convex-decomposition}
+
+Contact and many motion planners want **convex** pieces — see
+[Geometry and collision](geometry-and-collision.qmd#geometry-and-collision). The
+bunny as a whole is **not** convex (ears, neck, concavities). Two Qhull-based
+tools:
+
+1. **Convex hull** — one outer polytope through the extreme vertices
+   ([`scipy.spatial.ConvexHull`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.ConvexHull.html),
+   which calls [Qhull](http://www.qhull.org/); `trimesh.convex.convex_hull` wraps
+   the same idea). Fast, but it fills in every dent — fine for a coarse bound,
+   terrible as a collision proxy if you care about the ear gaps.
+2. **Approximate convex decomposition** — split the surface into regions and take
+   a Qhull of each region. Production stacks often use VHACD / CoACD; the demo
+   uses a teaching version: recursively split vertices along the longest AABB
+   axis, then run Qhull on each leaf cluster.
+
+```python
+from scipy.spatial import ConvexHull  # Qhull under the hood
+
+hull = ConvexHull(points)           # one outer hull
+# faces = hull.simplices; verts indexed into points
+```
+
+```python
+# Sketch of the demo's AABB + Qhull decompose (not VHACD)
+parts = qhull_aabb_decompose(mesh.vertices, max_depth=3)
+# each entry is a convex Trimesh from scipy.spatial.ConvexHull
+```
+
+Footguns:
+
+- **One hull ≠ usable collision mesh** — the bunny’s hull volume is much larger
+  than the shape; grippers will “hit air” inside the hull.
+- **Decomposition quality** — naive AABB splits are not optimal; they can still
+  leave concave leftovers at coarse depth. Treat the demo as the *Qhull building
+  block*, not a replacement for VHACD when you ship assets.
+- **Overlapping parts** — split hulls can overlap; that is OK for many collision
+  pipelines (union of convex geoms) but bad if you need a partition of volume.
 
 ## Voxel grids {#voxel-grids}
 
@@ -210,13 +252,15 @@ Footguns:
 |---|---|---|
 | Depth / LiDAR pipeline | Point cloud | Native sensor output |
 | Mapping / free-space carving | Voxel occupancy or TSDF | Uniform indexing, easy fusion |
-| Grasp contact, MuJoCo geom | Mesh (often convex) | Contact APIs expect geoms |
+| Grasp contact, MuJoCo geom | Convex mesh / convex decomposition | Contact APIs like convex pieces |
+| Coarse broad-phase bound | Single convex hull (Qhull) | Cheap, conservative |
 | Obstacle distance for control | SDF / sphere tree | Fast closest distance / gradient |
 | Novel view / differentiable render | Mesh or NeRF-style implicit | Depends on the renderer |
 | Publish to CAD / Menagerie | Mesh | File formats are mesh-centric |
 
-The demo round-trips the Stanford Bunny through all four representations and prints
-alignment / hit / occupancy / reconstruction metrics you can reuse as sanity checks.
+The demo round-trips the Stanford Bunny through clouds, rays, **Qhull hull /
+AABB decomposition**, voxels, and marching cubes, and prints metrics you can
+reuse as sanity checks.
 
 ## See also
 

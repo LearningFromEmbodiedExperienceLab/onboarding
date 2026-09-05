@@ -1,7 +1,7 @@
 """Geometric computing demo on the Stanford Bunny.
 
-Point-cloud normals, ray–mesh hits, voxel occupancy, and marching cubes from an
-approximate SDF (Euclidean distance transform of the occupancy grid).
+Point-cloud normals, ray–mesh hits, Qhull convex hull / AABB decomposition,
+voxel occupancy, and marching cubes from an approximate SDF (EDT of occupancy).
 
 Run::
 
@@ -15,7 +15,7 @@ from pathlib import Path
 
 import numpy as np
 from scipy.ndimage import distance_transform_edt
-from scipy.spatial import cKDTree
+from scipy.spatial import ConvexHull, QhullError, cKDTree
 from skimage.measure import marching_cubes
 import trimesh
 
@@ -55,10 +55,10 @@ def estimate_normals_pca(points: np.ndarray, k: int = 16) -> np.ndarray:
     return normals
 
 
-def mesh_vertex_normals_at_samples(
+def mesh_face_normals_at_samples(
     mesh: trimesh.Trimesh, face_indices: np.ndarray
 ) -> np.ndarray:
-    """Per-sample normals from the supporting face (area-weighted face normals)."""
+    """Per-sample normals from the supporting face."""
     return np.asarray(mesh.face_normals[face_indices], dtype=float)
 
 
@@ -110,6 +110,54 @@ def ray_mesh_first_hit(
     return best
 
 
+def qhull_mesh(points: np.ndarray) -> trimesh.Trimesh | None:
+    """Convex hull mesh via scipy.spatial.ConvexHull (Qhull)."""
+    pts = np.asarray(points, dtype=float)
+    pts = np.unique(np.round(pts, decimals=9), axis=0)
+    if len(pts) < 4:
+        return None
+    try:
+        hull = ConvexHull(pts)
+    except QhullError:
+        return None
+    mesh = trimesh.Trimesh(vertices=pts, faces=hull.simplices, process=True)
+    # ConvexHull simplices can wind inward; force outward normals / positive volume.
+    mesh.fix_normals()
+    if mesh.volume < 0:
+        mesh.invert()
+    return mesh
+
+
+def qhull_aabb_decompose(
+    points: np.ndarray,
+    *,
+    max_depth: int = 3,
+    min_points: int = 32,
+) -> list[trimesh.Trimesh]:
+    """Approximate convex decomposition: AABB splits + Qhull at each leaf.
+
+    Teaching stand-in for VHACD/CoACD — shows Qhull as the building block.
+    """
+
+    def _recurse(pts: np.ndarray, depth: int) -> list[trimesh.Trimesh]:
+        pts = np.asarray(pts, dtype=float)
+        if len(pts) < min_points or depth >= max_depth:
+            piece = qhull_mesh(pts)
+            return [piece] if piece is not None else []
+
+        extents = pts.max(axis=0) - pts.min(axis=0)
+        axis = int(np.argmax(extents))
+        mid = float(np.median(pts[:, axis]))
+        left = pts[pts[:, axis] <= mid]
+        right = pts[pts[:, axis] > mid]
+        if len(left) < min_points or len(right) < min_points:
+            piece = qhull_mesh(pts)
+            return [piece] if piece is not None else []
+        return _recurse(left, depth + 1) + _recurse(right, depth + 1)
+
+    return _recurse(points, depth=0)
+
+
 def voxelize_points(
     points: np.ndarray,
     *,
@@ -143,13 +191,15 @@ def occupancy_to_sdf(occ: np.ndarray, pitch: float) -> np.ndarray:
 def main() -> None:
     mesh = load_bunny()
     print(f"bunny  verts={len(mesh.vertices)}  faces={len(mesh.faces)}")
-    print(f"       watertight={mesh.is_watertight}  extents={mesh.extents}")
+    print(
+        f"       watertight={mesh.is_watertight}  convex={mesh.is_convex}  "
+        f"extents={mesh.extents}"
+    )
 
     print("\n=== Point cloud normals (PCA vs face normals) ===")
     cloud, face_id = trimesh.sample.sample_surface(mesh, 1500)
     normals = estimate_normals_pca(cloud, k=24)
-    face_n = mesh_vertex_normals_at_samples(mesh, face_id)
-    # Align PCA sign to face normal for the comparison metric.
+    face_n = mesh_face_normals_at_samples(mesh, face_id)
     flip = np.sign(np.sum(normals * face_n, axis=1))
     flip[flip == 0] = 1.0
     align = np.sum((normals * flip[:, None]) * face_n, axis=1)
@@ -166,6 +216,24 @@ def main() -> None:
     t, fi = hit
     point = origin + t * direction
     print(f"hit t={t:.4f}  point={point}  face={fi}")
+
+    print("\n=== Convex hull / AABB+Qhull decomposition ===")
+    hull = qhull_mesh(np.asarray(mesh.vertices))
+    assert hull is not None and hull.is_convex
+    parts = qhull_aabb_decompose(
+        np.asarray(mesh.vertices), max_depth=3, min_points=40
+    )
+    assert parts, "expected at least one convex part"
+    assert all(p.is_convex for p in parts)
+    part_vol = float(sum(p.volume for p in parts))
+    print(
+        f"single Qhull: verts={len(hull.vertices)} faces={len(hull.faces)}  "
+        f"volume={hull.volume:.4f}"
+    )
+    print(
+        f"AABB+Qhull parts={len(parts)}  sum_volume={part_vol:.4f}  "
+        f"sum/hull={part_vol / hull.volume:.3f}"
+    )
 
     print("\n=== Voxel occupancy (bunny samples → grid) ===")
     occ, grid_origin, pitch = voxelize_points(cloud, pitch=0.03, margin=0.04)
@@ -186,11 +254,9 @@ def main() -> None:
     assert hit_on and not hit_out
 
     print("\n=== Marching cubes (occupancy EDT ≈ SDF → mesh) ===")
-    # Slightly denser voxelization of the *mesh* for a cleaner isosurface.
     vox = mesh.voxelized(pitch=0.02)
     sdf = occupancy_to_sdf(vox.matrix, pitch=0.02)
     verts, faces, _normals, _ = marching_cubes(sdf, level=0.0, spacing=(0.02,) * 3)
-    # skimage verts are in grid index space scaled by spacing; map to world via voxel translation.
     mc = trimesh.Trimesh(
         vertices=verts + np.asarray(vox.translation, dtype=float),
         faces=faces,
@@ -200,7 +266,6 @@ def main() -> None:
         f"verts={len(mc.vertices)} faces={len(mc.faces)}  "
         f"watertight={mc.is_watertight}  volume={mc.volume:.4f}"
     )
-    # Vertex-cloud proximity (avoids rtree); rough surface fidelity check.
     tree = cKDTree(np.asarray(mesh.vertices))
     d_mc, _ = tree.query(mc.vertices)
     print(f"mean dist(MC verts → bunny verts)={d_mc.mean():.4f}")
