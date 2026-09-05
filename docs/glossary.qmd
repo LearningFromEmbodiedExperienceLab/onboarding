@@ -16,6 +16,9 @@ Short definitions for terms used across the tutorial. Expand as chapters land.
 | **soft contact** | Compliant contact: small penetration, spring–damper forces (MuJoCo; default Motrix on standard MJCF). |
 | **hard contact** | Non-penetrating contact impulses (PhysX / Isaac default; Motrix optional via `_hard` geoms). |
 | **watertight mesh** | Closed mesh with well-defined volume (every edge shared by two faces). |
+| **point cloud** | Unordered set of 3D samples (depth/LiDAR); no connectivity. |
+| **SDF** | Signed distance function — implicit field; usually $|f|=$ distance, sign = inside/outside. |
+| **marching cubes** | Extract a triangle mesh as the zero level set of a scalar grid. |
 | **contype / conaffinity** | MuJoCo bitmasks controlling which geoms collide with which. |
 | **from_geom** | MuJoCo option to infer mass/inertia from geom density and shape. |
 | **FK / IK** | Forward / inverse kinematics — joint coordinates ↔ poses. |
@@ -23,4 +26,4 @@ Short definitions for terms used across the tutorial. Expand as chapters land.
 | **IPC** | Inter-process communication — shared memory, ZMQ, LCM; see [Advanced — IPC](inter-process-communication.qmd#inter-process-communication). |
 | **site** | Named frame on a body (EE, sensor origin); no mass. |
 
-See also [References and external docs](references.qmd#references) and the dedicated [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) chapter for mesh and validation vocabulary. Process env vars: [Common environment variables](environment-variables.qmd#common-environment-variables).
+See also [References and external docs](references.qmd#references), [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) (sim assets), and [Geometric computing](geometric-computing.qmd#geometric-computing) (clouds / SDFs / rays). Process env vars: [Common environment variables](environment-variables.qmd#common-environment-variables).

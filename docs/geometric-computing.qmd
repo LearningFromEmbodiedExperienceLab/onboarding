@@ -1,0 +1,162 @@
+# Geometric computing
+
+Robotics code constantly asks geometric questions: *which way does this surface
+face*, *does this ray hit the table*, *what mesh approximates this distance
+field*? Those questions need a **representation** of shape — and the same object
+can be stored in very different ways.
+
+This chapter is about **explicit vs implicit** geometry and three operations you
+will see in perception, planning, and sim tooling:
+
+1. **Normal estimation** from a point cloud  
+2. **Ray queries** against a triangle mesh  
+3. **Marching cubes** — turning an implicit field into a mesh  
+
+It complements [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision)
+(visual vs collision vs inertial *assets* in simulators). Here the focus is the
+**algorithms and data structures**, not MJCF/URDF tags.
+
+Runnable walkthrough (NumPy + SciPy + trimesh + scikit-image):
+
+```bash
+uv sync --extra geometry
+uv run python scripts/geometric_computing_demo.py
+```
+
+## Explicit vs implicit {#explicit-vs-implicit}
+
+| Representation | Kind | Stores | Good at | Painful for |
+|---|---|---|---|---|
+| **Point cloud** | Explicit | Samples $\mathbf{x}_i \in \mathbb{R}^3$ (maybe normals, color) | Sensors (depth, LiDAR), learning | Connectivity, exact volume, thin structures |
+| **Triangle mesh** | Explicit | Vertices + faces (and optional UVs/normals) | Rendering, contacts, CAD | Topology bugs, non-watertight scans |
+| **Voxel / occupancy grid** | Either | Per-cell empty/occupied (or density) | Uniform spatial hashing, ML grids | Resolution vs memory, aliasing |
+| **SDF / implicit field** | Implicit | Function $f(\mathbf{x})$ (often signed distance) | Smooth surfaces, offsets, gradients | Needs evaluation structure; meshing to render |
+
+**Explicit** means you store the surface (or samples on it) directly. **Implicit**
+means you store a rule for space — typically a scalar field whose **zero level
+set** is the surface:
+
+$$
+S = \{\mathbf{x} \mid f(\mathbf{x}) = 0\}
+$$
+
+For a **signed distance function (SDF)**, $|f(\mathbf{x})|$ is distance to $S$ and
+the sign encodes inside vs outside (convention varies; many robotics stacks use
+**negative inside**). The spatial gradient $\nabla f$ points toward increasing
+$f$; on the surface, $\nabla f / \|\nabla f\|$ is a unit normal.
+
+[Do not treat “we have a mesh” and “we have an SDF” as interchangeable. A mesh
+does not give you a cheap closest-point query; an SDF does not give you texture
+coordinates. Convert deliberately (ray / projection / marching cubes) and track
+which representation each module expects.]{.common-bug-warning}
+
+```text
+sensor depth  →  point cloud  →  (normals, planes)
+CAD / Menagerie →  mesh         →  (rays, contacts, rendering)
+NN / TSDF fusion →  SDF / grid  →  marching cubes → mesh
+```
+
+## Point clouds and normal estimation {#point-cloud-normals}
+
+A point cloud is a set $\{\mathbf{x}_i\}$. Depth cameras and LiDAR give you this for
+free; meshes can be **sampled** into clouds for learning.
+
+**Surface normals** are not in the raw cloud unless the sensor provides them. The
+usual estimate: for each point, take $k$ nearest neighbors, center them, and read
+the normal from a PCA / SVD of the covariance — the eigenvector for the **smallest**
+eigenvalue is the local plane normal.
+
+```python
+# Neighborhood PCA (see scripts/geometric_computing_demo.py)
+C = (X - X.mean(0)).T @ (X - X.mean(0)) / len(X)
+w, V = np.linalg.eigh(C)
+normal = V[:, 0]  # smallest eigenvalue
+```
+
+Footguns:
+
+- **Sign is arbitrary** — PCA normals flip. Propagate consistency (e.g. toward a
+  viewpoint) if you need oriented normals.
+- **$k$ and scale** — too small → noise; too large → smooths out edges.
+- **No topology** — a cloud does not know genus or watertightness; do not assume
+  a closed volume.
+
+## Triangle meshes and ray queries {#mesh-ray-queries}
+
+A triangle mesh stores vertices $V \in \mathbb{R}^{n \times 3}$ and integer faces
+$F \in \mathbb{N}^{m \times 3}$. Simulators and renderers live here; see
+[Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) for
+convex hulls and visual vs collision meshes.
+
+A **ray query** asks where $\mathbf{o} + t\mathbf{d}$ ($t \ge 0$) first hits the
+mesh. The textbook building block is **Möller–Trumbore**: ray–triangle intersection
+with barycentric coordinates, no need to precompute a plane equation.
+
+```python
+# One triangle (v0, v1, v2), ray origin o, direction d (unit optional)
+# Returns t along ray, or None — full mesh loops triangles / uses a BVH.
+```
+
+Production code wraps a **BVH** (bounding-volume hierarchy) so you do not test every
+triangle. [`trimesh`](https://trimesh.org/) exposes `mesh.ray.intersects_location`
+(optional `rtree` / Embree backends). The demo implements Möller–Trumbore in NumPy
+so you can see the math without extra spatial-index packages.
+
+Footguns:
+
+- **Back faces / two-sided hits** — decide whether $t$ through the back of a
+  triangle counts (rendering vs physics differ).
+- **Non-watertight meshes** — rays may leak through holes; occupancy tests lie.
+- **Scale** — directions should be treated carefully if you normalize; keep $t$ in
+  world units.
+
+## Implicit fields and marching cubes {#marching-cubes}
+
+Sample an SDF (or any scalar field) on a regular 3D grid. **Marching cubes** walks
+each grid cell, looks at the eight corner signs, and emits triangles that approximate
+the $f = 0$ isosurface. Vertex positions along edges are linearly interpolated.
+
+```python
+from skimage.measure import marching_cubes
+
+verts, faces, normals, _ = marching_cubes(sdf_grid, level=0.0, spacing=voxel_size)
+# verts: (N, 3) in grid / world coordinates depending on spacing
+```
+
+Why it matters:
+
+- Neural SDFs, TSDF fusion, and soft contact prototypes often live on grids or MLPs;
+  tools and humans still want a **mesh**.
+- Remeshing a deformed implicit (offset surface, boolean) is often easier than
+  editing triangle topology by hand.
+
+Footguns:
+
+- **Grid resolution** — coarse grids stair-step; fine grids explode memory ($O(n^3)$).
+- **Not an exact SDF** — many “distance” fields are truncated or only occupancy; MC
+  still runs, but normals and offsets degrade.
+- **Closed mesh ≠ correct inside** — check winding / `trimesh.Trimesh.is_watertight`
+  after extraction.
+
+## Which representation when?
+
+| Task | Prefer | Why |
+|---|---|---|
+| Depth / LiDAR pipeline | Point cloud | Native sensor output |
+| Grasp contact, MuJoCo geom | Mesh (often convex) | Contact APIs expect geoms |
+| Obstacle distance for control | SDF / sphere tree | Fast closest distance / gradient |
+| Novel view / differentiable render | Mesh or NeRF-style implicit | Depends on the renderer |
+| Publish to CAD / Menagerie | Mesh | File formats are mesh-centric |
+
+Conversions are real engineering work — budget for them. The demo round-trips a
+sphere through cloud → normals, mesh → ray hit, SDF → marching-cubes mesh and prints
+error metrics you can reuse as sanity checks.
+
+## See also
+
+| Topic | Chapter |
+|---|---|
+| Visual vs collision vs inertial assets | [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) |
+| URDF / MJCF mesh paths | [Asset files](asset-files.qmd#asset-files) |
+| Path curves (different “geometry”) | [Trajectory parameterization](trajectory-parameterization.qmd#trajectory-parameterization) |
+| Library links | [References — Geometry computing](references.qmd#geometry-computing) |

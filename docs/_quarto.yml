@@ -55,6 +55,7 @@ book:
       chapters:
         - inter-process-communication.qmd
         - trajectory-parameterization.qmd
+        - geometric-computing.qmd
         - advanced-more-topics.qmd
     - references.qmd
     - glossary.qmd

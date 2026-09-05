@@ -362,6 +362,7 @@ actually touched. Trust those over the viewport when debugging grasps.
 |---|---|
 | Names: body, joint, geom, site | [Scene vocabulary](scene-vocabulary.qmd#scene-vocabulary) |
 | **Shapes, meshes, hulls, validation** | *this chapter* |
+| Point clouds, SDFs, rays, marching cubes | [Geometric computing](geometric-computing.qmd#geometric-computing) |
 | URDF/MJCF files, `<meshdir>`, compiler | [Asset files](asset-files.qmd#asset-files) |
 | Load model, step sim | [Two simulators](two-simulators.qmd#two-simulators) |
 
