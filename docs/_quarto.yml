@@ -63,6 +63,9 @@ book:
 format:
   html:
     theme: cosmo
+    # Default `arrow` is nearly monochrome (keywords ≈ body text). Prefer a
+    # higher-contrast light theme so Python/bash fences are obviously colored.
+    highlight-style: github
     css:
       - styles.css
       - progress.css
