@@ -1640,6 +1640,7 @@ debug = [
     { name = "pdbpp" },
 ]
 geometry = [
+    { name = "matplotlib" },
     { name = "scikit-image" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
@@ -1677,6 +1678,7 @@ requires-dist = [
     { name = "einops" },
     { name = "ipykernel", marker = "extra == 'notebooks'" },
     { name = "ipython", marker = "extra == 'notebooks'" },
+    { name = "matplotlib", marker = "extra == 'geometry'", specifier = ">=3.9.0" },
     { name = "matplotlib", marker = "extra == 'notebooks'" },
     { name = "motrixsim", marker = "extra == 'sim'", specifier = ">=0.10.0" },
     { name = "mujoco", marker = "extra == 'mujoco'" },

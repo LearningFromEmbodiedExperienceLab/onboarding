@@ -24,11 +24,20 @@ BUNNY_PATH = ROOT / "assets" / "stanford_bunny" / "bunny.obj"
 
 
 def load_bunny(*, target_extent: float = 1.0) -> trimesh.Trimesh:
-    """Load the vendored Stanford Bunny, center it, and scale to unit-ish size."""
+    """Load the vendored Stanford Bunny, center it, and scale to unit-ish size.
+
+    The source OBJ is Y-up; we rotate so **+Z is up** (ears toward +Z) for
+    matplotlib / robotics-style plots where the vertical axis is Z.
+    """
     mesh = trimesh.load(BUNNY_PATH, force="mesh")
     if not isinstance(mesh, trimesh.Trimesh):
         raise TypeError(f"expected a single mesh at {BUNNY_PATH}")
     mesh = mesh.copy()
+    mesh.apply_translation(-mesh.centroid)
+    # Y-up → Z-up: (x, y, z) → (x, -z, y)
+    mesh.apply_transform(
+        trimesh.transformations.rotation_matrix(np.radians(90.0), [1.0, 0.0, 0.0])
+    )
     mesh.apply_translation(-mesh.centroid)
     extent = float(np.max(mesh.extents))
     if extent <= 0:

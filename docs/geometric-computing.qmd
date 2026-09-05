@@ -24,7 +24,11 @@ It complements [Geometry and collision](geometry-and-collision.qmd#geometry-and-
 ```bash
 uv sync --extra geometry
 uv run python scripts/geometric_computing_demo.py
+# Regenerate chapter figures:
+uv run python scripts/render_geometric_computing_figures.py
 ```
+
+![Stanford Bunny triangle mesh used throughout this chapter](imgs/geometric-computing/bunny_mesh.png){fig-alt="3D plot of the Stanford Bunny as a light-blue triangle mesh with wireframe edges."}
 
 ## Explicit vs implicit {#explicit-vs-implicit}
 
@@ -88,6 +92,8 @@ The demo compares PCA normals to the supporting **face normals** of the bunny me
 (after fixing PCA sign against a viewpoint). Agreement is high on smooth regions and
 worse near ears and other high curvature.
 
+![Surface samples with PCA normals (arrows oriented toward a viewpoint)](imgs/geometric-computing/bunny_point_cloud_normals.png){fig-alt="Point cloud of the Stanford Bunny with short red arrows showing PCA surface normals."}
+
 Footguns:
 
 - **Sign is arbitrary** — PCA normals flip. Propagate consistency (e.g. toward a
@@ -115,6 +121,8 @@ The demo shoots a ray from $(0,0,2)$ toward $-\mathbf{z}$ at the centered bunny 
 reports the hit point. Production code wraps a **BVH** so you do not test every
 triangle; [`trimesh`](https://trimesh.org/) can use `rtree` / Embree backends. The
 demo keeps a clear NumPy scan so the math stays visible.
+
+![Ray from above the bunny; green origin, red first-hit point](imgs/geometric-computing/bunny_ray_query.png){fig-alt="Stanford Bunny mesh with a red ray from a green origin above hitting the back of the mesh."}
 
 Footguns:
 
@@ -153,6 +161,10 @@ hull = ConvexHull(points)           # one outer hull
 parts = qhull_aabb_decompose(mesh.vertices, max_depth=3)
 # each entry is a convex Trimesh from scipy.spatial.ConvexHull
 ```
+
+![Single Qhull hull wrapping the bunny (fills ear gaps)](imgs/geometric-computing/bunny_convex_hull.png){fig-alt="Orange translucent convex hull around the grey Stanford Bunny mesh."}
+
+![Teaching AABB-split + Qhull decomposition into colored convex parts](imgs/geometric-computing/bunny_convex_decomposition.png){fig-alt="Stanford Bunny approximated by several differently colored convex polyhedra from AABB splits and Qhull."}
 
 Footguns:
 
@@ -199,6 +211,8 @@ occ[ijk[:, 0], ijk[:, 1], ijk[:, 2]] = True
 distance per cell — still a voxel grid, but the values *are* a sampled implicit
 surface and can go straight into marching cubes.
 
+![Occupied voxel centers from surface samples](imgs/geometric-computing/bunny_voxels.png){fig-alt="Regular grid of blue points forming a voxelized Stanford Bunny occupancy cloud."}
+
 Footguns:
 
 - **Resolution vs memory** — doubling linear resolution costs $\times 8$ storage.
@@ -236,6 +250,8 @@ Why it matters:
   MLPs; tools and humans still want a **mesh**.
 - Remeshing a deformed implicit (offset surface, boolean) is often easier than
   editing triangle topology by hand.
+
+![Marching-cubes mesh from an EDT approximate SDF of the voxelized bunny](imgs/geometric-computing/bunny_marching_cubes.png){fig-alt="Teal reconstructed Stanford Bunny mesh from marching cubes on an EDT signed-distance field."}
 
 Footguns:
 

@@ -43,9 +43,10 @@ Tests / lint:
 Optional extras (only needed for the corresponding demo scripts, not installed by
 default): `torch`, `mujoco`, `sim`, `ipc`, `geometry`, `notebooks`, `debug` — install with
 `uv sync --extra <name>`. **`sim`** = `mujoco` + `motrixsim` (robotics sim chapters);
-**`ipc`** = `pyzmq` (ZeroMQ async IPC demo); **`geometry`** = `scipy` + `trimesh` + `scikit-image`
-(`scripts/geometric_computing_demo.py` on `assets/stanford_bunny/`); **`mujoco`** alone is enough for
-menagerie figure rendering and MuJoCo-only scripts.
+**`ipc`** = `pyzmq` (ZeroMQ async IPC demo); **`geometry`** = `scipy` + `trimesh` + `scikit-image` + `matplotlib`
+(`scripts/geometric_computing_demo.py` and
+`scripts/render_geometric_computing_figures.py` on `assets/stanford_bunny/`);
+**`mujoco`** alone is enough for menagerie figure rendering and MuJoCo-only scripts.
 `torch`/`motrixsim` are large.
 
 Robotics sim smoke test (after `bash scripts/fetch_menagerie_assets.sh`):
@@ -79,7 +80,10 @@ Docs (Quarto):
 - **Advanced** (after Robotics Basics): `inter-process-communication.qmd` (IPC:
   shared memory, ZMQ, LCM; runnable `async_ipc_demo.py` + `async_ipc_zmq_demo.py`),
   `trajectory-parameterization.qmd`, `geometric-computing.qmd` (explicit vs implicit
-  shape; `scripts/geometric_computing_demo.py` needs `uv sync --extra geometry`), and
+  shape; demo + figures need `uv sync --extra geometry`:
+  `scripts/geometric_computing_demo.py`,
+  `scripts/render_geometric_computing_figures.py` →
+  `docs/imgs/geometric-computing/`), and
   `advanced-more-topics.qmd` (placeholder). No scripts in-repo yet for LCM.
 - Pages currently contain no executable (`{python}`) Quarto cells, so rendering needs
   only the Quarto CLI. Adding executable cells later would require `jupyter` in
@@ -106,5 +110,8 @@ Docs (Quarto):
   Doc figures: `scripts/render_menagerie_geometry_figures.py` (needs `uv sync --extra
   mujoco`, OSMesa headless). CI: `.github/workflows/regenerate-menagerie-images.yml`.
   Doc figure script also needs `trimesh`/`scipy` (included in `mujoco` extra).
+  Geometric computing figures:
+  `uv run python scripts/render_geometric_computing_figures.py` (needs `geometry`
+  extra; writes `docs/imgs/geometric-computing/`).
 - Common bug warnings in HTML docs use `.common-bug-warning` in `docs/styles.css`
   (red text); apply `{.common-bug-warning}` on future footgun callouts.
