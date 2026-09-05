@@ -118,6 +118,7 @@ Curated **official** links for standards, install guides, and APIs cited in this
 | scikit-image `marching_cubes` | [skimage.measure.marching_cubes](https://scikit-image.org/docs/stable/api/skimage.measure.html#skimage.measure.marching_cubes) |
 | SciPy `cKDTree` | [scipy.spatial.cKDTree](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.cKDTree.html) |
 | Möller–Trumbore ray–triangle | [Journal of Graphics Tools, 1997](https://doi.org/10.1080/10867651.1997.10487468) |
+| Stanford Bunny (3D Scanning Repository) | [graphics.stanford.edu/data/3Dscanrep](http://graphics.stanford.edu/data/3Dscanrep/) |
 
 ## Version control and publishing
 

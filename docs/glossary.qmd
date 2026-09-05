@@ -29,4 +29,4 @@ Short definitions for terms used across the tutorial. Expand as chapters land.
 | **IPC** | Inter-process communication — shared memory, ZMQ, LCM; see [Advanced — IPC](inter-process-communication.qmd#inter-process-communication). |
 | **site** | Named frame on a body (EE, sensor origin); no mass. |
 
-See also [References and external docs](references.qmd#references), [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) (sim assets), and [Geometric computing](geometric-computing.qmd#geometric-computing) (clouds / SDFs / rays). Process env vars: [Common environment variables](environment-variables.qmd#common-environment-variables).
+See also [References and external docs](references.qmd#references), [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) (sim assets), and [Geometric computing](geometric-computing.qmd#geometric-computing) (Stanford bunny / clouds / voxels / SDFs / rays). Process env vars: [Common environment variables](environment-variables.qmd#common-environment-variables).

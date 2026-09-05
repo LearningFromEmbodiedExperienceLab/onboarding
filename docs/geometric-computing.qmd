@@ -1,23 +1,24 @@
 # Geometric computing
 
 Robotics code constantly asks geometric questions: *which way does this surface
-face*, *does this ray hit the table*, *is this cell free*, *what mesh approximates
+face*, *does this ray hit the ear*, *is this cell free*, *what mesh approximates
 this distance field*? Those questions need a **representation** of shape — and the
 same object can be stored in very different ways.
 
-This chapter is about **explicit vs implicit** geometry across four common
-representations and the operations that go with them:
+This chapter uses the classic **Stanford Bunny**
+([Stanford 3D Scanning Repository](http://graphics.stanford.edu/data/3Dscanrep/);
+vendored at `assets/stanford_bunny/bunny.obj`) as a single running example across
+four representations and their usual operations:
 
-1. **Point clouds** — normal estimation  
-2. **Triangle meshes** — ray queries  
-3. **Voxel grids** — occupancy indexing and carving  
-4. **Implicit fields (SDFs)** — marching cubes to a mesh  
+1. **Point cloud** — sample the bunny surface; estimate normals with PCA  
+2. **Triangle mesh** — ray queries with Möller–Trumbore  
+3. **Voxel grid** — occupancy from samples; world ↔ index maps  
+4. **Implicit field** — approximate SDF via distance transform; **marching cubes**
+   back to a mesh  
 
 It complements [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision)
-(visual vs collision vs inertial *assets* in simulators). Here the focus is the
+(visual vs collision vs inertial *assets* in simulators). Here the focus is
 **algorithms and data structures**, not MJCF/URDF tags.
-
-Runnable walkthrough (NumPy + SciPy + trimesh + scikit-image):
 
 ```bash
 uv sync --extra geometry
@@ -53,16 +54,21 @@ voxels are not metric distances; an SDF does not give you texture coordinates.
 Convert deliberately and track which representation each module expects.]{.common-bug-warning}
 
 ```text
-sensor depth  →  point cloud  →  (normals, planes)
-              ↘  voxel occupancy / TSDF  →  marching cubes → mesh
-CAD / Menagerie →  mesh         →  (rays, contacts, rendering)
-NN / TSDF fusion →  SDF on a grid →  marching cubes → mesh
+bunny.obj (mesh)
+   ├─ sample surface     → point cloud → PCA normals
+   ├─ ray query          → first hit on an ear / back
+   ├─ voxelize samples   → occupancy grid
+   └─ voxelize + EDT     → approx SDF → marching cubes → mesh
 ```
+
+The reduced bunny in this repo is **not watertight** — that is intentional. Many
+real scans and CAD exports are the same; algorithms that assume a closed volume
+will lie until you repair topology.
 
 ## Point clouds and normal estimation {#point-cloud-normals}
 
-A point cloud is a set $\{\mathbf{x}_i\}$. Depth cameras and LiDAR give you this for
-free; meshes can be **sampled** into clouds for learning.
+Depth cameras and LiDAR emit clouds; from a mesh we **sample** the surface
+(`trimesh.sample.sample_surface` in the demo) to get $\{\mathbf{x}_i\}$ on the bunny.
 
 **Surface normals** are not in the raw cloud unless the sensor provides them. The
 usual estimate: for each point, take $k$ nearest neighbors, center them, and read
@@ -76,41 +82,45 @@ w, V = np.linalg.eigh(C)
 normal = V[:, 0]  # smallest eigenvalue
 ```
 
+The demo compares PCA normals to the supporting **face normals** of the bunny mesh
+(after fixing PCA sign against a viewpoint). Agreement is high on smooth regions and
+worse near ears and other high curvature.
+
 Footguns:
 
 - **Sign is arbitrary** — PCA normals flip. Propagate consistency (e.g. toward a
   viewpoint) if you need oriented normals.
-- **$k$ and scale** — too small → noise; too large → smooths out edges.
-- **No topology** — a cloud does not know genus or watertightness; do not assume
-  a closed volume.
+- **$k$ and scale** — too small → noise; too large → smooths out edges (bunny ears).
+- **No topology** — a cloud does not know genus or watertightness.
 
 ## Triangle meshes and ray queries {#mesh-ray-queries}
 
-A triangle mesh stores vertices $V \in \mathbb{R}^{n \times 3}$ and integer faces
-$F \in \mathbb{N}^{m \times 3}$. Simulators and renderers live here; see
+The bunny file is already a triangle mesh: vertices $V \in \mathbb{R}^{n \times 3}$
+and faces $F \in \mathbb{N}^{m \times 3}$. Simulators and renderers live here; see
 [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) for
 convex hulls and visual vs collision meshes.
 
 A **ray query** asks where $\mathbf{o} + t\mathbf{d}$ ($t \ge 0$) first hits the
 mesh. The textbook building block is **Möller–Trumbore**: ray–triangle intersection
-with barycentric coordinates, no need to precompute a plane equation.
+with barycentric coordinates.
 
 ```python
-# One triangle (v0, v1, v2), ray origin o, direction d (unit optional)
+# One triangle (v0, v1, v2), ray origin o, direction d
 # Returns t along ray, or None — full mesh loops triangles / uses a BVH.
 ```
 
-Production code wraps a **BVH** (bounding-volume hierarchy) so you do not test every
-triangle. [`trimesh`](https://trimesh.org/) exposes `mesh.ray.intersects_location`
-(optional `rtree` / Embree backends). The demo implements Möller–Trumbore in NumPy
-so you can see the math without extra spatial-index packages.
+The demo shoots a ray from $(0,0,2)$ toward $-\mathbf{z}$ at the centered bunny and
+reports the hit point. Production code wraps a **BVH** so you do not test every
+triangle; [`trimesh`](https://trimesh.org/) can use `rtree` / Embree backends. The
+demo keeps a clear NumPy scan so the math stays visible.
 
 Footguns:
 
 - **Back faces / two-sided hits** — decide whether $t$ through the back of a
   triangle counts (rendering vs physics differ).
-- **Non-watertight meshes** — rays may leak through holes; occupancy tests lie.
-- **Scale** — keep $t$ in world units; be careful if you normalize $\mathbf{d}$.
+- **Non-watertight meshes** — rays may leak through holes in the bunny’s base;
+  occupancy tests that assume a closed shell will fail.
+- **Scale** — keep $t$ in world units.
 
 ## Voxel grids {#voxel-grids}
 
@@ -129,30 +139,29 @@ $$
 
 | Operation | What it does |
 |---|---|
-| **Voxelize points** | Mark cells hit by at least one sample (occupancy) |
+| **Voxelize points** | Mark cells hit by at least one bunny sample (occupancy) |
 | **Carve / insert** | Clear free space along depth rays; mark hits occupied |
 | **Dilate / erode** | Morphological inflation for planning margins |
 | **Trilinear sample** | Continuous readout of a TSDF / density between centers |
 | **Marching cubes** | If the payload is a distance field → triangle mesh |
 
 ```python
-# Occupancy from a point cloud (see scripts/geometric_computing_demo.py)
+# Occupancy from bunny surface samples (see demo)
 origin = points.min(axis=0) - margin
 ijk = np.floor((points - origin) / h).astype(int)
-occ = np.zeros((n, n, n), dtype=bool)
+occ = np.zeros((n_i, n_j, n_k), dtype=bool)
 occ[ijk[:, 0], ijk[:, 1], ijk[:, 2]] = True
 ```
 
 **Occupancy** is binary (or probabilistic). A **TSDF** stores a truncated signed
 distance per cell — still a voxel grid, but the values *are* a sampled implicit
-surface and can go straight into marching cubes. Dense 3D CNNs and many mapping
-stacks speak this dialect.
+surface and can go straight into marching cubes.
 
 Footguns:
 
 - **Resolution vs memory** — doubling linear resolution costs $\times 8$ storage.
   Sparse / hashed voxels help; a dense `float32[512³]` volume is already 512 MiB.
-- **Aliasing** — thin rods and sharp edges fall between cell centers; inflate
+- **Aliasing** — thin ear geometry disappears between cell centers; inflate
   occupancy before using it for clearance.
 - **Index vs world** — pick one `origin` + `h` convention; `floor` vs `round`
   off-by-ones show up as one-voxel shifts.
@@ -161,16 +170,22 @@ Footguns:
 
 ## Implicit fields and marching cubes {#marching-cubes}
 
-Sample an SDF (or any scalar field) on a regular voxel grid. **Marching cubes**
-walks each cell, looks at the eight corner signs, and emits triangles that
-approximate the $f = 0$ isosurface. Vertex positions along edges are linearly
-interpolated.
+Once the bunny occupies a voxel grid, an approximate SDF is
+
+$$
+f = h \cdot \bigl(\mathrm{EDT}(\neg \mathrm{occ}) - \mathrm{EDT}(\mathrm{occ})\bigr)
+$$
+
+(Euclidean distance transform; negative inside occupied cells). **Marching cubes**
+then walks each cell, looks at the eight corner signs, and emits triangles for the
+$f = 0$ isosurface.
 
 ```python
 from skimage.measure import marching_cubes
+from scipy.ndimage import distance_transform_edt
 
-verts, faces, normals, _ = marching_cubes(sdf_grid, level=0.0, spacing=voxel_size)
-# verts: (N, 3) in grid / world coordinates depending on spacing
+sdf = pitch * (distance_transform_edt(~occ) - distance_transform_edt(occ))
+verts, faces, normals, _ = marching_cubes(sdf, level=0.0, spacing=(pitch,) * 3)
 ```
 
 Why it matters:
@@ -182,12 +197,12 @@ Why it matters:
 
 Footguns:
 
-- **Grid resolution** — coarse grids stair-step; fine grids explode memory
-  ($O(n^3)$) — same tradeoff as occupancy voxels.
-- **Not an exact SDF** — many “distance” fields are truncated or only occupancy;
-  MC still runs, but normals and offsets degrade.
-- **Closed mesh ≠ correct inside** — check winding /
-  `trimesh.Trimesh.is_watertight` after extraction.
+- **Grid resolution** — coarse grids stair-step the bunny; fine grids explode
+  memory ($O(n^3)$).
+- **EDT ≠ true mesh SDF** — distance is to the *voxelized* shape, not the
+  analytic surface; expect millimeter-scale bias at coarse pitch.
+- **Closed mesh ≠ correct inside** — the source bunny is open at the base; do not
+  trust volume integrals without a repair step.
 
 ## Which representation when?
 
@@ -200,9 +215,8 @@ Footguns:
 | Novel view / differentiable render | Mesh or NeRF-style implicit | Depends on the renderer |
 | Publish to CAD / Menagerie | Mesh | File formats are mesh-centric |
 
-Conversions are real engineering work — budget for them. The demo round-trips a
-sphere through cloud → normals, mesh → ray hit, points → voxel occupancy, and
-SDF grid → marching-cubes mesh, and prints metrics you can reuse as sanity checks.
+The demo round-trips the Stanford Bunny through all four representations and prints
+alignment / hit / occupancy / reconstruction metrics you can reuse as sanity checks.
 
 ## See also
 

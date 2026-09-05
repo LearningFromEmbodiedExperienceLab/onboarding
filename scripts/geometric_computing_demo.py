@@ -1,4 +1,7 @@
-"""Geometric computing demo: normals, rays, voxels, marching cubes.
+"""Geometric computing demo on the Stanford Bunny.
+
+Point-cloud normals, ray–mesh hits, voxel occupancy, and marching cubes from an
+approximate SDF (Euclidean distance transform of the occupancy grid).
 
 Run::
 
@@ -8,26 +11,34 @@ Run::
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
+from scipy.ndimage import distance_transform_edt
 from scipy.spatial import cKDTree
 from skimage.measure import marching_cubes
 import trimesh
 
+ROOT = Path(__file__).resolve().parents[1]
+BUNNY_PATH = ROOT / "assets" / "stanford_bunny" / "bunny.obj"
 
-def sample_sphere_cloud(
-    n: int = 800,
-    radius: float = 1.0,
-    noise: float = 0.01,
-    seed: int = 0,
-) -> np.ndarray:
-    rng = np.random.default_rng(seed)
-    vec = rng.normal(size=(n, 3))
-    vec /= np.linalg.norm(vec, axis=1, keepdims=True)
-    return radius * vec + rng.normal(scale=noise, size=vec.shape)
+
+def load_bunny(*, target_extent: float = 1.0) -> trimesh.Trimesh:
+    """Load the vendored Stanford Bunny, center it, and scale to unit-ish size."""
+    mesh = trimesh.load(BUNNY_PATH, force="mesh")
+    if not isinstance(mesh, trimesh.Trimesh):
+        raise TypeError(f"expected a single mesh at {BUNNY_PATH}")
+    mesh = mesh.copy()
+    mesh.apply_translation(-mesh.centroid)
+    extent = float(np.max(mesh.extents))
+    if extent <= 0:
+        raise ValueError("degenerate bunny mesh")
+    mesh.apply_scale(target_extent / extent)
+    return mesh
 
 
 def estimate_normals_pca(points: np.ndarray, k: int = 16) -> np.ndarray:
-    """Unit normals from local PCA (smallest eigenvector). Signs are arbitrary."""
+    """Unit normals from local PCA (smallest eigenvector)."""
     tree = cKDTree(points)
     _, idxs = tree.query(points, k=min(k, len(points)))
     normals = np.zeros_like(points)
@@ -36,11 +47,19 @@ def estimate_normals_pca(points: np.ndarray, k: int = 16) -> np.ndarray:
         C = np.cov(X - X.mean(axis=0), rowvar=False)
         _, V = np.linalg.eigh(C)
         n = V[:, 0]
-        # Orient roughly outward from origin (demo only — use viewpoint in real code).
-        if np.dot(n, points[i]) < 0:
+        # Orient toward +z viewpoint at (0, 0, 3) for a stable demo sign.
+        view = np.array([0.0, 0.0, 3.0]) - points[i]
+        if np.dot(n, view) < 0:
             n = -n
         normals[i] = n / (np.linalg.norm(n) + 1e-12)
     return normals
+
+
+def mesh_vertex_normals_at_samples(
+    mesh: trimesh.Trimesh, face_indices: np.ndarray
+) -> np.ndarray:
+    """Per-sample normals from the supporting face (area-weighted face normals)."""
+    return np.asarray(mesh.face_normals[face_indices], dtype=float)
 
 
 def ray_triangle(
@@ -79,7 +98,7 @@ def ray_mesh_first_hit(
     vertices: np.ndarray,
     faces: np.ndarray,
 ) -> tuple[float, int] | None:
-    """First hit (t, face_index) along a ray; O(n_faces) scan for teaching."""
+    """First hit (t, face_index); O(n_faces) scan for teaching."""
     direction = direction / (np.linalg.norm(direction) + 1e-12)
     best: tuple[float, int] | None = None
     for fi, (i0, i1, i2) in enumerate(faces):
@@ -94,10 +113,10 @@ def ray_mesh_first_hit(
 def voxelize_points(
     points: np.ndarray,
     *,
-    pitch: float = 0.08,
+    pitch: float = 0.03,
     margin: float = 0.05,
 ) -> tuple[np.ndarray, np.ndarray, float]:
-    """Binary occupancy grid from points. Returns (occ, origin, pitch)."""
+    """Binary occupancy from points. Returns (occ, origin, pitch)."""
     origin = points.min(axis=0) - margin
     extent = points.max(axis=0) + margin - origin
     shape = np.maximum(np.ceil(extent / pitch).astype(int), 1)
@@ -114,51 +133,45 @@ def world_to_voxel(
     return np.floor((points - origin) / pitch).astype(int)
 
 
-def sphere_sdf_grid(
-    n: int = 48,
-    radius: float = 1.0,
-    pad: float = 0.4,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Return (sdf, spacing) with sdf shape (n, n, n); negative inside."""
-    half = radius + pad
-    xs = np.linspace(-half, half, n)
-    spacing = np.array([xs[1] - xs[0]] * 3)
-    X, Y, Z = np.meshgrid(xs, xs, xs, indexing="ij")
-    sdf = np.sqrt(X * X + Y * Y + Z * Z) - radius
-    return sdf.astype(np.float64), spacing
+def occupancy_to_sdf(occ: np.ndarray, pitch: float) -> np.ndarray:
+    """Approximate SDF via EDT: negative inside occupied cells."""
+    outside = distance_transform_edt(~occ)
+    inside = distance_transform_edt(occ)
+    return (outside - inside) * pitch
 
 
 def main() -> None:
-    print("=== Point cloud normals (PCA) ===")
-    cloud = sample_sphere_cloud()
-    normals = estimate_normals_pca(cloud, k=20)
-    true = cloud / np.linalg.norm(cloud, axis=1, keepdims=True)
-    align = np.abs(np.sum(normals * true, axis=1))
+    mesh = load_bunny()
+    print(f"bunny  verts={len(mesh.vertices)}  faces={len(mesh.faces)}")
+    print(f"       watertight={mesh.is_watertight}  extents={mesh.extents}")
+
+    print("\n=== Point cloud normals (PCA vs face normals) ===")
+    cloud, face_id = trimesh.sample.sample_surface(mesh, 1500)
+    normals = estimate_normals_pca(cloud, k=24)
+    face_n = mesh_vertex_normals_at_samples(mesh, face_id)
+    # Align PCA sign to face normal for the comparison metric.
+    flip = np.sign(np.sum(normals * face_n, axis=1))
+    flip[flip == 0] = 1.0
+    align = np.sum((normals * flip[:, None]) * face_n, axis=1)
     print(
-        f"points={len(cloud)}  |n·n_true| mean={align.mean():.4f}  "
+        f"samples={len(cloud)}  n·n_face mean={align.mean():.4f}  "
         f"min={align.min():.4f}"
     )
 
-    print("\n=== Ray × triangle mesh (Möller–Trumbore) ===")
-    mesh = trimesh.creation.icosphere(subdivisions=3, radius=1.0)
-    origin = np.array([0.0, 0.0, 3.0])
+    print("\n=== Ray × bunny mesh (Möller–Trumbore) ===")
+    origin = np.array([0.0, 0.0, 2.0])
     direction = np.array([0.0, 0.0, -1.0])
     hit = ray_mesh_first_hit(origin, direction, mesh.vertices, mesh.faces)
-    assert hit is not None, "expected a hit toward the unit sphere"
+    assert hit is not None, "expected a hit toward the centered bunny"
     t, fi = hit
     point = origin + t * direction
-    print(
-        f"hit t={t:.4f}  point={point}  face={fi}  "
-        f"|point|={np.linalg.norm(point):.4f}"
-    )
+    print(f"hit t={t:.4f}  point={point}  face={fi}")
 
-    print("\n=== Voxel occupancy (point cloud → grid) ===")
-    occ, grid_origin, pitch = voxelize_points(cloud, pitch=0.08, margin=0.05)
+    print("\n=== Voxel occupancy (bunny samples → grid) ===")
+    occ, grid_origin, pitch = voxelize_points(cloud, pitch=0.03, margin=0.04)
     filled = int(occ.sum())
-    on_surface = cloud[0]
-    outside = np.array([3.0, 3.0, 3.0])
-    i_on = world_to_voxel(on_surface[None, :], grid_origin, pitch)[0]
-    i_out = world_to_voxel(outside[None, :], grid_origin, pitch)[0]
+    i_on = world_to_voxel(cloud[0][None, :], grid_origin, pitch)[0]
+    i_out = world_to_voxel(np.array([[2.0, 2.0, 2.0]]), grid_origin, pitch)[0]
     shape = np.array(occ.shape)
 
     def in_bounds(ijk: np.ndarray) -> bool:
@@ -172,22 +185,25 @@ def main() -> None:
     )
     assert hit_on and not hit_out
 
-    print("\n=== Marching cubes (sphere SDF → mesh) ===")
-    sdf, spacing = sphere_sdf_grid(n=40, radius=1.0)
-    verts, faces, _normals, _ = marching_cubes(sdf, level=0.0, spacing=spacing)
-    n = sdf.shape[0]
-    half = (n - 1) * spacing[0] / 2.0
-    verts_world = verts - half
-    radii = np.linalg.norm(verts_world, axis=1)
-    print(
-        f"verts={len(verts_world)} faces={len(faces)}  "
-        f"radius mean={radii.mean():.4f}  std={radii.std():.4f}"
+    print("\n=== Marching cubes (occupancy EDT ≈ SDF → mesh) ===")
+    # Slightly denser voxelization of the *mesh* for a cleaner isosurface.
+    vox = mesh.voxelized(pitch=0.02)
+    sdf = occupancy_to_sdf(vox.matrix, pitch=0.02)
+    verts, faces, _normals, _ = marching_cubes(sdf, level=0.0, spacing=(0.02,) * 3)
+    # skimage verts are in grid index space scaled by spacing; map to world via voxel translation.
+    mc = trimesh.Trimesh(
+        vertices=verts + np.asarray(vox.translation, dtype=float),
+        faces=faces,
+        process=False,
     )
-    mc_mesh = trimesh.Trimesh(vertices=verts_world, faces=faces, process=False)
     print(
-        f"watertight={mc_mesh.is_watertight}  "
-        f"volume={mc_mesh.volume:.4f} (4/3 π ≈ {4 / 3 * np.pi:.4f})"
+        f"verts={len(mc.vertices)} faces={len(mc.faces)}  "
+        f"watertight={mc.is_watertight}  volume={mc.volume:.4f}"
     )
+    # Vertex-cloud proximity (avoids rtree); rough surface fidelity check.
+    tree = cKDTree(np.asarray(mesh.vertices))
+    d_mc, _ = tree.query(mc.vertices)
+    print(f"mean dist(MC verts → bunny verts)={d_mc.mean():.4f}")
     print("\ndone")
 
 

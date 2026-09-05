@@ -43,8 +43,8 @@ Tests / lint:
 Optional extras (only needed for the corresponding demo scripts, not installed by
 default): `torch`, `mujoco`, `sim`, `ipc`, `geometry`, `notebooks`, `debug` — install with
 `uv sync --extra <name>`. **`sim`** = `mujoco` + `motrixsim` (robotics sim chapters);
-**`ipc`** = `pyzmq` (ZeroMQ async IPC demo); **`geometry`** = `scipy` + `trimesh` +
-`scikit-image` (`scripts/geometric_computing_demo.py`); **`mujoco`** alone is enough for
+**`ipc`** = `pyzmq` (ZeroMQ async IPC demo); **`geometry`** = `scipy` + `trimesh` + `scikit-image`
+(`scripts/geometric_computing_demo.py` on `assets/stanford_bunny/`); **`mujoco`** alone is enough for
 menagerie figure rendering and MuJoCo-only scripts.
 `torch`/`motrixsim` are large.
 
