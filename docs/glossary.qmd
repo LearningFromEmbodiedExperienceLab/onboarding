@@ -17,6 +17,9 @@ Short definitions for terms used across the tutorial. Expand as chapters land.
 | **hard contact** | Non-penetrating contact impulses (PhysX / Isaac default; Motrix optional via `_hard` geoms). |
 | **watertight mesh** | Closed mesh with well-defined volume (every edge shared by two faces). |
 | **point cloud** | Unordered set of 3D samples (depth/LiDAR); no connectivity. |
+| **voxel grid** | Regular 3D lattice of cells (occupancy, TSDF, density, labels). |
+| **occupancy grid** | Voxel grid whose payload is free/occupied (binary or probabilistic). |
+| **TSDF** | Truncated signed distance field stored on a voxel grid (common in RGB-D fusion). |
 | **SDF** | Signed distance function — implicit field; usually $|f|=$ distance, sign = inside/outside. |
 | **marching cubes** | Extract a triangle mesh as the zero level set of a scalar grid. |
 | **contype / conaffinity** | MuJoCo bitmasks controlling which geoms collide with which. |

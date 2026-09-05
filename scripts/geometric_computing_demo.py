@@ -1,4 +1,4 @@
-"""Geometric computing demo: point-cloud normals, ray–mesh hits, marching cubes.
+"""Geometric computing demo: normals, rays, voxels, marching cubes.
 
 Run::
 
@@ -91,6 +91,29 @@ def ray_mesh_first_hit(
     return best
 
 
+def voxelize_points(
+    points: np.ndarray,
+    *,
+    pitch: float = 0.08,
+    margin: float = 0.05,
+) -> tuple[np.ndarray, np.ndarray, float]:
+    """Binary occupancy grid from points. Returns (occ, origin, pitch)."""
+    origin = points.min(axis=0) - margin
+    extent = points.max(axis=0) + margin - origin
+    shape = np.maximum(np.ceil(extent / pitch).astype(int), 1)
+    ijk = np.floor((points - origin) / pitch).astype(int)
+    ijk = np.clip(ijk, 0, shape - 1)
+    occ = np.zeros(tuple(int(s) for s in shape), dtype=bool)
+    occ[ijk[:, 0], ijk[:, 1], ijk[:, 2]] = True
+    return occ, origin, pitch
+
+
+def world_to_voxel(
+    points: np.ndarray, origin: np.ndarray, pitch: float
+) -> np.ndarray:
+    return np.floor((points - origin) / pitch).astype(int)
+
+
 def sphere_sdf_grid(
     n: int = 48,
     radius: float = 1.0,
@@ -109,10 +132,12 @@ def main() -> None:
     print("=== Point cloud normals (PCA) ===")
     cloud = sample_sphere_cloud()
     normals = estimate_normals_pca(cloud, k=20)
-    # True outward normals ≈ normalized positions for a sphere centered at 0.
     true = cloud / np.linalg.norm(cloud, axis=1, keepdims=True)
-    align = np.abs(np.sum(normals * true, axis=1))  # ignore residual flips
-    print(f"points={len(cloud)}  |n·n_true| mean={align.mean():.4f}  min={align.min():.4f}")
+    align = np.abs(np.sum(normals * true, axis=1))
+    print(
+        f"points={len(cloud)}  |n·n_true| mean={align.mean():.4f}  "
+        f"min={align.min():.4f}"
+    )
 
     print("\n=== Ray × triangle mesh (Möller–Trumbore) ===")
     mesh = trimesh.creation.icosphere(subdivisions=3, radius=1.0)
@@ -122,14 +147,34 @@ def main() -> None:
     assert hit is not None, "expected a hit toward the unit sphere"
     t, fi = hit
     point = origin + t * direction
-    print(f"hit t={t:.4f}  point={point}  face={fi}  |point|={np.linalg.norm(point):.4f}")
+    print(
+        f"hit t={t:.4f}  point={point}  face={fi}  "
+        f"|point|={np.linalg.norm(point):.4f}"
+    )
+
+    print("\n=== Voxel occupancy (point cloud → grid) ===")
+    occ, grid_origin, pitch = voxelize_points(cloud, pitch=0.08, margin=0.05)
+    filled = int(occ.sum())
+    on_surface = cloud[0]
+    outside = np.array([3.0, 3.0, 3.0])
+    i_on = world_to_voxel(on_surface[None, :], grid_origin, pitch)[0]
+    i_out = world_to_voxel(outside[None, :], grid_origin, pitch)[0]
+    shape = np.array(occ.shape)
+
+    def in_bounds(ijk: np.ndarray) -> bool:
+        return bool(np.all((ijk >= 0) & (ijk < shape)))
+
+    hit_on = bool(in_bounds(i_on) and occ[tuple(i_on)])
+    hit_out = bool(in_bounds(i_out) and occ[tuple(i_out)])
+    print(
+        f"grid={occ.shape}  pitch={pitch:.3f}  filled={filled}  "
+        f"surface_cell_occupied={hit_on}  outside_occupied={hit_out}"
+    )
+    assert hit_on and not hit_out
 
     print("\n=== Marching cubes (sphere SDF → mesh) ===")
     sdf, spacing = sphere_sdf_grid(n=40, radius=1.0)
     verts, faces, _normals, _ = marching_cubes(sdf, level=0.0, spacing=spacing)
-    # skimage returns verts in (z, y, x) order relative to array axes with indexing ij
-    # After spacing=, coordinates are in the same axis order as the volume (i, j, k).
-    # Shift from grid corner (0,0,0) to world centered at origin:
     n = sdf.shape[0]
     half = (n - 1) * spacing[0] / 2.0
     verts_world = verts - half
@@ -139,7 +184,10 @@ def main() -> None:
         f"radius mean={radii.mean():.4f}  std={radii.std():.4f}"
     )
     mc_mesh = trimesh.Trimesh(vertices=verts_world, faces=faces, process=False)
-    print(f"watertight={mc_mesh.is_watertight}  volume={mc_mesh.volume:.4f} (4/3 π ≈ {4/3 * np.pi:.4f})")
+    print(
+        f"watertight={mc_mesh.is_watertight}  "
+        f"volume={mc_mesh.volume:.4f} (4/3 π ≈ {4 / 3 * np.pi:.4f})"
+    )
     print("\ndone")
 
 

@@ -1,16 +1,17 @@
 # Geometric computing
 
 Robotics code constantly asks geometric questions: *which way does this surface
-face*, *does this ray hit the table*, *what mesh approximates this distance
-field*? Those questions need a **representation** of shape — and the same object
-can be stored in very different ways.
+face*, *does this ray hit the table*, *is this cell free*, *what mesh approximates
+this distance field*? Those questions need a **representation** of shape — and the
+same object can be stored in very different ways.
 
-This chapter is about **explicit vs implicit** geometry and three operations you
-will see in perception, planning, and sim tooling:
+This chapter is about **explicit vs implicit** geometry across four common
+representations and the operations that go with them:
 
-1. **Normal estimation** from a point cloud  
-2. **Ray queries** against a triangle mesh  
-3. **Marching cubes** — turning an implicit field into a mesh  
+1. **Point clouds** — normal estimation  
+2. **Triangle meshes** — ray queries  
+3. **Voxel grids** — occupancy indexing and carving  
+4. **Implicit fields (SDFs)** — marching cubes to a mesh  
 
 It complements [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision)
 (visual vs collision vs inertial *assets* in simulators). Here the focus is the
@@ -29,31 +30,33 @@ uv run python scripts/geometric_computing_demo.py
 |---|---|---|---|---|
 | **Point cloud** | Explicit | Samples $\mathbf{x}_i \in \mathbb{R}^3$ (maybe normals, color) | Sensors (depth, LiDAR), learning | Connectivity, exact volume, thin structures |
 | **Triangle mesh** | Explicit | Vertices + faces (and optional UVs/normals) | Rendering, contacts, CAD | Topology bugs, non-watertight scans |
-| **Voxel / occupancy grid** | Either | Per-cell empty/occupied (or density) | Uniform spatial hashing, ML grids | Resolution vs memory, aliasing |
-| **SDF / implicit field** | Implicit | Function $f(\mathbf{x})$ (often signed distance) | Smooth surfaces, offsets, gradients | Needs evaluation structure; meshing to render |
+| **Voxel grid** | Explicit lattice (payload may be implicit) | Regular 3D array: occupancy, TSDF, density, labels | Uniform indexing, fusion maps, ML volumes | $O(n^3)$ memory, staircasing / aliasing |
+| **SDF / implicit field** | Implicit | Function $f(\mathbf{x})$ (often signed distance) | Smooth surfaces, offsets, gradients | Needs an evaluation structure; meshing to render |
 
-**Explicit** means you store the surface (or samples on it) directly. **Implicit**
-means you store a rule for space — typically a scalar field whose **zero level
-set** is the surface:
+**Explicit** means you store the surface (or samples / cells on it) directly.
+**Implicit** means you store a rule for space — typically a scalar field whose
+**zero level set** is the surface:
 
 $$
 S = \{\mathbf{x} \mid f(\mathbf{x}) = 0\}
 $$
 
-For a **signed distance function (SDF)**, $|f(\mathbf{x})|$ is distance to $S$ and
-the sign encodes inside vs outside (convention varies; many robotics stacks use
-**negative inside**). The spatial gradient $\nabla f$ points toward increasing
-$f$; on the surface, $\nabla f / \|\nabla f\|$ is a unit normal.
+A voxel grid sits in between in practice: the **indexing** is explicit, but the
+**values** can be a sampled SDF (TSDF fusion, neural fields on a grid). For a
+**signed distance function (SDF)**, $|f(\mathbf{x})|$ is distance to $S$ and the
+sign encodes inside vs outside (convention varies; many robotics stacks use
+**negative inside**). On the surface, $\nabla f / \|\nabla f\|$ is a unit normal.
 
-[Do not treat “we have a mesh” and “we have an SDF” as interchangeable. A mesh
-does not give you a cheap closest-point query; an SDF does not give you texture
-coordinates. Convert deliberately (ray / projection / marching cubes) and track
-which representation each module expects.]{.common-bug-warning}
+[Do not treat “we have a mesh,” “we have voxels,” and “we have an SDF” as
+interchangeable. A mesh does not give you a cheap closest-point query; occupancy
+voxels are not metric distances; an SDF does not give you texture coordinates.
+Convert deliberately and track which representation each module expects.]{.common-bug-warning}
 
 ```text
 sensor depth  →  point cloud  →  (normals, planes)
+              ↘  voxel occupancy / TSDF  →  marching cubes → mesh
 CAD / Menagerie →  mesh         →  (rays, contacts, rendering)
-NN / TSDF fusion →  SDF / grid  →  marching cubes → mesh
+NN / TSDF fusion →  SDF on a grid →  marching cubes → mesh
 ```
 
 ## Point clouds and normal estimation {#point-cloud-normals}
@@ -107,14 +110,61 @@ Footguns:
 - **Back faces / two-sided hits** — decide whether $t$ through the back of a
   triangle counts (rendering vs physics differ).
 - **Non-watertight meshes** — rays may leak through holes; occupancy tests lie.
-- **Scale** — directions should be treated carefully if you normalize; keep $t$ in
-  world units.
+- **Scale** — keep $t$ in world units; be careful if you normalize $\mathbf{d}$.
+
+## Voxel grids {#voxel-grids}
+
+A **voxel grid** is a regular 3D lattice over a bounding box. Each cell stores a
+scalar (or small vector): empty/occupied, a truncated signed distance (**TSDF**),
+a density, a semantic label, etc.
+
+World $\leftrightarrow$ index for an axis-aligned box with lower corner
+$\mathbf{o}$ and voxel size $h$:
+
+$$
+\mathbf{i} = \left\lfloor (\mathbf{x} - \mathbf{o}) / h \right\rfloor,
+\qquad
+\mathbf{x}_{\text{center}} = \mathbf{o} + \bigl(\mathbf{i} + \tfrac{1}{2}\bigr)\, h
+$$
+
+| Operation | What it does |
+|---|---|
+| **Voxelize points** | Mark cells hit by at least one sample (occupancy) |
+| **Carve / insert** | Clear free space along depth rays; mark hits occupied |
+| **Dilate / erode** | Morphological inflation for planning margins |
+| **Trilinear sample** | Continuous readout of a TSDF / density between centers |
+| **Marching cubes** | If the payload is a distance field → triangle mesh |
+
+```python
+# Occupancy from a point cloud (see scripts/geometric_computing_demo.py)
+origin = points.min(axis=0) - margin
+ijk = np.floor((points - origin) / h).astype(int)
+occ = np.zeros((n, n, n), dtype=bool)
+occ[ijk[:, 0], ijk[:, 1], ijk[:, 2]] = True
+```
+
+**Occupancy** is binary (or probabilistic). A **TSDF** stores a truncated signed
+distance per cell — still a voxel grid, but the values *are* a sampled implicit
+surface and can go straight into marching cubes. Dense 3D CNNs and many mapping
+stacks speak this dialect.
+
+Footguns:
+
+- **Resolution vs memory** — doubling linear resolution costs $\times 8$ storage.
+  Sparse / hashed voxels help; a dense `float32[512³]` volume is already 512 MiB.
+- **Aliasing** — thin rods and sharp edges fall between cell centers; inflate
+  occupancy before using it for clearance.
+- **Index vs world** — pick one `origin` + `h` convention; `floor` vs `round`
+  off-by-ones show up as one-voxel shifts.
+- **Occupancy ≠ metric SDF** — `True`/`False` is not a distance. For clearance,
+  run a distance transform or store a TSDF.
 
 ## Implicit fields and marching cubes {#marching-cubes}
 
-Sample an SDF (or any scalar field) on a regular 3D grid. **Marching cubes** walks
-each grid cell, looks at the eight corner signs, and emits triangles that approximate
-the $f = 0$ isosurface. Vertex positions along edges are linearly interpolated.
+Sample an SDF (or any scalar field) on a regular voxel grid. **Marching cubes**
+walks each cell, looks at the eight corner signs, and emits triangles that
+approximate the $f = 0$ isosurface. Vertex positions along edges are linearly
+interpolated.
 
 ```python
 from skimage.measure import marching_cubes
@@ -125,32 +175,34 @@ verts, faces, normals, _ = marching_cubes(sdf_grid, level=0.0, spacing=voxel_siz
 
 Why it matters:
 
-- Neural SDFs, TSDF fusion, and soft contact prototypes often live on grids or MLPs;
-  tools and humans still want a **mesh**.
+- Neural SDFs, TSDF fusion, and soft-contact prototypes often live on grids or
+  MLPs; tools and humans still want a **mesh**.
 - Remeshing a deformed implicit (offset surface, boolean) is often easier than
   editing triangle topology by hand.
 
 Footguns:
 
-- **Grid resolution** — coarse grids stair-step; fine grids explode memory ($O(n^3)$).
-- **Not an exact SDF** — many “distance” fields are truncated or only occupancy; MC
-  still runs, but normals and offsets degrade.
-- **Closed mesh ≠ correct inside** — check winding / `trimesh.Trimesh.is_watertight`
-  after extraction.
+- **Grid resolution** — coarse grids stair-step; fine grids explode memory
+  ($O(n^3)$) — same tradeoff as occupancy voxels.
+- **Not an exact SDF** — many “distance” fields are truncated or only occupancy;
+  MC still runs, but normals and offsets degrade.
+- **Closed mesh ≠ correct inside** — check winding /
+  `trimesh.Trimesh.is_watertight` after extraction.
 
 ## Which representation when?
 
 | Task | Prefer | Why |
 |---|---|---|
 | Depth / LiDAR pipeline | Point cloud | Native sensor output |
+| Mapping / free-space carving | Voxel occupancy or TSDF | Uniform indexing, easy fusion |
 | Grasp contact, MuJoCo geom | Mesh (often convex) | Contact APIs expect geoms |
 | Obstacle distance for control | SDF / sphere tree | Fast closest distance / gradient |
 | Novel view / differentiable render | Mesh or NeRF-style implicit | Depends on the renderer |
 | Publish to CAD / Menagerie | Mesh | File formats are mesh-centric |
 
 Conversions are real engineering work — budget for them. The demo round-trips a
-sphere through cloud → normals, mesh → ray hit, SDF → marching-cubes mesh and prints
-error metrics you can reuse as sanity checks.
+sphere through cloud → normals, mesh → ray hit, points → voxel occupancy, and
+SDF grid → marching-cubes mesh, and prints metrics you can reuse as sanity checks.
 
 ## See also
 
