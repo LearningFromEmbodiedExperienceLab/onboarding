@@ -2,7 +2,7 @@
 
 How a robot is stored on disk: **[URDF](http://wiki.ros.org/urdf)** (ROS, tree of links) vs **[MJCF](https://mujoco.readthedocs.io/en/stable/XMLreference.html)** (MuJoCo XML: compiler, defaults, actuators, sensors, keyframes). [Motrix `load_model`](https://motrixsim.readthedocs.io/en/latest/api_reference/core/motrixsim.html#motrixsim.load_model) accepts MJCF, URDF, or USD.
 
-Mesh paths, compiler flags, and “inertia from geom” belong here — not in the control loop. For *what* those meshes and geoms mean (visual vs collision, convex hulls, validation), see [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) first.
+Mesh paths, compiler flags, and “inertia from geom” belong here — not in the control loop. For *what* those meshes and geoms mean (visual vs collision, convex hulls, validation), see [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) next.
 
 ## URDF vs MJCF at a glance
 

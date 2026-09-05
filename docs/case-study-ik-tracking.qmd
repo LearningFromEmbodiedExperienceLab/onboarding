@@ -87,4 +87,8 @@ Arm IK uses the six hinge joints `joint1`–`joint6`; gripper DoFs stay at zero.
 | Load Piper + state I/O + step | `scripts/mujoco_robot_demo.py`, `scripts/motrix_robot_demo.py` |
 | Damped IK debug plot | `scripts/debug_ik.py`, `notebooks/inspect_ik.ipynb` |
 
-To extend: add orientation rows to `dx` and `J`, swap in global IK for offline goals, replace kinematic integration with the lockstep `ctrl` loop from section 4 of the robot demos, or benchmark dynamic stability with `scripts/benchmark_ik_sim_dt.py` ([Simulation stability](simulation-stability.qmd#simulation-stability-and-actuators)).
+To extend: add orientation rows to `dx` and `J`, swap in global IK for offline goals, replace kinematic integration with the lockstep `ctrl` loop from section 4 of the robot demos, or benchmark dynamic stability with `scripts/benchmark_ik_sim_dt.py`.
+
+## Next
+
+[Simulation stability and actuators](simulation-stability.qmd#simulation-stability-and-actuators) — take the same IK loop onto position actuators + `step`, and see which timesteps and integrators stay stable. For the circle as a planned path (splines, $u(t)$), see [Trajectory parameterization](trajectory-parameterization.qmd#trajectory-parameterization).

@@ -75,9 +75,13 @@ Docs (Quarto):
   `{#vscode-debugger}` id because its pandoc id would otherwise include a period
   (from `launch.json`). Reuse an explicit `{#id}` for any new heading whose title
   contains punctuation you want to link to.
-- **Advanced** (after Robotics Basics): `inter-process-communication.qmd` (IPC:
-  shared memory, ZMQ, LCM; runnable `async_ipc_demo.py` + `async_ipc_zmq_demo.py`) and
-  `advanced-more-topics.qmd` (placeholder). No scripts in-repo yet for LCM.
+- **Advanced** (after Robotics Basics): `trajectory-parameterization.qmd` (paths /
+  time laws; sits next to the IK case study), then `inter-process-communication.qmd`
+  (IPC: shared memory, ZMQ, LCM; runnable `async_ipc_demo.py` + `async_ipc_zmq_demo.py`),
+  then `advanced-more-topics.qmd` (placeholder). No scripts in-repo yet for LCM.
+- **Robotics Basics order:** kinematics vs dynamics → scene vocabulary → rotations /
+  frames → asset files → geometry and collision → two simulators → FK → state I/O →
+  simulation loop → IK case study → simulation stability.
 - Pages currently contain no executable (`{python}`) Quarto cells, so rendering needs
   only the Quarto CLI. Adding executable cells later would require `jupyter` in
   the env (e.g. via a new `docs` extra).

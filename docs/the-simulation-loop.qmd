@@ -96,4 +96,4 @@ Same read → write → step contract; more boilerplate because of GPU batching 
 
 ## Next
 
-[Simulation stability and actuators](simulation-stability.qmd#simulation-stability-and-actuators) — how `timestep` and integrator choice interact with position-actuator IK. Then [Case study: IK tracking](case-study-ik-tracking.qmd#case-study-ik-tracking) closes the loop with FK + `make_ik` + actuator writes.
+[Case study: IK tracking](case-study-ik-tracking.qmd#case-study-ik-tracking) closes the loop with FK + `make_ik` + kinematic integration. Then [Simulation stability and actuators](simulation-stability.qmd#simulation-stability-and-actuators) covers why the dynamic `ctrl` + `step` path is fragile (timestep, integrator, stiff PD).
