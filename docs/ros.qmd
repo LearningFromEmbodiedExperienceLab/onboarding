@@ -1,0 +1,41 @@
+# ROS / ROS 2
+
+You will meet [ROS](https://www.ros.org/) and [ROS 2](https://docs.ros.org/en/rolling/)
+everywhere in robotics job posts, labs, and vendor SDKs. **Do not build new work on
+them** for this tutorial’s stack — and treat “we should just use ROS” as a red flag in
+research code unless you are forced to talk to an existing ROS-only robot.
+
+[Do not adopt ROS or ROS 2 as your project middleware. Prefer plain Python (or C++)
+libraries, files on disk (URDF/MJCF), and explicit IPC ([Inter-process
+communication](inter-process-communication.qmd#inter-process-communication)) when you
+need multiple processes. The ecosystem is a pain to install, version, debug, and
+**port** across machines, distros, and cloud images.]{.common-bug-warning}
+
+## Why it hurts
+
+| Pain | What you actually hit |
+|---|---|
+| **Install / env** | Distro pins (`Humble`, `Jazzy`, …), system packages fighting `uv`/`conda`, “works on my Ubuntu” only |
+| **Versioning** | Nodes, messages, and launch files bit-rot across distros; regenerating interfaces is busywork |
+| **Portability** | Hard to ship a **single** reproducible research env; containers help, but you still carry the middleware |
+| **Debugging** | Failures span launch, DDS/discovery, QoS, and your algorithm — stack traces stop being enough |
+| **Abstraction tax** | Topics/services/actions for what could be a function call, a file, or a small ZMQ socket |
+
+URDF as a **file format** is fine — see [Asset files](asset-files.qmd#asset-files). That
+does **not** mean you need `roscore`, `colcon`, or a graph of nodes to move a joint in
+MuJoCo or Motrix.
+
+## What to do instead
+
+- **Sim and control in-process** when you can: load MJCF/URDF, write `ctrl`, `step`
+  ([Two simulators](two-simulators.qmd#two-simulators)).
+- **Need processes?** Use the patterns in
+  [Inter-process communication](inter-process-communication.qmd#inter-process-communication)
+  (shared memory, ZMQ, …) with **explicit** message layouts you own.
+- **Must talk to a ROS robot?** Isolate a thin bridge at the boundary; keep your
+  training / control / research code ROS-free so you can still run headless and port
+  environments.
+
+This chapter is a policy choice for **clarity and portability**, not a claim that no
+production robot ever runs ROS. Use ROS when the **hardware or lab already requires
+it** — not as the default architecture for new learning or sim code.

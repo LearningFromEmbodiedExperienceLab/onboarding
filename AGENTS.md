@@ -78,6 +78,8 @@ Docs (Quarto):
 - **Advanced** (after Robotics Basics): `inter-process-communication.qmd` (IPC:
   shared memory, ZMQ, LCM; runnable `async_ipc_demo.py` + `async_ipc_zmq_demo.py`) and
   `advanced-more-topics.qmd` (placeholder). No scripts in-repo yet for LCM.
+- **ROS warning:** `docs/ros.qmd` (Robotics Basics, after asset files) tells readers
+  not to adopt ROS/ROS 2 middleware; URDF-as-file is still fine.
 - Pages currently contain no executable (`{python}`) Quarto cells, so rendering needs
   only the Quarto CLI. Adding executable cells later would require `jupyter` in
   the env (e.g. via a new `docs` extra).

@@ -45,6 +45,7 @@ book:
         - geometry-and-collision.qmd
         - rotations-and-frames.qmd
         - asset-files.qmd
+        - ros.qmd
         - two-simulators.qmd
         - forward-kinematics.qmd
         - state-sensors-and-actuators.qmd
