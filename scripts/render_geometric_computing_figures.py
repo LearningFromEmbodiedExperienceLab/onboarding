@@ -42,7 +42,8 @@ from geometric_computing_demo import (  # noqa: E402
 )
 
 OUT = ROOT / "docs" / "imgs" / "geometric-computing"
-ELEV, AZIM = 18, -60
+# Slightly elevated three-quarter view; bunny sits upright (+Z up).
+ELEV, AZIM = 22, -55
 
 
 def _style_ax(ax, title: str, *, lim: float = 0.65) -> None:
