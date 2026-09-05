@@ -5,7 +5,7 @@ actuators** and you call `step()` every tick? That depends on the **integrator**
 (MuJoCo) and on whether the engine’s PD tracking matches what you expect (Motrix
 on Menagerie Piper today does not).
 
-The case study ([IK tracking](case-study-ik-tracking.qmd#case-study-ik-tracking))
+The previous chapter ([IK tracking](case-study-ik-tracking.qmd#case-study-ik-tracking))
 defaults to **kinematic** integration — write `qpos`, call `forward`, never
 `step`. That isolates Jacobian IK from actuator dynamics. Production stacks almost
 always use the **dynamic** path: each tick compute a joint target, write `ctrl`,
@@ -262,7 +262,7 @@ stiffness the Jacobian loop never sees in FK-only mode.
 
 ## Next
 
-[Case study: IK tracking](case-study-ik-tracking.qmd#case-study-ik-tracking) —
-kinematic reference implementation. To extend: add dynamic mode behind a flag, or
-wire the async IPC demos so a slow policy sends `ctrl` targets to a fast sim
-([Inter-process communication](inter-process-communication.qmd#inter-process-communication)).
+[Trajectory parameterization](trajectory-parameterization.qmd#trajectory-parameterization)
+covers Cartesian paths and time laws behind the case study’s circle demo. For a slow
+policy process feeding `ctrl` to a fast sim, see
+[Inter-process communication](inter-process-communication.qmd#inter-process-communication).

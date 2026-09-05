@@ -8,7 +8,7 @@ validate.
 This chapter is about **how simulators represent geometry**, what **meshes** mean in
 that context, why **convex hulls** appear everywhere, and how to **inspect and test**
 collision separately from visuals. File-format details (URDF tags, MJCF `<compiler>`,
-mesh paths) live in [Asset files](asset-files.qmd#asset-files); here we focus on the
+mesh paths) were covered in [Asset files](asset-files.qmd#asset-files); here we focus on the
 ideas that cross [MuJoCo](https://mujoco.readthedocs.io/en/stable/), Motrix, [URDF](http://wiki.ros.org/urdf), and most other engines. Format and vendor links: [References — Robotics assets](references.qmd#robotics-assets).
 
 ## Three geometries, three jobs
@@ -361,8 +361,8 @@ actually touched. Trust those over the viewport when debugging grasps.
 | Topic | Chapter |
 |---|---|
 | Names: body, joint, geom, site | [Scene vocabulary](scene-vocabulary.qmd#scene-vocabulary) |
+| URDF/MJCF files, `<meshdir>`, compiler | [Asset files](asset-files.qmd#asset-files) (previous) |
 | **Shapes, meshes, hulls, validation** | *this chapter* |
-| URDF/MJCF files, `<meshdir>`, compiler | [Asset files](asset-files.qmd#asset-files) |
 | Load model, step sim | [Two simulators](two-simulators.qmd#two-simulators) |
 
 Author collision geometry in the asset file, validate it once in the viewer and with the
