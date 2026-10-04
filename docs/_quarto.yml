@@ -24,39 +24,39 @@ book:
     - index.qmd
     - part: "Python Basics"
       chapters:
-        - environment-management.qmd
-        - project-structure.qmd
-        - debugging-repl-notebooks.qmd
-        - github-version-control.qmd
-        - making-life-easier.qmd
-        - useful-patterns.qmd
-        - things-not-to-do.qmd
+        - python-basics/environment-management.qmd
+        - python-basics/project-structure.qmd
+        - python-basics/debugging-repl-notebooks.qmd
+        - python-basics/github-version-control.qmd
+        - python-basics/making-life-easier.qmd
+        - python-basics/useful-patterns.qmd
+        - python-basics/things-not-to-do.qmd
     - part: "PyTorch and NumPy"
       chapters:
-        - tensor-array-indexing.qmd
-        - batch-agnostic-operations.qmd
-        - randomness.qmd
-        - cuda.qmd
-        - bells-and-whistles.qmd
-    - part: robotics-basics.qmd
+        - pytorch-numpy/tensor-array-indexing.qmd
+        - pytorch-numpy/batch-agnostic-operations.qmd
+        - pytorch-numpy/randomness.qmd
+        - pytorch-numpy/cuda.qmd
+        - pytorch-numpy/bells-and-whistles.qmd
+    - part: robotics-basics/robotics-basics.qmd
       chapters:
-        - kinematics-vs-dynamics.qmd
-        - scene-vocabulary.qmd
-        - geometry-and-collision.qmd
-        - rotations-and-frames.qmd
-        - asset-files.qmd
-        - two-simulators.qmd
-        - forward-kinematics.qmd
-        - state-sensors-and-actuators.qmd
-        - the-simulation-loop.qmd
-        - simulation-stability.qmd
-        - case-study-ik-tracking.qmd
+        - robotics-basics/kinematics-vs-dynamics.qmd
+        - robotics-basics/scene-vocabulary.qmd
+        - robotics-basics/geometry-and-collision.qmd
+        - robotics-basics/rotations-and-frames.qmd
+        - robotics-basics/asset-files.qmd
+        - robotics-basics/two-simulators.qmd
+        - robotics-basics/forward-kinematics.qmd
+        - robotics-basics/state-sensors-and-actuators.qmd
+        - robotics-basics/the-simulation-loop.qmd
+        - robotics-basics/simulation-stability.qmd
+        - robotics-basics/case-study-ik-tracking.qmd
     - part: "Advanced"
       chapters:
-        - inter-process-communication.qmd
-        - trajectory-parameterization.qmd
-        - geometric-computing.qmd
-        - advanced-more-topics.qmd
+        - advanced/inter-process-communication.qmd
+        - advanced/trajectory-parameterization.qmd
+        - advanced/geometric-computing.qmd
+        - advanced/advanced-more-topics.qmd
     - references.qmd
     - glossary.qmd
     - environment-variables.qmd

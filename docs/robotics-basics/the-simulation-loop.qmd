@@ -1,6 +1,11 @@
+---
+aliases:
+  - /the-simulation-loop.html
+---
+
 # The simulation loop
 
-How simulated time moves (see [`mj_step`](https://mujoco.readthedocs.io/en/stable/APIreference/APIfunctions.html#mj-step) / Motrix `step` in [References — Robotics assets](references.qmd#robotics-assets)):
+How simulated time moves (see [`mj_step`](https://mujoco.readthedocs.io/en/stable/APIreference/APIfunctions.html#mj-step) / Motrix `step` in [References — Robotics assets](../references.qmd#robotics-assets)):
 
 ```text
 write ctrl  →  step (integrate + FK + sensors)  →  read state
@@ -50,7 +55,7 @@ every physics step:
         held_ctrl = policy(obs)    # or kick this off and apply next period
 ```
 
-That is closer to onboard compute + a 1 kHz PD loop. Policies that only work lockstep often degrade here (delay, multiple physics steps per action, observation from an older `ctrl`). When policy and sim run in **separate processes**, the same async picture applies over IPC — see [Inter-process communication](inter-process-communication.qmd#inter-process-communication).
+That is closer to onboard compute + a 1 kHz PD loop. Policies that only work lockstep often degrade here (delay, multiple physics steps per action, observation from an older `ctrl`). When policy and sim run in **separate processes**, the same async picture applies over IPC — see [Inter-process communication](../advanced/inter-process-communication.qmd#inter-process-communication).
 
 ## Substeps vs decimation
 
@@ -77,7 +82,7 @@ for _ in range(n_sub):
 
 **Lockstep** is the special case `n_sub = 1` (one physics step per control step). That is easy to debug but dangerous when `Δt_ctrl` is large for stiff actuators — see the [instability video](simulation-stability.qmd#instability-in-motion).
 
-**Asynchronous IPC** ([Inter-process communication](inter-process-communication.qmd#inter-process-communication)) is the same decimation pattern across processes: the sim process runs `step()` at `Δt_sim`; the controller process wakes at `Δt_ctrl` and publishes new targets.
+**Asynchronous IPC** ([Inter-process communication](../advanced/inter-process-communication.qmd#inter-process-communication)) is the same decimation pattern across processes: the sim process runs `step()` at `Δt_sim`; the controller process wakes at `Δt_ctrl` and publishes new targets.
 
 Runnable headless check: `scripts/ik_substeps_demo.py` (Euler lockstep @ 20 ms fails; 10×2 ms substeps @ 50 Hz IK passes).
 

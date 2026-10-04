@@ -1,3 +1,8 @@
+---
+aliases:
+  - /geometric-computing.html
+---
+
 # Geometric computing
 
 Robotics code constantly asks geometric questions: *which way does this surface
@@ -17,7 +22,7 @@ four representations and their usual operations:
 4. **Implicit field** — approximate SDF via distance transform; **marching cubes**
    back to a mesh  
 
-It complements [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision)
+It complements [Geometry and collision](../robotics-basics/geometry-and-collision.qmd#geometry-and-collision)
 (visual vs collision vs inertial *assets* in simulators). Here the focus is
 **algorithms and data structures**, not MJCF/URDF tags.
 
@@ -99,7 +104,7 @@ Footguns:
 
 The bunny file is already a triangle mesh: vertices $V \in \mathbb{R}^{n \times 3}$
 and faces $F \in \mathbb{N}^{m \times 3}$. Simulators and renderers live here; see
-[Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) for
+[Geometry and collision](../robotics-basics/geometry-and-collision.qmd#geometry-and-collision) for
 convex hulls and visual vs collision meshes.
 
 A **ray query** asks where $\mathbf{o} + t\mathbf{d}$ ($t \ge 0$) first hits the
@@ -127,7 +132,7 @@ Footguns:
 ## Convex hulls and decomposition (Qhull) {#convex-decomposition}
 
 Contact and many motion planners want **convex** pieces — see
-[Geometry and collision](geometry-and-collision.qmd#geometry-and-collision). The
+[Geometry and collision](../robotics-basics/geometry-and-collision.qmd#geometry-and-collision). The
 bunny as a whole is **not** convex (ears, neck, concavities). Two Qhull-based
 tools:
 
@@ -266,7 +271,7 @@ reuse as sanity checks.
 
 | Topic | Chapter |
 |---|---|
-| Visual vs collision vs inertial assets | [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) |
-| URDF / MJCF mesh paths | [Asset files](asset-files.qmd#asset-files) |
+| Visual vs collision vs inertial assets | [Geometry and collision](../robotics-basics/geometry-and-collision.qmd#geometry-and-collision) |
+| URDF / MJCF mesh paths | [Asset files](../robotics-basics/asset-files.qmd#asset-files) |
 | Path curves (different “geometry”) | [Trajectory parameterization](trajectory-parameterization.qmd#trajectory-parameterization) |
-| Library links | [References — Geometry computing](references.qmd#geometry-computing) |
+| Library links | [References — Geometry computing](../references.qmd#geometry-computing) |

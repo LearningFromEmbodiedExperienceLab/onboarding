@@ -1,3 +1,8 @@
+---
+aliases:
+  - /rotations-and-frames.html
+---
+
 # Rotations and frames
 
 Poses are a position plus a rotation. Reading a body pose (FK) or sending a target to IK only makes sense after you fix a few conventions: **joint vs DoF** ([below](#joint-vs-dof)), **which way the axes point**, **how the rotation is stored**, and **which frame the pose is expressed in**.
@@ -145,7 +150,7 @@ Storage order is independent of axis convention but equally easy to get wrong:
 | ROS `geometry_msgs/Quaternion`, SciPy `Rotation.from_quat` | **`(x, y, z, w)`** — scalar last |
 | USD / some game engines | Varies — read that engine’s docs |
 
-Full list of rotation / frame references: [References — Robotics assets](references.qmd#robotics-assets) ([REP-103](http://wiki.ros.org/rep103), [SciPy `Rotation`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.transform.Rotation.html), [OpenCV calib3d](https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html)).
+Full list of rotation / frame references: [References — Robotics assets](../references.qmd#robotics-assets) ([REP-103](http://wiki.ros.org/rep103), [SciPy `Rotation`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.transform.Rotation.html), [OpenCV calib3d](https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html)).
 
 Swapping layout without permuting components rotates about the wrong axis in practice. **Always convert explicitly**; do not reorder four floats by habit.
 

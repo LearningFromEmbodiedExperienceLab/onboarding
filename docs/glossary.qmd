@@ -6,7 +6,7 @@ Short definitions for terms used across the tutorial. Expand as chapters land.
 |---|---|
 | **body / link** | Rigid piece with mass and pose; URDF *link*, MJCF *body*. |
 | **joint** | Model object connecting bodies (hinge, slide, ball, …); not the same as DoF count. |
-| **DoF** | One scalar degree of freedom in `q` / `qvel` / `dq`; see [Joint vs DoF](rotations-and-frames.qmd#joint-vs-dof). |
+| **DoF** | One scalar degree of freedom in `q` / `qvel` / `dq`; see [Joint vs DoF](robotics-basics/rotations-and-frames.qmd#joint-vs-dof). |
 | **nq / nv / nu** | MuJoCo: `qpos` length, velocity DoFs, actuator count — often equal on fixed arms, diverge with quaternions or under-actuation. |
 | **geom** | Collision and/or visual shape attached to a body; not a degree of freedom. |
 | **visual geom** | Mesh or primitive used only for rendering. |
@@ -26,8 +26,8 @@ Short definitions for terms used across the tutorial. Expand as chapters land.
 | **contype / conaffinity** | MuJoCo bitmasks controlling which geoms collide with which. |
 | **from_geom** | MuJoCo option to infer mass/inertia from geom density and shape. |
 | **FK / IK** | Forward / inverse kinematics — joint coordinates ↔ poses. |
-| **servo / servoing** | **Closed-loop** control that drives a joint (or tool) toward a **setpoint** — position, velocity, or both — by reading state and writing forces or targets each tick. *Servoing* is running that loop continuously. A **position actuator** (`ctrl = q*`) embeds a PD servo in the simulator ([Joint PD](state-sensors-and-actuators.qmd#joint-pd-control)); a **motor actuator** (`ctrl = τ`) expects **you** to implement the servo in code ([Position vs motor](simulation-stability.qmd#position-vs-motor-actuators)). Distinct from a hardware *servo motor* (motor + gearbox + encoder), though the control problem is the same. |
-| **IPC** | Inter-process communication — shared memory, ZMQ, LCM; see [Advanced — IPC](inter-process-communication.qmd#inter-process-communication). |
+| **servo / servoing** | **Closed-loop** control that drives a joint (or tool) toward a **setpoint** — position, velocity, or both — by reading state and writing forces or targets each tick. *Servoing* is running that loop continuously. A **position actuator** (`ctrl = q*`) embeds a PD servo in the simulator ([Joint PD](robotics-basics/state-sensors-and-actuators.qmd#joint-pd-control)); a **motor actuator** (`ctrl = τ`) expects **you** to implement the servo in code ([Position vs motor](robotics-basics/simulation-stability.qmd#position-vs-motor-actuators)). Distinct from a hardware *servo motor* (motor + gearbox + encoder), though the control problem is the same. |
+| **IPC** | Inter-process communication — shared memory, ZMQ, LCM; see [Advanced — IPC](advanced/inter-process-communication.qmd#inter-process-communication). |
 | **site** | Named frame on a body (EE, sensor origin); no mass. |
 
-See also [References and external docs](references.qmd#references), [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) (sim assets), and [Geometric computing](geometric-computing.qmd#geometric-computing) (Stanford bunny / clouds / voxels / SDFs / rays). Process env vars: [Common environment variables](environment-variables.qmd#common-environment-variables).
+See also [References and external docs](references.qmd#references), [Geometry and collision](robotics-basics/geometry-and-collision.qmd#geometry-and-collision) (sim assets), and [Geometric computing](advanced/geometric-computing.qmd#geometric-computing) (Stanford bunny / clouds / voxels / SDFs / rays). Process env vars: [Common environment variables](environment-variables.qmd#common-environment-variables).

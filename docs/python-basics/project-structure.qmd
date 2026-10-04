@@ -1,3 +1,8 @@
+---
+aliases:
+  - /project-structure.html
+---
+
 # Project structure
 
 The previous section is "where Python looks". This section is "what it looks *for*, and how we put *our* code on that path".
@@ -84,13 +89,13 @@ Three patterns, from "fine for a one-off" to "how we actually work".
 
 `scripts/train.py` can do `from helpers import greet` because running `python scripts/train.py` puts `scripts/` on `sys.path[0]`. Fine for a tiny helper that only that script needs. Breaks as soon as two scripts in different folders both want `helpers`, or you want `from robotics.ik import …` from a notebook started elsewhere.
 
-**2. [`PYTHONPATH`](environment-variables.qmd#pythonpath) (temporary; do not rely on this in a team)**
+**2. [`PYTHONPATH`](../environment-variables.qmd#pythonpath) (temporary; do not rely on this in a team)**
 
 ```bash
 PYTHONPATH=src python scripts/train.py
 ```
 
-Puts `src/` on `sys.path`. Convenient for an afternoon, fragile: everyone must remember the same [environment variable](environment-variables.qmd#pythonpath), and IDEs / debuggers will not. Same class of problem as `sys.path.insert` in code — see [Things not to do — hacking `sys.path`](things-not-to-do.qmd#hacking-sys.path).
+Puts `src/` on `sys.path`. Convenient for an afternoon, fragile: everyone must remember the same [environment variable](../environment-variables.qmd#pythonpath), and IDEs / debuggers will not. Same class of problem as `sys.path.insert` in code — see [Things not to do — hacking `sys.path`](things-not-to-do.qmd#hacking-sys.path).
 
 **3. Install the package into the environment (what we actually do)**
 
@@ -148,7 +153,7 @@ If that still prints a path under `src/`, the package lives on the environment �
 
 ## `src/` layout
 
-Importable packages live under `src/`; scripts you *run* live under `scripts/`. Installing via `pyproject.toml` is what makes `from robotics.ik.differential import damped_lstsq` work from `scripts/train.py`, a notebook, or a test. See [PyPA src layout](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/) and [References](references.qmd#packaging-and-environments).
+Importable packages live under `src/`; scripts you *run* live under `scripts/`. Installing via `pyproject.toml` is what makes `from robotics.ik.differential import damped_lstsq` work from `scripts/train.py`, a notebook, or a test. See [PyPA src layout](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/) and [References](../references.qmd#packaging-and-environments).
 
 Do not give a script the same name as a package you need (`robotics.py` next to the `robotics/` package). First match on `sys.path` wins.
 

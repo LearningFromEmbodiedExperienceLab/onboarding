@@ -1,3 +1,8 @@
+---
+aliases:
+  - /geometry-and-collision.html
+---
+
 # Geometry and collision
 
 The renderer shows art. The physics engine collides with a **different object** that
@@ -9,7 +14,7 @@ This chapter is about **how simulators represent geometry**, what **meshes** mea
 that context, why **convex hulls** appear everywhere, and how to **inspect and test**
 collision separately from visuals. File-format details (URDF tags, MJCF `<compiler>`,
 mesh paths) live in [Asset files](asset-files.qmd#asset-files); here we focus on the
-ideas that cross [MuJoCo](https://mujoco.readthedocs.io/en/stable/), Motrix, [URDF](http://wiki.ros.org/urdf), and most other engines. Format and vendor links: [References — Robotics assets](references.qmd#robotics-assets).
+ideas that cross [MuJoCo](https://mujoco.readthedocs.io/en/stable/), Motrix, [URDF](http://wiki.ros.org/urdf), and most other engines. Format and vendor links: [References — Robotics assets](../references.qmd#robotics-assets).
 
 ## Three geometries, three jobs
 
@@ -150,7 +155,7 @@ contact as **soft-parameterized in both**, not hard PhysX-style.
 | Same `solref` copied into Isaac | Wrong knob — use PhysX materials instead |
 | Motrix vs MuJoCo disagree on Menagerie | Same soft XML, different solvers — compare side by side |
 
-More links: [References — Contact models](references.qmd#contact-models).
+More links: [References — Contact models](../references.qmd#contact-models).
 
 ## Meshes: triangles, quads, watertight
 
@@ -192,7 +197,7 @@ Before a mesh becomes a collision or inertial input:
 5. **Decimate visuals** if needed; **never** decimate collision without re-checking hull
    or contacts.
 6. **Track large assets** with Git LFS — see
-   [GitHub and version control](github-version-control.qmd#git-lfs).
+   [GitHub and version control](../python-basics/github-version-control.qmd#git-lfs).
 
 Handy tools: Blender, MeshLab, and Python **[trimesh](https://trimesh.org/)** for quick inspection
 (`is_watertight`, `volume`, convex hull preview). STL is common and often **broken**
@@ -271,7 +276,7 @@ We pin two robots from [MuJoCo Menagerie](https://github.com/google-deepmind/muj
 (**AgileX Piper** and **ARX L5**) as **third-party assets** — not copied into this repo.
 Fetch them once with `bash scripts/fetch_menagerie_assets.sh` (sparse git checkout;
 see [Asset files](asset-files.qmd#vendor-layout) and
-[Large files](github-version-control.qmd#third-party-assets-sparse-checkout)).
+[Large files](../python-basics/github-version-control.qmd#third-party-assets-sparse-checkout)).
 
 Both models use the same MJCF pattern: **`class="visual"`** geoms on **group 2**
 (`contype="0"`, mesh for rendering) and **`class="collision"`** geoms on **group 3**
@@ -279,9 +284,9 @@ Both models use the same MJCF pattern: **`class="visual"`** geoms on **group 2**
 layer separately at the default pose (offscreen MuJoCo + `trimesh` convex hulls for
 the middle column):
 
-![AgileX Piper: visual meshes, convex hull of each visual mesh, and author collision geoms](imgs/menagerie/piper_compare.png)
+![AgileX Piper: visual meshes, convex hull of each visual mesh, and author collision geoms](../imgs/menagerie/piper_compare.png)
 
-![ARX L5: visual meshes, convex hull of each visual mesh, and author collision geoms](imgs/menagerie/arx_l5_compare.png)
+![ARX L5: visual meshes, convex hull of each visual mesh, and author collision geoms](../imgs/menagerie/arx_l5_compare.png)
 
 Read left → right:
 
@@ -311,7 +316,7 @@ MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa \
 On Linux CI, install `libosmesa6` first. GitHub Actions workflow
 `.github/workflows/regenerate-menagerie-images.yml` runs the same steps and commits
 updated PNGs when the lock file or render script changes. Background on `DISPLAY`,
-`MUJOCO_GL`, and OSMesa vs EGL: [Common environment variables — headless rendering](environment-variables.qmd#displays-opengl-headless).
+`MUJOCO_GL`, and OSMesa vs EGL: [Common environment variables — headless rendering](../environment-variables.qmd#displays-opengl-headless).
 
 *(To fill: `scripts/collision_debug.py` — print geom summary per link from Menagerie XML.)*
 
@@ -362,7 +367,7 @@ actually touched. Trust those over the viewport when debugging grasps.
 |---|---|
 | Names: body, joint, geom, site | [Scene vocabulary](scene-vocabulary.qmd#scene-vocabulary) |
 | **Shapes, meshes, hulls, validation** | *this chapter* |
-| Point clouds, SDFs, rays, marching cubes | [Geometric computing](geometric-computing.qmd#geometric-computing) |
+| Point clouds, SDFs, rays, marching cubes | [Geometric computing](../advanced/geometric-computing.qmd#geometric-computing) |
 | URDF/MJCF files, `<meshdir>`, compiler | [Asset files](asset-files.qmd#asset-files) |
 | Load model, step sim | [Two simulators](two-simulators.qmd#two-simulators) |
 

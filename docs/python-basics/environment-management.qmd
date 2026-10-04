@@ -1,3 +1,8 @@
+---
+aliases:
+  - /environment-management.html
+---
+
 # Environment management
 
 Python itself is just an interpreter. The libraries you `import` (NumPy, PyTorch, Hydra, …) are files sitting somewhere on disk. An **environment** is an isolated copy of Python plus the packages installed into it. Two projects that need different versions of the same library each get their own box, so they do not fight.
@@ -46,7 +51,7 @@ uv sync                  # create / update .venv from the lockfile
 uv run python train.py
 ```
 
-Prefer `uv run …` over relying on a lingering `conda activate` / `source .venv/bin/activate` in your shell. It is harder to accidentally use the wrong env. Project metadata follows [PEP 621](https://peps.python.org/pep-0621/); see [References](references.qmd#peps-style-packaging-typing).
+Prefer `uv run …` over relying on a lingering `conda activate` / `source .venv/bin/activate` in your shell. It is harder to accidentally use the wrong env. Project metadata follows [PEP 621](https://peps.python.org/pep-0621/); see [References](../references.qmd#peps-style-packaging-typing).
 
 ## How `import` finds things
 
@@ -60,7 +65,7 @@ print("\n".join(sys.path))
 Typical entries, **in order**:
 
 1. **The script's directory** (or `""` = current working directory in a REPL). This is why `import helpers` works when `helpers.py` sits next to the file you just ran.
-2. Directories from **[`PYTHONPATH`](environment-variables.qmd#pythonpath)** if you set it.
+2. Directories from **[`PYTHONPATH`](../environment-variables.qmd#pythonpath)** if you set it.
 3. The environment's **`site-packages`**. That is where `uv pip install numpy` put NumPy. Each environment has its own `site-packages`. Switch env → different (or missing) `numpy`.
 
 So "the environment" is: **this Python binary** + **this `site-packages` on `sys.path`**. Local files win if they appear earlier on the list. A classic footgun:
@@ -112,4 +117,4 @@ uv run python scripts/print_env.py
 CUDA_VISIBLE_DEVICES=1 PYTHONPATH=src uv run python scripts/print_env.py
 ```
 
-**Lookup.** Names, typical values, and longer notes live in [Common environment variables](environment-variables.qmd#common-environment-variables) at the **end of the book** — use that appendix when you need a specific variable; this section is the concept only.
+**Lookup.** Names, typical values, and longer notes live in [Common environment variables](../environment-variables.qmd#common-environment-variables) at the **end of the book** — use that appendix when you need a specific variable; this section is the concept only.

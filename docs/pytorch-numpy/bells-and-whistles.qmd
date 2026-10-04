@@ -1,6 +1,11 @@
+---
+aliases:
+  - /bells-and-whistles.html
+---
+
 # Bells and whistles
 
-On CPU, the next Python line runs after the math finished. On CUDA, `x @ x` **queues a kernel** and Python continues. The GPU may still be working. That is why a training step looks instant until you print a loss or call `.item()`. Background: [PyTorch CUDA semantics](https://pytorch.org/docs/stable/notes/cuda.html) and [References — GPU / CUDA](references.qmd#gpu--cuda).
+On CPU, the next Python line runs after the math finished. On CUDA, `x @ x` **queues a kernel** and Python continues. The GPU may still be working. That is why a training step looks instant until you print a loss or call `.item()`. Background: [PyTorch CUDA semantics](https://pytorch.org/docs/stable/notes/cuda.html) and [References — GPU / CUDA](../references.qmd#gpu--cuda).
 
 **Host-device sync** (Python waits for the GPU) happens when you need a value on the CPU, including:
 
@@ -26,7 +31,7 @@ print(start.elapsed_time(end), "ms")
 
 `scripts/cuda_async.py` prints launch time vs time-to-finished. Skip it if you have no GPU.
 
-**Debugging:** CUDA errors are often reported at the *next* sync, not at the kernel that faulted. [`CUDA_LAUNCH_BLOCKING=1`](environment-variables.qmd#cuda-launch-blocking) makes each kernel wait before Python continues so the traceback points at the right line. It is slow; use it only to hunt a crash.
+**Debugging:** CUDA errors are often reported at the *next* sync, not at the kernel that faulted. [`CUDA_LAUNCH_BLOCKING=1`](../environment-variables.qmd#cuda-launch-blocking) makes each kernel wait before Python continues so the traceback points at the right line. It is slow; use it only to hunt a crash.
 
 Do not sync inside a hot loop (no `.item()` per env). Sync once per step if you need a logged scalar. Keep `print` of large CUDA tensors out of the inner loop.
 

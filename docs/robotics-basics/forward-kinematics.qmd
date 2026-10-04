@@ -1,3 +1,8 @@
+---
+aliases:
+  - /forward-kinematics.html
+---
+
 # Forward kinematics
 
 FK, defined above: joint coordinates → body/site poses. No forces. After writing `qpos` / `dof_pos`, you must run the simulator’s FK ([`mj_forward`](https://mujoco.readthedocs.io/en/stable/APIreference/APIfunctions.html#mj-forward) / Motrix `forward_kinematic`) or a full `step` before link poses are valid.
@@ -49,7 +54,7 @@ Sites are the usual EE frames when the MJCF defines them; this Piper scene expos
 
 ## Batched shapes
 
-These demos use a single environment. In RL you will stack leading axes: `(n_env, n_dof)` joint buffers, `(n_env, 3)` positions — same [batch-agnostic](batch-agnostic-operations.qmd#batch-agnostic-operations) rules as `math_utils`.
+These demos use a single environment. In RL you will stack leading axes: `(n_env, n_dof)` joint buffers, `(n_env, 3)` positions — same [batch-agnostic](../pytorch-numpy/batch-agnostic-operations.qmd#batch-agnostic-operations) rules as `math_utils`.
 
 Isaac Lab: `robot.data.body_link_pose_w` is already `(num_envs, num_bodies, 7)` torch — same FK result, different container.
 

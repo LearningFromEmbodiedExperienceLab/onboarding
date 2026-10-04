@@ -1,6 +1,11 @@
+---
+aliases:
+  - /github-version-control.html
+---
+
 # GitHub and version control
 
-Git is a history of snapshots **on your machine**. GitHub is a server that stores a copy of that history so other people (and future you) can `clone` it. The link between the two is a **remote**. Official docs: [Git](https://git-scm.com/doc), [GitHub Docs](https://docs.github.com/en), and the curated list in [References — Version control and publishing](references.qmd#version-control-and-publishing).
+Git is a history of snapshots **on your machine**. GitHub is a server that stores a copy of that history so other people (and future you) can `clone` it. The link between the two is a **remote**. Official docs: [Git](https://git-scm.com/doc), [GitHub Docs](https://docs.github.com/en), and the curated list in [References — Version control and publishing](../references.qmd#version-control-and-publishing).
 
 ## Create and publish
 
@@ -159,7 +164,7 @@ bash scripts/fetch_menagerie_assets.sh
 
 Under the hood: `git clone --filter=blob:none --sparse`, then
 [`git sparse-checkout set`](https://git-scm.com/docs/git-sparse-checkout) `agilex_piper arx_l5`, then `git checkout <pinned-sha>`.
-Everyone gets the same robots without cloning all of [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie) (~100+ models). See [References — Robotics assets](references.qmd#robotics-assets).
+Everyone gets the same robots without cloning all of [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie) (~100+ models). See [References — Robotics assets](../references.qmd#robotics-assets).
 
 | Pattern | When |
 |---|---|
