@@ -1,3 +1,8 @@
+---
+aliases:
+  - /tensor-array-indexing.html
+---
+
 # Tensor / Array indexing
 
 NumPy [`ndarray`](https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html) and [`torch.Tensor`](https://pytorch.org/docs/stable/tensors.html) share one indexing grammar. Learn it once. Examples below are NumPy (`scripts/index_tensors.py`); replace `np` with `torch` and the **shapes** match. View vs copy is the main place the two libraries disagree — see the table at the end.
@@ -192,7 +197,7 @@ In-place math on a view (`x[0] *= 0`) mutates `x`. In-place math on a copy does 
 
 ## Exercises (check in browser)
 
-These run **NumPy in your browser** via [Pyodide](https://pyodide.org/en/stable/) (same indexing rules as PyTorch). Click **Check** on each block; the first run downloads Python (~few seconds). Replace `...` with your code — no `import` needed (setup is already run). More links: [References — NumPy / PyTorch](references.qmd#numpy-pytorch-and-friends).
+These run **NumPy in your browser** via [Pyodide](https://pyodide.org/en/stable/) (same indexing rules as PyTorch). Click **Check** on each block; the first run downloads Python (~few seconds). Replace `...` with your code — no `import` needed (setup is already run). More links: [References — NumPy / PyTorch](../references.qmd#numpy-pytorch-and-friends).
 
 ```{=html}
 <div class="tensor-exercises-intro">

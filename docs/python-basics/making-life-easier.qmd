@@ -1,3 +1,8 @@
+---
+aliases:
+  - /making-life-easier.html
+---
+
 # Making Life Easier
 
 The interpreter will run whatever you wrote. The editor can only help if it *understands* the code. Two things make that possible: **type hints** in our Python, and **stubs** for libraries that have no Python source.
@@ -38,10 +43,10 @@ Keep hints honest and simple (`np.ndarray`, `float`, `str`, `list[int]`). Over-p
 
 ## Editor and stubs
 
-The language server (Pylance in VS Code, Cursor's Pyright) is a second program. It does **not** use your shell's [`PYTHONPATH`](environment-variables.qmd#pythonpath). It uses:
+The language server (Pylance in VS Code, Cursor's Pyright) is a second program. It does **not** use your shell's [`PYTHONPATH`](../environment-variables.qmd#pythonpath). It uses:
 
 1. The **selected interpreter** (status bar → `.venv/bin/python`). That is how it finds `numpy` and an editable `robotics`.
-2. **`extraPaths`** — extra folders to search, the editor's analogue of [`PYTHONPATH`](environment-variables.qmd#pythonpath).
+2. **`extraPaths`** — extra folders to search, the editor's analogue of [`PYTHONPATH`](../environment-variables.qmd#pythonpath).
 3. **`stubPath`** — a folder of `.pyi` files that overlay types onto installed packages.
 
 `.vscode/settings.json` in this folder sets both (Cursor reads `cursorpyright.analysis.*`; VS Code reads `python.analysis.*`). They apply when this folder is the workspace root; if you opened a parent folder, copy the same keys into that workspace's settings.
@@ -146,7 +151,7 @@ Run `lazygit` inside a repository. Use the arrow keys or `h`/`j`/`k`/`l` to move
 - [Lazygit configuration using Delta](https://github.com/syw-robotics/dotfiles/blob/main/lazygit/.config/lazygit/config.yml)
 
 ::: {.lazygit-figure}
-![Lazygit showing files, branches, commits, and a diff.](imgs/lazygit.png){fig-alt="The Lazygit interface with repository status, changed files, branches, commits, and a file diff."}
+![Lazygit showing files, branches, commits, and a diff.](../imgs/lazygit.png){fig-alt="The Lazygit interface with repository status, changed files, branches, commits, and a file diff."}
 :::
 
 
@@ -209,9 +214,9 @@ run '~/.tmux/plugins/tpm/tpm'
 Restart tmux, then press the **prefix** `Ctrl-b` followed by `I` to install the plugins.
 
 ::: {layout-ncol=2}
-![default tmux UI](imgs/tmux_original.png){fig-alt="A terminal running tmux with its default status bar."}
+![default tmux UI](../imgs/tmux_original.png){fig-alt="A terminal running tmux with its default status bar."}
 
-![tmux with customized Catppuccin theme](imgs/tmux_catppuccin.png){fig-alt="A terminal running tmux with a Catppuccin status bar."}
+![tmux with customized Catppuccin theme](../imgs/tmux_catppuccin.png){fig-alt="A terminal running tmux with a Catppuccin status bar."}
 :::
 
 For a more complete setup, you may refer this [tmux configuration](https://github.com/syw-robotics/dotfiles/blob/main/tmux/.tmux.conf).

@@ -1,6 +1,11 @@
+---
+aliases:
+  - /two-simulators.html
+---
+
 # Two simulators
 
-A simulator is **model** (constant: tree, inertias, actuator gears) plus **data** (state that changes every step). This tutorial uses **[MuJoCo](https://mujoco.readthedocs.io/en/stable/)** and **[MotrixSim](https://motrixsim.readthedocs.io/en/latest/)** on shared [MJCF / URDF](references.qmd#robotics-assets) assets. The same Menagerie **`scene.xml`** loads in both engines below; runnable walkthroughs:
+A simulator is **model** (constant: tree, inertias, actuator gears) plus **data** (state that changes every step). This tutorial uses **[MuJoCo](https://mujoco.readthedocs.io/en/stable/)** and **[MotrixSim](https://motrixsim.readthedocs.io/en/latest/)** on shared [MJCF / URDF](../references.qmd#robotics-assets) assets. The same Menagerie **`scene.xml`** loads in both engines below; runnable walkthroughs:
 
 ```bash
 bash scripts/fetch_menagerie_assets.sh
@@ -54,7 +59,7 @@ data.ctrl[0] = 0.8
 mj.mj_step(model, data)
 ```
 
-**Headless rendering:** if you add a viewer later, set `MUJOCO_GL=egl` or `MUJOCO_GL=osmesa` when no display is available — see [Displays, OpenGL, and headless rendering](environment-variables.qmd#displays-opengl-headless).
+**Headless rendering:** if you add a viewer later, set `MUJOCO_GL=egl` or `MUJOCO_GL=osmesa` when no display is available — see [Displays, OpenGL, and headless rendering](../environment-variables.qmd#displays-opengl-headless).
 
 ## Motrix minimal example
 
@@ -114,7 +119,7 @@ Compared to MuJoCo/Motrix: Isaac Lab splits **“push commands to sim”** (`wri
 
 **Contact model:** PhysX uses **hard** (non-penetrating) contacts by default; MuJoCo is **soft-only**; Motrix supports both but our Menagerie demos use soft MJCF unless you add Motrix `_hard` geoms. See [Soft vs hard contact](geometry-and-collision.qmd#soft-vs-hard-contact) before porting manipulation tuned in MuJoCo.
 
-Install and versions: follow [Isaac Lab installation](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/index.html) paired with a specific [Isaac Sim](https://docs.isaacsim.omniverse.nvidia.com/latest/index.html) build. More links: [References — Robotics assets](references.qmd#robotics-assets).
+Install and versions: follow [Isaac Lab installation](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/index.html) paired with a specific [Isaac Sim](https://docs.isaacsim.omniverse.nvidia.com/latest/index.html) build. More links: [References — Robotics assets](../references.qmd#robotics-assets).
 
 ## Where this fits
 

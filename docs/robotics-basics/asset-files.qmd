@@ -1,3 +1,8 @@
+---
+aliases:
+  - /asset-files.html
+---
+
 # Asset files
 
 How a robot is stored on disk: **[URDF](http://wiki.ros.org/urdf)** (ROS, tree of links) vs **[MJCF](https://mujoco.readthedocs.io/en/stable/XMLreference.html)** (MuJoCo XML: compiler, defaults, actuators, sensors, keyframes). [Motrix `load_model`](https://motrixsim.readthedocs.io/en/latest/api_reference/core/motrixsim.html#motrixsim.load_model) accepts MJCF, URDF, or USD.
@@ -147,7 +152,7 @@ Load Menagerie **`scene.xml`** for sim (robot + ground). Compare URDF sources si
 | AgileX Piper | `third_party/mujoco_menagerie/agilex_piper/piper.xml` | `third_party/piper_ros/src/piper_description/urdf/piper_description.urdf` |
 | ARX L5 | `third_party/mujoco_menagerie/arx_l5/arx_l5.xml` | `third_party/arx_model/X5/X5A/urdf/X5A.urdf` |
 
-Doc figures under `docs/imgs/menagerie/` are generated PNGs — see [Geometry and collision](geometry-and-collision.qmd#inspect-in-the-viewer).
+Doc figures under `../imgs/menagerie/` are generated PNGs — see [Geometry and collision](geometry-and-collision.qmd#inspect-in-the-viewer).
 
 ### Loading notes
 

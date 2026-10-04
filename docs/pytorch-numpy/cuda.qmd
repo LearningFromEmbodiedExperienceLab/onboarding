@@ -1,3 +1,8 @@
+---
+aliases:
+  - /cuda.html
+---
+
 # CUDA
 
 Two different pieces of software share the name "CUDA". Mixing them up is why `nvidia-smi` works but `nvcc` is missing, or why a wheel installs and then `torch.cuda.is_available()` is false.
@@ -33,7 +38,7 @@ Options:
 | [CUDA toolkit `.run`](https://developer.nvidia.com/cuda-downloads) or distro package | One system-wide toolkit version is enough |
 | **`conda` / `mamba` env** (`cuda-nvcc`, `cuda-toolkit`, …) | Different projects need **different `nvcc` / toolkit versions** on the same box |
 
-System-wide toolkit is fine for a single stack. **Conda shines when versions diverge:** PyTorch wheel built for CUDA 12.x, one research repo pinned to 11.8 for an old extension, another package's `setup.py` that insists on a specific `nvcc`. Create **separate envs** with the toolkit each build expects instead of fighting one global `/usr/local/cuda`. See [conda vs uv](environment-management.qmd#conda-vs-uv) — conda for the compiler/toolkit, `uv`/`pip` for Python packages inside that env still works.
+System-wide toolkit is fine for a single stack. **Conda shines when versions diverge:** PyTorch wheel built for CUDA 12.x, one research repo pinned to 11.8 for an old extension, another package's `setup.py` that insists on a specific `nvcc`. Create **separate envs** with the toolkit each build expects instead of fighting one global `/usr/local/cuda`. See [conda vs uv](../python-basics/environment-management.qmd#conda-vs-uv) — conda for the compiler/toolkit, `uv`/`pip` for Python packages inside that env still works.
 
 Whichever path you use, the toolkit's `nvcc` version should be **compatible with your driver** (driver cap ≥ toolkit) and with the **CUDA tag** of the PyTorch (or other) runtime you run. Mismatch usually shows up at compile time (`unsupported GPU architecture`) or at import (`CUDA driver version is insufficient`).
 
@@ -48,6 +53,6 @@ nvidia-smi
 python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.device_count())"
 ```
 
-Pick a GPU with [`CUDA_VISIBLE_DEVICES`](environment-variables.qmd#cuda-visible-devices). After that mask, this process's `cuda:0` is the first *visible* card, not necessarily physical 0.
+Pick a GPU with [`CUDA_VISIBLE_DEVICES`](../environment-variables.qmd#cuda-visible-devices). After that mask, this process's `cuda:0` is the first *visible* card, not necessarily physical 0.
 
-PyTorch tensors live on a **device**. NumPy arrays do not. `x.cuda()` / `x.to("cuda")` copies; ops on `cuda` tensors run on the GPU. Mixing `cpu` and `cuda` in one expression is an error. Keep a batch on one device; `.cpu().numpy()` is a host copy (and a sync — [Bells and whistles](bells-and-whistles.qmd#bells-and-whistles)). See also [PyTorch CUDA semantics](https://pytorch.org/docs/stable/notes/cuda.html) and [References — GPU / CUDA](references.qmd#gpu--cuda).
+PyTorch tensors live on a **device**. NumPy arrays do not. `x.cuda()` / `x.to("cuda")` copies; ops on `cuda` tensors run on the GPU. Mixing `cpu` and `cuda` in one expression is an error. Keep a batch on one device; `.cpu().numpy()` is a host copy (and a sync — [Bells and whistles](bells-and-whistles.qmd#bells-and-whistles)). See also [PyTorch CUDA semantics](https://pytorch.org/docs/stable/notes/cuda.html) and [References — GPU / CUDA](../references.qmd#gpu--cuda).

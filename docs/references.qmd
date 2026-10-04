@@ -90,7 +90,7 @@ Curated **official** links for standards, install guides, and APIs cited in this
 | MuJoCo `solref` / `solimp` | [MuJoCo — Solver parameters](https://mujoco.readthedocs.io/en/stable/modeling.html#csolver) |
 | Motrix soft vs hard (MJCF extensions) | [MotrixSim — Case comparison](https://motrixsim.readthedocs.io/en/latest/user_guide/overview/case_comparison.html) |
 | Isaac / PhysX materials | [Isaac Sim — Physics](https://docs.isaacsim.omniverse.nvidia.com/latest/physics/index.html) |
-| Tutorial overview | [Geometry and collision — Soft vs hard contact](geometry-and-collision.qmd#soft-vs-hard-contact) |
+| Tutorial overview | [Geometry and collision — Soft vs hard contact](robotics-basics/geometry-and-collision.qmd#soft-vs-hard-contact) |
 
 ## Robotics assets
 
@@ -113,7 +113,7 @@ Curated **official** links for standards, install guides, and APIs cited in this
 
 | Topic | Link |
 |---|---|
-| Tutorial overview | [Geometric computing](geometric-computing.qmd#geometric-computing) |
+| Tutorial overview | [Geometric computing](advanced/geometric-computing.qmd#geometric-computing) |
 | trimesh | [trimesh.org](https://trimesh.org/) |
 | scikit-image `marching_cubes` | [skimage.measure.marching_cubes](https://scikit-image.org/docs/stable/api/skimage.measure.html#skimage.measure.marching_cubes) |
 | SciPy `cKDTree` | [scipy.spatial.cKDTree](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.cKDTree.html) |
@@ -142,7 +142,7 @@ Curated **official** links for standards, install guides, and APIs cited in this
 | ZeroMQ guide | [zeromq.org/get-started](https://zeromq.org/get-started/) |
 | PyZMQ | [pyzmq.readthedocs.io](https://pyzmq.readthedocs.io/) |
 | LCM | [lcm-proj.github.io/lcm](https://lcm-proj.github.io/lcm/) |
-| Tutorial overview | [Inter-process communication](inter-process-communication.qmd#inter-process-communication) |
+| Tutorial overview | [Inter-process communication](advanced/inter-process-communication.qmd#inter-process-communication) |
 
 ## This repository
 

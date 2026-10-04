@@ -1,6 +1,11 @@
+---
+aliases:
+  - /state-sensors-and-actuators.html
+---
+
 # State, sensors, and actuators
 
-The I/O contract is the same in every engine: read configuration and velocity, read body/link poses, write **controls** (dynamic) or **state** (kinematic), optionally read **sensors** after the step stage that fills them. MJCF actuators and sensors: [MuJoCo XML reference](https://mujoco.readthedocs.io/en/stable/XMLreference.html); overview in [References — Robotics assets](references.qmd#robotics-assets).
+The I/O contract is the same in every engine: read configuration and velocity, read body/link poses, write **controls** (dynamic) or **state** (kinematic), optionally read **sensors** after the step stage that fills them. MJCF actuators and sensors: [MuJoCo XML reference](https://mujoco.readthedocs.io/en/stable/XMLreference.html); overview in [References — Robotics assets](../references.qmd#robotics-assets).
 
 Runnable reference (AgileX Piper Menagerie scene):
 
@@ -34,7 +39,7 @@ See [Simulation stability — position vs motor](simulation-stability.qmd#positi
 ## Joint PD control
 
 To move a hinge toward a **target angle** `q*` (and optionally a **target velocity**
-`q̇*`), the usual model is a **PD servo** ([Glossary — servo / servoing](glossary.qmd#glossary-and-terminology)) that outputs joint torque:
+`q̇*`), the usual model is a **PD servo** ([Glossary — servo / servoing](../glossary.qmd#glossary-and-terminology)) that outputs joint torque:
 
 $$
 \tau = K_p\,(q^* - q) + K_d\,(\dot q^* - \dot q)

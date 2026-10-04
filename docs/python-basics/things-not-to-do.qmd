@@ -1,3 +1,8 @@
+---
+aliases:
+  - /things-not-to-do.html
+---
+
 # Things not to do
 
 Short list of Python habits that look flexible but usually make code harder to read,
@@ -9,7 +14,7 @@ A thread through several entries — gratuitous `*args` / `**kwargs`, silent NaN
  visible at the boundary where they happen; name what you mean instead of guessing
  defaults.
 
-Future entries will use the same red callout style as [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision).
+Future entries will use the same red callout style as [Geometry and collision](../robotics-basics/geometry-and-collision.qmd#geometry-and-collision).
 
 ## `*args` and `**kwargs` without a reason
 
@@ -142,7 +147,7 @@ Rule of thumb:
 | Path passed in from CLI | `Path(user_arg).expanduser().resolve()` — still no hard-coded `/home/...` in the library |
 
 If a path must be configurable, expose it as an argument or environment variable
- ([Environment variables](environment-variables.qmd#environment-variables)), with a
+ ([Environment variables](../environment-variables.qmd#environment-variables)), with a
  **repo-relative default** built from `Path(__file__)`, not from `os.getcwd()`.
 
 ## Hacking `sys.path`
@@ -185,7 +190,7 @@ Problems:
   library code deserves the same contract: installed into the env, discoverable
   everywhere that env runs.
 
-The shell-level twin is [`PYTHONPATH=src …`](environment-variables.qmd#pythonpath) —
+The shell-level twin is [`PYTHONPATH=src …`](../environment-variables.qmd#pythonpath) —
  same fragility, different file. Prefer neither for team code.
 
 [Do not fix import errors by mutating `sys.path` in application scripts, notebooks, or library modules. Install the package (`uv sync` / `pip install -e .`) or, for a one-off neighbor import in `scripts/`, rely on the script directory being on `sys.path[0]` — do not stack hacks on top.]{.common-bug-warning}
@@ -349,7 +354,7 @@ Problems:
 
 - **NaN → zero** — the arm stops moving *look* healthy; metrics and learning absorb
   garbage. In sim, zero `dq` one step often becomes NaN `qvel` ten steps later
-  ([Simulation stability](simulation-stability.qmd#simulation-stability)).
+  ([Simulation stability](../robotics-basics/simulation-stability.qmd#simulation-stability)).
 - **Broad `except`** — any bug (typo, shape mismatch, OOM) becomes an empty list;
   you debug the wrong layer days later.
 - **Default-on-failure** — missing config reads as “use implicit defaults” that
@@ -406,4 +411,4 @@ Rule of thumb: **explicit over implicit** — same principle as named parameters
 ## Next
 
 More footguns will land here as the tutorial grows (mutable defaults are already
- covered under [Useful Patterns — class members](useful-patterns.qmd#class-members-vs-instance-members)). Robotics-specific “do not” notes live in chapters like [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) (red `.common-bug-warning` paragraphs).
+ covered under [Useful Patterns — class members](useful-patterns.qmd#class-members-vs-instance-members)). Robotics-specific “do not” notes live in chapters like [Geometry and collision](../robotics-basics/geometry-and-collision.qmd#geometry-and-collision) (red `.common-bug-warning` paragraphs).

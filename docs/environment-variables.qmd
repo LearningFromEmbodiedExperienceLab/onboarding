@@ -1,6 +1,6 @@
 # Common environment variables {#common-environment-variables}
 
-Process-wide **`NAME=value`** settings the shell, job scheduler, or IDE passes to your Python process. Read them with `os.environ`. The **concept** (prefix vs `export`, shell vs `uv run` / F5) is in [Environment management — Environment variables](environment-management.qmd#environment-variables). This appendix is the **lookup table** — placed at the end of the book so early chapters stay focused on ideas.
+Process-wide **`NAME=value`** settings the shell, job scheduler, or IDE passes to your Python process. Read them with `os.environ`. The **concept** (prefix vs `export`, shell vs `uv run` / F5) is in [Environment management — Environment variables](python-basics/environment-management.qmd#environment-variables). This appendix is the **lookup table** — placed at the end of the book so early chapters stay focused on ideas.
 
 `scripts/print_env.py` prints the subset this repo uses most often:
 
@@ -27,7 +27,7 @@ External install links: [References — GPU / CUDA](references.qmd#gpu--cuda), [
 
 ## `PYTHONPATH` {#pythonpath}
 
-Colon-separated directories **prepended** to `sys.path` (after the script directory). Lets `PYTHONPATH=src python scripts/train.py` import `robotics` without an editable install — we still prefer `pip install -e .` ([Project structure](project-structure.qmd#project-structure)).
+Colon-separated directories **prepended** to `sys.path` (after the script directory). Lets `PYTHONPATH=src python scripts/train.py` import `robotics` without an editable install — we still prefer `pip install -e .` ([Project structure](python-basics/project-structure.qmd#project-structure)).
 
 ```bash
 PYTHONPATH=src uv run python -c "import robotics; print(robotics.__file__)"
@@ -35,7 +35,7 @@ PYTHONPATH=src uv run python -c "import robotics; print(robotics.__file__)"
 
 Several paths on Linux: `PYTHONPATH=/a:/b`. A stale value in `~/.bashrc` is a common source of importing the *wrong* package copy.
 
-The editor does **not** read the shell's `PYTHONPATH` — use `extraPaths` ([Editor and stubs](making-life-easier.qmd#editor-and-stubs)).
+The editor does **not** read the shell's `PYTHONPATH` — use `extraPaths` ([Editor and stubs](python-basics/making-life-easier.qmd#editor-and-stubs)).
 
 ## `CUDA_VISIBLE_DEVICES` {#cuda-visible-devices}
 
@@ -53,7 +53,7 @@ CUDA_VISIBLE_DEVICES=1 uv run python scripts/print_env.py
 | `1,3` | those two, as `cuda:0` and `cuda:1` |
 | `""` or `-1` | no GPU (CPU fallback if the library allows) |
 
-So `tensor.to("cuda:0")` after `CUDA_VISIBLE_DEVICES=1` is **physical GPU 1**. See also [CUDA](cuda.qmd#cuda).
+So `tensor.to("cuda:0")` after `CUDA_VISIBLE_DEVICES=1` is **physical GPU 1**. See also [CUDA](pytorch-numpy/cuda.qmd#cuda).
 
 PyTorch check (needs `torch` installed):
 
@@ -66,11 +66,11 @@ Do not put this in `~/.bashrc` unless every process on the machine should share 
 
 ## `CUDA_LAUNCH_BLOCKING` {#cuda-launch-blocking}
 
-Set to `1` so each CUDA kernel finishes before Python continues. Errors then surface on the line that launched the kernel instead of at the next sync. Slow — use only while debugging. See [Bells and whistles](bells-and-whistles.qmd#bells-and-whistles).
+Set to `1` so each CUDA kernel finishes before Python continues. Errors then surface on the line that launched the kernel instead of at the next sync. Slow — use only while debugging. See [Bells and whistles](pytorch-numpy/bells-and-whistles.qmd#bells-and-whistles).
 
 ## `PYTHONBREAKPOINT` {#pythonbreakpoint}
 
-Selects which debugger [`breakpoint()`](https://peps.python.org/pep-0553/) starts (`pdb`, `ipdb.set_trace`, …). `PYTHONBREAKPOINT=0` disables all breakpoints for one run. See [Debugging](debugging-repl-notebooks.qmd#vscode-debugger).
+Selects which debugger [`breakpoint()`](https://peps.python.org/pep-0553/) starts (`pdb`, `ipdb.set_trace`, …). `PYTHONBREAKPOINT=0` disables all breakpoints for one run. See [Debugging](python-basics/debugging-repl-notebooks.qmd#vscode-debugger).
 
 ## Displays, OpenGL, and headless rendering {#displays-opengl-headless}
 
@@ -95,7 +95,7 @@ MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa \
   uv run python scripts/render_menagerie_geometry_figures.py
 ```
 
-See [Geometry and collision](geometry-and-collision.qmd#geometry-and-collision) for Menagerie figure regeneration. MuJoCo: [Rendering](https://mujoco.readthedocs.io/en/stable/programming/index.html#rendering).
+See [Geometry and collision](robotics-basics/geometry-and-collision.qmd#geometry-and-collision) for Menagerie figure regeneration. MuJoCo: [Rendering](https://mujoco.readthedocs.io/en/stable/programming/index.html#rendering).
 
 ### Vulkan (Isaac / Omniverse)
 
@@ -114,4 +114,4 @@ Useful on shared clusters so eight parallel jobs do not each spawn thirty-two BL
 
 ## IDE and debug sessions
 
-The GUI debugger is a **different parent process** than your terminal. Set the same names under `"env"` in `launch.json` ([VS Code / Cursor debugger](debugging-repl-notebooks.qmd#vscode-debugger)); a prefix in the terminal does not apply to F5.
+The GUI debugger is a **different parent process** than your terminal. Set the same names under `"env"` in `launch.json` ([VS Code / Cursor debugger](python-basics/debugging-repl-notebooks.qmd#vscode-debugger)); a prefix in the terminal does not apply to F5.

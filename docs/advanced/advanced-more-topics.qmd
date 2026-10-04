@@ -1,3 +1,8 @@
+---
+aliases:
+  - /advanced-more-topics.html
+---
+
 # More topics (TBD) {#advanced-more-topics}
 
 Placeholder for further **Advanced** chapters. Already in this part:

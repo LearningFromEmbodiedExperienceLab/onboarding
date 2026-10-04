@@ -1,3 +1,8 @@
+---
+aliases:
+  - /inter-process-communication.html
+---
+
 # Inter-process communication (IPC)
 
 Once sim, control, and logging live in **different processes** (or machines), you need a way to move observations and commands without sharing one Python interpreter. That is **inter-process communication (IPC)** — the plumbing behind “policy process ↔ sim process,” hardware drivers, and multi-rate loops.
@@ -108,7 +113,7 @@ every controller tick (50 Hz):
     write_command(cmd_q)
 ```
 
-Between controller updates the sim **holds** the last command — identical to the async schedule in [The simulation loop](the-simulation-loop.qmd#the-simulation-loop), but the policy no longer shares an interpreter with `step()`.
+Between controller updates the sim **holds** the last command — identical to the async schedule in [The simulation loop](../robotics-basics/the-simulation-loop.qmd#the-simulation-loop), but the policy no longer shares an interpreter with `step()`.
 
 ```bash
 uv run python scripts/async_ipc_demo.py
@@ -188,9 +193,9 @@ Pass `--join-timeout` to tighten or loosen the parent wait. Production stacks ad
 
 | Topic | Chapter |
 |---|---|
-| Single-process sim loop | [The simulation loop](the-simulation-loop.qmd#the-simulation-loop) |
-| Async policy vs physics | [The simulation loop — asynchronous](the-simulation-loop.qmd#the-simulation-loop) |
-| Env vars / launch configs | [Common environment variables](environment-variables.qmd#common-environment-variables) |
-| External links | [References — IPC](references.qmd#ipc) |
+| Single-process sim loop | [The simulation loop](../robotics-basics/the-simulation-loop.qmd#the-simulation-loop) |
+| Async policy vs physics | [The simulation loop — asynchronous](../robotics-basics/the-simulation-loop.qmd#the-simulation-loop) |
+| Env vars / launch configs | [Common environment variables](../environment-variables.qmd#common-environment-variables) |
+| External links | [References — IPC](../references.qmd#ipc) |
 
 *(More advanced topics: see [More topics (TBD)](advanced-more-topics.qmd#advanced-more-topics).)*

@@ -1,3 +1,8 @@
+---
+aliases:
+  - /trajectory-parameterization.html
+---
+
 # Trajectory parameterization
 
 How do you move from pose A to pose B **smoothly** and **on a schedule**? This chapter
@@ -13,10 +18,10 @@ uv sync --extra sim
 uv run python scripts/trajectory_spline_demo.py
 ```
 
-See also [Kinematics vs dynamics](kinematics-vs-dynamics.qmd#kinematics-vs-dynamics)
-(path vs forces), [Case study: IK tracking](case-study-ik-tracking.qmd#case-study-ik-tracking)
+See also [Kinematics vs dynamics](../robotics-basics/kinematics-vs-dynamics.qmd#kinematics-vs-dynamics)
+(path vs forces), [Case study: IK tracking](../robotics-basics/case-study-ik-tracking.qmd#case-study-ik-tracking)
 (Cartesian target motion via differential IK each tick), and
-[The simulation loop](the-simulation-loop.qmd#the-simulation-loop) (sampling `ctrl`
+[The simulation loop](../robotics-basics/the-simulation-loop.qmd#the-simulation-loop) (sampling `ctrl`
 at control rate).
 
 ## Path vs trajectory; joint vs Cartesian
@@ -100,7 +105,7 @@ For a path in the plane or in $\mathbb{R}^3$, $P_i$ are positions; timing is
 still a separate step ($u(t)$).
 
 <video controls preload="metadata" class="trajectory-chapter-video" title="Cubic Bézier in the plane — control polygon, convex hull, path parameter u">
-  <source src="imgs/trajectory-parameterization/bezier_2d.mp4" type="video/mp4">
+  <source src="../imgs/trajectory-parameterization/bezier_2d.mp4" type="video/mp4">
 </video>
 
 Regenerate: `uv run python scripts/render_trajectory_2d_videos.py` (needs `uv sync --extra sim` and ffmpeg).
@@ -144,10 +149,10 @@ qdot_at_u = spline(0.37, 1) # d/du
 
 Use **joint-space** splines when you control $q$ directly; use **Cartesian** splines
 when the task is defined in workspace — then map samples to joint commands at control
-rate ([The simulation loop](the-simulation-loop.qmd#the-simulation-loop)).
+rate ([The simulation loop](../robotics-basics/the-simulation-loop.qmd#the-simulation-loop)).
 
 <video controls preload="metadata" class="trajectory-chapter-video" title="Cubic interpolating B-spline in the plane — waypoints and path parameter u">
-  <source src="imgs/trajectory-parameterization/bspline_2d.mp4" type="video/mp4">
+  <source src="../imgs/trajectory-parameterization/bspline_2d.mp4" type="video/mp4">
 </video>
 
 ```{=html}
@@ -198,4 +203,4 @@ u(t) trapezoid  →  u ∈ [0,1]  →  q(t) = spline(u(t))
 
 The demo prints position/velocity samples for a joint-space B-spline with a
 trapezoidal $u(t)$ — the pattern you would plug into
-[The simulation loop](the-simulation-loop.qmd#the-simulation-loop) at control rate.
+[The simulation loop](../robotics-basics/the-simulation-loop.qmd#the-simulation-loop) at control rate.

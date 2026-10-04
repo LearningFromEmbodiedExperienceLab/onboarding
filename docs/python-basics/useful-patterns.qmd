@@ -1,3 +1,8 @@
+---
+aliases:
+  - /useful-patterns.html
+---
+
 # Useful Patterns
 
 The IK folder (`src/robotics/ik/`) is one small design: several solvers, one call site. The patterns below are how that stays extensible. Run the walkthrough:
@@ -258,9 +263,9 @@ with timer:
 print(timer.elapsed)  # seconds
 ```
 
-On CUDA, pair it with a synchronize or CUDA events ([Bells and whistles](bells-and-whistles.qmd#bells-and-whistles)); otherwise you time the launch, not the kernel.
+On CUDA, pair it with a synchronize or CUDA events ([Bells and whistles](../pytorch-numpy/bells-and-whistles.qmd#bells-and-whistles)); otherwise you time the launch, not the kernel.
 
-**Controlled random state** — prefer an isolated NumPy generator or a scoped legacy pin; full discussion in [Randomness](randomness.qmd#randomness). Short form:
+**Controlled random state** — prefer an isolated NumPy generator or a scoped legacy pin; full discussion in [Randomness](../pytorch-numpy/randomness.qmd#randomness). Short form:
 
 ```python
 from robotics.context import numpy_seed
@@ -312,6 +317,6 @@ stiffer = replace(cfg, damping=0.1)
 | `replace` | `_replace` | `dataclasses.replace` |
 | Typical use | pose, small result | Hydra-style config, many optional fields |
 
-Neither replaces a tensor. Do not `.item()` a CUDA batch into a NamedTuple in a hot loop ([Bells and whistles](bells-and-whistles.qmd#bells-and-whistles)). For a config you serialize or override from a YAML, a dataclass (or `OmegaConf`) is the usual choice.
+Neither replaces a tensor. Do not `.item()` a CUDA batch into a NamedTuple in a hot loop ([Bells and whistles](../pytorch-numpy/bells-and-whistles.qmd#bells-and-whistles)). For a config you serialize or override from a YAML, a dataclass (or `OmegaConf`) is the usual choice.
 
 Anti-patterns (gratuitous `*args` / `**kwargs`, hard-coded paths, `sys.path` hacks, import-time side effects, hiding errors): [Things not to do](things-not-to-do.qmd#things-not-to-do).

@@ -61,38 +61,44 @@ Robotics sim smoke test (after `bash scripts/fetch_menagerie_assets.sh`):
 - Regenerate trajectory chapter clips: `uv run python scripts/render_trajectory_2d_videos.py` (needs `sim` extra + ffmpeg)
 - Regenerate instability clip: `uv run python scripts/render_ik_instability_video.py`
 - Headless MuJoCo rendering: `MUJOCO_GL=egl` or `osmesa` (+ `PYOPENGL_PLATFORM=osmesa` for OSMesa); see `docs/environment-variables.qmd#displays-opengl-headless`.
-- **Env var lookup:** `docs/environment-variables.qmd` (appendix at end of book); concept in `docs/environment-management.qmd#environment-variables`.
+- **Env var lookup:** `docs/environment-variables.qmd` (appendix at end of book); concept in `docs/python-basics/environment-management.qmd#environment-variables`.
 
 Docs (Quarto):
-- The tutorial is a Quarto book under `docs/` (one `.qmd` per section). The root
-  `readme.md` is just a short pointer to it.
+- The tutorial is a Quarto book under `docs/`. Chapter files are organized into
+  subfolders by part: `python-basics/`, `pytorch-numpy/`, `robotics-basics/`,
+  `advanced/`. Front/back matter (`index.qmd`, `references.qmd`, `glossary.qmd`,
+  `environment-variables.qmd`) and site-wide assets stay at `docs/` root.
+  The root `readme.md` is just a short pointer to the book.
 - Quarto is a **standalone CLI**, not a Python/pip package, and is not installed
   by `uv sync`. Install it from <https://quarto.org/docs/get-started/> if it is
   missing (`quarto --version` to check).
 - Build/preview with `quarto render docs` / `quarto preview docs`; output goes to
   the gitignored `docs/_site/`.
 - Chapters use pandoc auto-generated heading ids for anchors; cross-chapter links
-  are written as `other-file.qmd#anchor`. The debugger heading has an explicit
-  `{#vscode-debugger}` id because its pandoc id would otherwise include a period
-  (from `launch.json`). Reuse an explicit `{#id}` for any new heading whose title
-  contains punctuation you want to link to.
-- **Advanced** (after Robotics Basics): `inter-process-communication.qmd` (IPC:
-  shared memory, ZMQ, LCM; runnable `async_ipc_demo.py` + `async_ipc_zmq_demo.py`),
-  `trajectory-parameterization.qmd`, `geometric-computing.qmd` (explicit vs implicit
-  shape; `scripts/geometric_computing_demo.py` needs `uv sync --extra geometry`), and
-  `advanced-more-topics.qmd` (placeholder). No scripts in-repo yet for LCM.
+  use relative paths: same-folder links as `file.qmd#anchor`, cross-folder links
+  as `../other-folder/file.qmd#anchor`, root file links from subfolders as
+  `../file.qmd#anchor`. The debugger heading has an explicit `{#vscode-debugger}`
+  id because its pandoc id would otherwise include a period (from `launch.json`).
+  Reuse an explicit `{#id}` for any new heading whose title contains punctuation
+  you want to link to.
+- **Advanced** (after Robotics Basics): `advanced/inter-process-communication.qmd`
+  (IPC: shared memory, ZMQ, LCM; runnable `async_ipc_demo.py` + `async_ipc_zmq_demo.py`),
+  `advanced/trajectory-parameterization.qmd`, `advanced/geometric-computing.qmd`
+  (explicit vs implicit shape; `scripts/geometric_computing_demo.py` needs
+  `uv sync --extra geometry`), and `advanced/advanced-more-topics.qmd` (placeholder).
+  No scripts in-repo yet for LCM.
 - Pages currently contain no executable (`{python}`) Quarto cells, so rendering needs
   only the Quarto CLI. Adding executable cells later would require `jupyter` in
   the env (e.g. via a new `docs` extra).
 - **External references:** curated PEP / install / simulator links live in
   `docs/references.qmd` (book chapter before the glossary). Chapters link inline
   or to `#references` anchors — extend that page when adding new cited tools.
-- **In-browser exercises** on `tensor-array-indexing.qmd` use Pyodide + NumPy
-  (`docs/tensor-exercises.js`, loaded via `tensor-exercises.html`). They need network
-  access on first **Check** (CDN). No `uv` / local kernel required for readers.
-- **Trajectory splines** on `trajectory-parameterization.qmd` use vanilla canvas JS
-  (`docs/trajectory-splines.js`) — draggable Bézier control points and B-spline
-  waypoints; no network required.
+- **In-browser exercises** on `pytorch-numpy/tensor-array-indexing.qmd` use Pyodide
+  + NumPy (`docs/tensor-exercises.js`, loaded via `tensor-exercises.html`). They need
+  network access on first **Check** (CDN). No `uv` / local kernel required for readers.
+- **Trajectory splines** on `advanced/trajectory-parameterization.qmd` use vanilla
+  canvas JS (`docs/trajectory-splines.js`) — draggable Bézier control points and
+  B-spline waypoints; no network required.
 - GitHub Pages: `.github/workflows/publish-docs.yml` renders on push to
   `master`/`main` (when `docs/` changes) and deploys `docs/_site/`. One-time UI:
   Settings → Pages → Source: **GitHub Actions**. Live URL is set in

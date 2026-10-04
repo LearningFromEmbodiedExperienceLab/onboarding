@@ -1,3 +1,8 @@
+---
+aliases:
+  - /randomness.html
+---
+
 # Randomness
 
 Training, sim rollouts, and data shuffling all use **pseudo-random** numbers: deterministic
@@ -19,7 +24,7 @@ See also [Writing batch-agnostic operations](batch-agnostic-operations.qmd#writi
 | Paper numbers | Document `--seed` (and env versions) so results are inspectable |
 
 Without an explicit seed, “run again” is not the same experiment. Log the seed with metrics
-([Things not to do — fail fast](things-not-to-do.qmd#hiding-errors-instead-of-failing-fast)
+([Things not to do — fail fast](../python-basics/things-not-to-do.qmd#hiding-errors-instead-of-failing-fast)
 also applies when you hide a bad rollout instead of recording *which* seed failed).
 
 ## NumPy: prefer an explicit generator
@@ -39,7 +44,7 @@ in, random samples out**, so callers decide the seed.
 
 Legacy code (and some libraries) still use the **global** `np.random` API. For a short
 reproducible block without poisoning the rest of the process, use `numpy_seed` from
-`robotics.context` ([Useful Patterns — Context managers](useful-patterns.qmd#context-managers)):
+`robotics.context` ([Useful Patterns — Context managers](../python-basics/useful-patterns.qmd#context-managers)):
 
 ```bash
 uv run python scripts/ik_controllers.py   # demonstrates numpy_seed vs default_rng

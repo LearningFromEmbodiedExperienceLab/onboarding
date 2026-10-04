@@ -1,3 +1,8 @@
+---
+aliases:
+  - /simulation-stability.html
+---
+
 # Simulation stability and actuators
 
 How large a physics timestep can you use when differential IK drives **position
@@ -66,7 +71,7 @@ Dynamic IK with **Euler** integration and **20 ms** timesteps (one IK tick per
  unstable accelerations).
 
 <video controls preload="metadata" width="100%" style="max-width:640px" title="Dynamic IK instability — Euler integrator, dt=20 ms">
-  <source src="imgs/ik-tracking/piper_ik_instability.mp4" type="video/mp4">
+  <source src="../imgs/ik-tracking/piper_ik_instability.mp4" type="video/mp4">
 </video>
 
 Regenerate:
@@ -265,4 +270,4 @@ stiffness the Jacobian loop never sees in FK-only mode.
 [Case study: IK tracking](case-study-ik-tracking.qmd#case-study-ik-tracking) —
 kinematic reference implementation. To extend: add dynamic mode behind a flag, or
 wire the async IPC demos so a slow policy sends `ctrl` targets to a fast sim
-([Inter-process communication](inter-process-communication.qmd#inter-process-communication)).
+([Inter-process communication](../advanced/inter-process-communication.qmd#inter-process-communication)).

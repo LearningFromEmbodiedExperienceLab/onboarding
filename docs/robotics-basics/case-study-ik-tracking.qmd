@@ -1,13 +1,18 @@
+---
+aliases:
+  - /case-study-ik-tracking.html
+---
+
 # Case study: IK tracking
 
 Put the pieces together. An end-effector link tracks a target pose in workspace:
 
 1. FK → EE pose ([Forward kinematics](forward-kinematics.qmd#forward-kinematics), `link8` in the demos).
-2. Pose error → `dq` via `make_ik("dls")` ([Useful Patterns](useful-patterns.qmd#useful-patterns)).
+2. Pose error → `dq` via `make_ik("dls")` ([Useful Patterns](../python-basics/useful-patterns.qmd#useful-patterns)).
 3. Integrate `q ← q + α dq` (kinematic tracking) or write actuator targets and `step` ([State I/O](state-sensors-and-actuators.qmd#state-sensors-and-actuators)).
 4. Loop ([Simulation loop](the-simulation-loop.qmd#the-simulation-loop)).
 
-Same `IKConfig` / registry as [Useful Patterns](useful-patterns.qmd#useful-patterns). Success is residual vs time, not a screenshot.
+Same `IKConfig` / registry as [Useful Patterns](../python-basics/useful-patterns.qmd#useful-patterns). Success is residual vs time, not a screenshot.
 
 ## Global vs differential IK
 
@@ -36,7 +41,7 @@ Headless script — **no viewer**, two test cases on the Menagerie Piper arm (`l
 | `reach` | Random **proximal** target (small workspace offset from the nominal pose); stops when \(\lVert dx \rVert < 5\,\text{mm}\). |
 | `circle` | Track a horizontal circle (35 mm radius) for 600 ticks; reports mean / final position error. |
 
-The circle test is a simple **Cartesian path** sampled in time; see [Trajectory parameterization](trajectory-parameterization.qmd#trajectory-parameterization) for splines and time laws ($u(t)$).
+The circle test is a simple **Cartesian path** sampled in time; see [Trajectory parameterization](../advanced/trajectory-parameterization.qmd#trajectory-parameterization) for splines and time laws ($u(t)$).
 
 ### Videos
 
@@ -45,13 +50,13 @@ MuJoCo headless renders of the same seed-0 trajectories (`scripts/render_ik_trac
 ### Reach {.unnumbered}
 
 <video controls preload="metadata" width="100%" style="max-width:640px" title="Differential IK reaching a random proximal target on the Piper arm">
-  <source src="imgs/ik-tracking/piper_ik_reach.mp4" type="video/mp4">
+  <source src="../imgs/ik-tracking/piper_ik_reach.mp4" type="video/mp4">
 </video>
 
 ### Circle track {.unnumbered}
 
 <video controls preload="metadata" width="100%" style="max-width:640px" title="Differential IK tracking a horizontal circle on the Piper arm">
-  <source src="imgs/ik-tracking/piper_ik_circle.mp4" type="video/mp4">
+  <source src="../imgs/ik-tracking/piper_ik_circle.mp4" type="video/mp4">
 </video>
 
 Regenerate after changing the tracking scripts:
