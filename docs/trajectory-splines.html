@@ -1,11 +1,7 @@
 <script>
 (function() {
-  var path = window.location.pathname;
-  var dir = path.replace(/\/[^\/]*$/, '/');
-  var segments = dir.split('/').filter(Boolean);
-  var subfolders = ['python-basics', 'pytorch-numpy', 'robotics-basics', 'advanced'];
-  var last = segments[segments.length - 1];
-  var prefix = (subfolders.indexOf(last) !== -1) ? '../' : '';
+  var meta = document.querySelector('meta[name="quarto:offset"]');
+  var prefix = (meta && meta.content) ? meta.content : '';
   var script = document.createElement('script');
   script.src = prefix + 'trajectory-splines.js';
   script.defer = true;

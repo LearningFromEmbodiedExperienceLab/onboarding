@@ -1,16 +1,8 @@
 <script>
 (function() {
-  // Compute relative path to site root based on current page depth
-  var path = window.location.pathname;
-  // Strip trailing filename (e.g., "index.html")
-  var dir = path.replace(/\/[^\/]*$/, '/');
-  // Count depth: how many path segments after the first (site root)
-  // Works for both /onboarding/page.html and /page.html
-  var segments = dir.split('/').filter(Boolean);
-  // If last segment is a known subfolder, we're one level deep
-  var subfolders = ['python-basics', 'pytorch-numpy', 'robotics-basics', 'advanced'];
-  var last = segments[segments.length - 1];
-  var prefix = (subfolders.indexOf(last) !== -1) ? '../' : '';
+  // Use Quarto's offset meta tag to find the path back to site root
+  var meta = document.querySelector('meta[name="quarto:offset"]');
+  var prefix = (meta && meta.content) ? meta.content : '';
   var script = document.createElement('script');
   script.src = prefix + 'progress.js';
   script.defer = true;
