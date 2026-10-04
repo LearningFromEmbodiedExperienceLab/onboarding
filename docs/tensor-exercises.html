@@ -1,1 +1,14 @@
-<script src="tensor-exercises.js" defer></script>
+<script>
+(function() {
+  var path = window.location.pathname;
+  var dir = path.replace(/\/[^\/]*$/, '/');
+  var segments = dir.split('/').filter(Boolean);
+  var subfolders = ['python-basics', 'pytorch-numpy', 'robotics-basics', 'advanced'];
+  var last = segments[segments.length - 1];
+  var prefix = (subfolders.indexOf(last) !== -1) ? '../' : '';
+  var script = document.createElement('script');
+  script.src = prefix + 'tensor-exercises.js';
+  script.defer = true;
+  document.head.appendChild(script);
+})();
+</script>
