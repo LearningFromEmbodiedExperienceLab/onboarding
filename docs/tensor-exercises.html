@@ -1,1 +1,10 @@
-<script src="tensor-exercises.js" defer></script>
+<script>
+(function() {
+  var meta = document.querySelector('meta[name="quarto:offset"]');
+  var prefix = (meta && meta.content) ? meta.content : '';
+  var script = document.createElement('script');
+  script.src = prefix + 'tensor-exercises.js';
+  script.defer = true;
+  document.head.appendChild(script);
+})();
+</script>

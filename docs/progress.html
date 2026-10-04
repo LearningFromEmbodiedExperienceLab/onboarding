@@ -1,1 +1,11 @@
-<script src="progress.js" defer></script>
+<script>
+(function() {
+  // Use Quarto's offset meta tag to find the path back to site root
+  var meta = document.querySelector('meta[name="quarto:offset"]');
+  var prefix = (meta && meta.content) ? meta.content : '';
+  var script = document.createElement('script');
+  script.src = prefix + 'progress.js';
+  script.defer = true;
+  document.head.appendChild(script);
+})();
+</script>

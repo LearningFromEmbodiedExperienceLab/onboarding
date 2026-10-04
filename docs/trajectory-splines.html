@@ -1,1 +1,10 @@
-<script src="trajectory-splines.js" defer></script>
+<script>
+(function() {
+  var meta = document.querySelector('meta[name="quarto:offset"]');
+  var prefix = (meta && meta.content) ? meta.content : '';
+  var script = document.createElement('script');
+  script.src = prefix + 'trajectory-splines.js';
+  script.defer = true;
+  document.head.appendChild(script);
+})();
+</script>
