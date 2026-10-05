@@ -145,6 +145,9 @@ Curated **official** links for standards, install guides, and APIs cited in this
 | SPO / ASPO (`loss_fn`) | [Xie et al., 2024](https://arxiv.org/abs/2401.16025) |
 | Effective rank | [Roy and Vetterli, EUSIPCO 2007](https://doi.org/10.5281/zenodo.40328) |
 | Dormant units | [Sokar et al., 2023](https://arxiv.org/abs/2302.12902) |
+| State-independent log-std (Baselines PPO2) | [openai/baselines `ppo2/policies.py`](https://github.com/openai/baselines/blob/master/baselines/ppo2/policies.py) |
+| State-independent log-std (CleanRL) | [CleanRL PPO](https://docs.cleanrl.dev/rl-algorithms/ppo/) |
+| State-independent log-std (rsl_rl) | [leggedrobotics/rsl_rl](https://github.com/leggedrobotics/rsl_rl) |
 | Tutorial overview | [PPO diagnostics](reinforcement-learning/ppo-diagnostics.qmd#ppo-diagnostics-and-training-dynamics) |
 
 ## IPC {#ipc}

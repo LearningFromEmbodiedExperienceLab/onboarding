@@ -100,7 +100,7 @@ All of these, except the post-update block in the next section, come from the la
 | Key | Definition | What a healthy trace looks like |
 |---|---|---|
 | `actor/policy_loss` | Clipped surrogate above, on valid steps | Small and negative at the end of an update; a flat trace across updates is expected |
-| `actor/entropy` | Mean action-distribution entropy on valid steps | Declines as the policy concentrates, then levels off above $0$. A crash to $0$ while return is still poor is collapse |
+| `actor/entropy` | Mean action-distribution entropy on valid steps. For this Gaussian it depends only on the scale; see [Entropy dynamics](#entropy-dynamics) | Declines as the policy concentrates, then levels off above $0$. A crash to $0$ while return is still poor is collapse |
 | `actor/approx_kl` | $\mathrm{mean}\big((r-1) - \log r\big)$, Schulman's nonnegative estimator, in nats | Stays small compared with the clip. A large value means this epoch is already far from the rollout policy |
 | `actor/clamp_pos` | Fraction of samples with $r > 1+\epsilon_{+}$ | A minority of the batch. Near $1$ means the clip is active almost everywhere and the surrogate is flat |
 | `actor/clamp_neg` | Fraction with $r < 1-\epsilon_{-}$ | Same, on the low side. Asymmetric $(\epsilon_{-}, \epsilon_{+})$ makes the two fractions meaningful separately |
@@ -114,6 +114,47 @@ All of these, except the post-update block in the next section, come from the la
 | `critic/neg_rew_ratio` | Fraction of transitions whose summed reward is $\le 0$ | A reward-design signal. Near $1$ on a task that should be making progress means the reward is almost all penalties |
 
 When `desired_kl` is set, every epoch averages `approx_kl` across minibatches (and across ranks) and adapts the **actor** learning rate only: above $2\times$ the target, divide by $1.5$; below half the target, multiply by $1.5$; clamp to $[10^{-5},\, 10^{-2}]$. The critic group stays at `cfg.lr`. With the default `desired_kl: null`, `actor/lr` is constant.
+
+## Entropy dynamics {#entropy-dynamics}
+
+`actor/entropy` is the mean, over valid steps, of the entropy of `IndependentNormal`. For a diagonal Gaussian that entropy is a function of the scale alone:
+
+$$
+H = \sum_{i=1}^{d} \log \sigma_i + \frac{d}{2}\log(2\pi e).
+$$
+
+Moving the mean changes the log-probability of the sampled actions and leaves $H$ unchanged until a later rollout's advantages react. At initialization `actor_std` is $1$, so $H$ starts near $1.42$ per action dimension (the sum, not the mean, over the $d$ joints).
+
+The optimized term is `entropy_loss = -entropy_coef * entropy` with `entropy_coef` $0.002$. Gradient descent on that term always pushes $\sigma$ up. The logged key is $H$ itself.
+
+### State-independent and state-dependent scale
+
+`Actor` switches on `pred_std` (default `false`).
+
+**State-independent** (`pred_std: false`). One learned vector `actor_std`, broadcast to every state, passed through an identity map. Every state has the same $H$. The logged scalar moves only when that vector moves. A change in which states the policy visits does not move it.
+
+**State-dependent** (`pred_std: true`). The last linear layer emits $2d$ numbers. The second half goes through `exp` and becomes $\sigma(s)$, so the scale depends on the actor features. Logged entropy is then the average of $H(s)$ over the rollout. It rises if a few states get wider, or if the robot starts visiting states that were already wide.
+
+[OpenAI Baselines](../references.qmd#reinforcement-learning), [CleanRL](../references.qmd#reinforcement-learning), [rsl_rl](../references.qmd#reinforcement-learning), and this trainer's default all use the state-independent vector. One scale per joint is a single exploration temperature: the batch averages a noisy signal into one parameter, and `actor/entropy` is that temperature. A state-dependent head receives the entropy bonus at every state, because $\partial H / \partial \log\sigma_i = 1$, while the surrogate signal below is noisy and often near zero. The bonus wins in states the advantage barely touches, and $\sigma(s)$ runs away. The state-independent vector also cannot be wide at contact and tight in stance; one number serves both, which is the trade this default accepts.
+
+### When entropy rises or falls
+
+Write $z_i = (a_i - \mu_i) / \sigma_i$. The Gaussian score for the scale is
+
+$$
+\frac{\partial \log\pi(a\mid s)}{\partial \sigma_i} = \frac{1}{\sigma_i}\,(z_i^2 - 1).
+$$
+
+Near a ratio of $1$, descent on the clipped surrogate steps $\sigma$ along $A\,(z^2 - 1)$. The entropy bonus adds a push upward on every sample, clipped or not. On a clipped sample the surrogate gradient is zero, so only the bonus remains.
+
+| Advantage | Where the sample sits | Effect on $\sigma$, and on entropy |
+|---|---|---|
+| $A > 0$ | inside one standard deviation ($\lvert z\rvert < 1$) | Down. The good action is already near the mean; sharpening puts more mass on it. |
+| $A > 0$ | outside one standard deviation | Up. The good action was a tail draw; widening is what makes it more likely. |
+| $A < 0$ | inside one standard deviation | Up. The bad action sits on the current mean; spreading moves mass off it. |
+| $A < 0$ | outside one standard deviation | Down. The bad action was exploration noise; narrowing cuts that tail. |
+
+With state-independent $\sigma$, each row is averaged over the rollout. After advantage standardization the mean of $A$ is $0$, so the surrogate moves $\sigma$ with $\mathrm{Cov}(A, z^2)$: entropy rises when the better-than-average actions were the surprising ones, and falls when they were the ones close to the mean. The second case is what happens once the mean is tracking, which is why `actor/entropy` usually declines and then levels off. It rises when `entropy_coef` is large enough that the bonus dominates, or when positive advantage keeps landing in the tails because the mean cannot reach those actions.
 
 ## After the optimizer steps
 
@@ -145,7 +186,7 @@ Read the task return first. Then use the PPO keys to decide whether an update wa
 
 - Explained variance rises toward a plateau below $1$ and holds while return improves. Value loss is allowed to rise with `critic/value_std`.
 - Approximate KL stays modest and the two clamp fractions stay well below $1$. If both clamp fractions are near $1$, lower the learning rate or the epoch count; the clip is discarding most of the batch.
-- Entropy declines smoothly and remains positive. Pair a crash to zero with a stalled return before calling it convergence.
+- Entropy declines smoothly and remains positive ([why](#entropy-dynamics)). Pair a crash to zero with a stalled return before calling it convergence.
 - Policy gain is positive on average. A consistently negative gain is a bug in the advantage or in the action log-probabilities, not a hyperparameter to sweep.
 - Gradient norms are mostly at or under the clip threshold of $1$. Effective rank is not falling toward $1$.
 

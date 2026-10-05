@@ -34,6 +34,7 @@ Short definitions for terms used across the tutorial. Expand as chapters land.
 | **importance ratio** | $r = \pi_\theta(a\mid s) / \pi_{\theta_{\mathrm{old}}}(a\mid s)$. Equals $1$ on the rollout that collected the data. |
 | **explained variance** | $1 - \mathrm{MSE}(V, R) / \mathrm{Var}(R)$. Scale-free reading of the value fit; the raw value loss is not. |
 | **approximate KL** | Schulman's nonnegative estimate $\mathrm{mean}((r-1)-\log r)$, in nats, of how far the current policy has moved from the rollout policy. |
+| **policy entropy** | For a diagonal Gaussian, $\sum_i \log\sigma_i + \tfrac{d}{2}\log(2\pi e)$. Depends on the action scale only. State-independent $\sigma$ is one learned vector; state-dependent $\sigma(s)$ is a head. See [Entropy dynamics](reinforcement-learning/ppo-diagnostics.qmd#entropy-dynamics). |
 | **site** | Named frame on a body (EE, sensor origin); no mass. |
 
 See also [References and external docs](references.qmd#references), [PPO diagnostics](reinforcement-learning/ppo-diagnostics.qmd#ppo-diagnostics-and-training-dynamics), [Geometry and collision](robotics-basics/geometry-and-collision.qmd#geometry-and-collision) (sim assets), and [Geometric computing](advanced/geometric-computing.qmd#geometric-computing) (Stanford bunny / clouds / voxels / SDFs / rays). Process env vars: [Common environment variables](environment-variables.qmd#common-environment-variables).
