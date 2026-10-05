@@ -16,7 +16,8 @@ uv run python scripts/train.py       # smoke test: imports the library, runs IK
 ## Tutorial
 
 The full tutorial (Python environments & imports, project structure, debugging,
-version control, NumPy/PyTorch, and robotics basics) lives in `docs/` as a
+version control, NumPy/PyTorch, robotics basics, and PPO training diagnostics)
+lives in `docs/` as a
 [Quarto](https://quarto.org) book, split into one short chapter per topic so
 sections can be edited and reviewed independently.
 

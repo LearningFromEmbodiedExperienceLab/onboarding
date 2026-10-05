@@ -51,6 +51,9 @@ book:
         - robotics-basics/the-simulation-loop.qmd
         - robotics-basics/simulation-stability.qmd
         - robotics-basics/case-study-ik-tracking.qmd
+    - part: reinforcement-learning/reinforcement-learning.qmd
+      chapters:
+        - reinforcement-learning/ppo-diagnostics.qmd
     - part: "Advanced"
       chapters:
         - advanced/inter-process-communication.qmd

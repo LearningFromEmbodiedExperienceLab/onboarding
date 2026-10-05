@@ -1,0 +1,169 @@
+---
+aliases:
+  - /ppo-diagnostics.html
+---
+
+# PPO diagnostics and training dynamics
+
+PPO papers plot episode return. The curves you actually debug are the ones emitted by `PPOPolicy.train_op` in the lab trainer, `active_adaptation/learning/ppo/ppo_symaug.py`. This chapter says what each logged key measures, and why `actor/policy_loss` and `critic/value_loss` should not be read as a training loss that decreases and converges.
+
+The objective of the run is the task return, logged from the environment (the trainer drops the `stats` field before the update). The losses below are local surrogates on one rollout. A numerical sketch of the same shapes is `scripts/ppo_loss_dynamics.py` (NumPy only).
+
+## What one update logs
+
+`scripts/train_ppo.py` stacks `train_every` steps per environment (default 32) and calls `train_op` once. That call is one PPO update. Defaults that matter for the logs: $\gamma = 0.99$, $\lambda = 0.95$, 4 epochs, 4 minibatches, clip $(0.2, 0.2)$, entropy coefficient $0.002$, AdamW learning rate $5\times 10^{-4}$, gradient clip $1.0$. `desired_kl` is `None`, so the learning rate stays put unless an experiment sets it.
+
+`train_op` does the following, in order:
+
+1. Freeze observation `VecNorm` (cumulative stats, `decay=1`). Normalization does not move during the epochs, so a loss change inside this call is a weight change.
+2. Compute [GAE](../references.qmd#reinforcement-learning) advantages and returns once. Multi-term rewards are summed. `clamp_reward` defaults to **off**, so negative rewards stay. Rewards are then multiplied by $(1-\gamma)$ so returns stay on the order of the per-step reward rather than $1/(1-\gamma)$ times larger.
+3. Standardize advantages on the full rollout: $(\hat A - \mathrm{mean}) / \mathrm{std}$.
+4. Update `ret_std_ema`, an exponential moving average (decay $0.99$) of the return standard deviation, all-reduced across ranks.
+5. For each epoch and minibatch, append a symmetry-mirrored copy of the batch and take a gradient step. **Loss keys are recorded only on the last epoch.**
+6. After the epochs, forward the updated policy on the whole rollout and record policy gain, importance-weighted advantage, and feature effective rank.
+
+Steps the collector marks `is_init` (episode starts inside the stacked batch) are dropped from every mean. Minibatch metrics are then averaged with equal weight per minibatch.
+
+| When | Keys |
+|---|---|
+| Once, on the rollout, before the epochs | `critic/value_mean`, `value_std`, `value_max` (these are **returns**), `neg_rew_ratio`, `adv_mean`, `adv_std` |
+| Last epoch, before each minibatch step | `actor/policy_loss`, `entropy`, `approx_kl`, `clamp_pos`, `clamp_neg`, `grad_norm`, `feature_norm`, `aux_loss`, `symmetry_loss`; `critic/value_loss`, `explained_var`, `grad_norm`, `feature_norm` |
+| After all epochs, full rollout under the updated policy | `actor/policy_gain`, `weighted_ratio`, `effective_rank`, `lr`; `critic/effective_rank` |
+| Only if enabled | `obs_importance` image; `dormancy/*` when `debug: true` |
+
+## Why these losses do not converge {#why-ppo-losses-do-not-converge}
+
+Supervised regression has a fixed dataset and fixed labels. Gradient descent on mean squared error then produces a curve that falls and levels off near the noise floor. `scripts/ppo_loss_dynamics.py` shows that shape on a toy linear fit: MSE goes from about $1.33$ to about $0.04$ and keeps falling.
+
+PPO has a different object at every update. The rollout policy, the states it visits, and the advantage and return targets are all functions of the weights you just changed. The scalar you log is one point on a **new** objective. A decrease from update $k$ to update $k+1$ is not the same objective getting smaller.
+
+### Policy loss
+
+The minimized surrogate (Schulman et al., the clipped PPO objective) is
+
+$$
+L^{\mathrm{clip}}(\theta)
+= -\mathbb{E}\Big[
+\min\big(
+r_t(\theta)\,\hat A_t,\;
+\mathrm{clip}(r_t(\theta),\, 1-\epsilon_{-},\, 1+\epsilon_{+})\,\hat A_t
+\big)
+\Big],
+$$
+
+with importance ratio $r_t(\theta) = \pi_\theta(a_t\mid s_t) / \pi_{\theta_{\mathrm{old}}}(a_t\mid s_t)$. In the trainer this is `ppo_clipped_loss`: `actor/policy_loss` is that quantity on valid steps. The entropy bonus is added to the total loss that `backward` sees (`-entropy_coef * entropy`) and is **logged separately** as `actor/entropy`.
+
+Three facts pin this number down, independent of whether the robot is improving.
+
+**At the start of an update the surrogate is ~0.** The rollout was sampled from $\pi_{\theta_{\mathrm{old}}}$, so $r = 1$. After advantage standardization, $\mathrm{mean}(\hat A) = 0$, and $\mathrm{mean}(r\hat A) = 0$. There is nothing to "fit." The loss becomes negative only when the new policy puts more probability on actions with positive advantage (and less on actions with negative advantage), and only inside the clip window. A healthy step moves the surrogate from $0$ to a small negative value. It is not a residual you drive to zero.
+
+**The next rollout resets the ratio.** After the update, the behavior policy *is* the new policy. The following `train_op` again starts at $r = 1$ with freshly standardized advantages. The logger never shows that reset: it keeps the **last epoch** only. The curve in the experiment tracker is a sequence of end-of-update surrogates. In the sketch below, that column sits at about $-0.12$ on every rollout while each rollout's own surrogate started at $0$. A flat line there means the step size is repeating, not that optimization has converged.
+
+**Clipping flattens the objective.** Once $r$ leaves $[1-\epsilon_{-},\, 1+\epsilon_{+}]$ on the side that would increase the surrogate, that sample contributes a constant. More epochs do not push `policy_loss` toward a data-fit minimum. They push the policy until the trust region is used up, which is what `approx_kl` and the clamp fractions are for.
+
+`loss_fn` may be `spo` or `aspo` instead of `ppo`. The logged `actor/policy_loss` is whichever surrogate that switch selects. It is still a one-rollout objective with the same reset.
+
+[Do not restart or retune a run because `actor/policy_loss` failed to decrease across updates. It is rebuilt from a new rollout every time, and after advantage normalization it starts near zero. Judge the update by task return, `actor/policy_gain`, `actor/approx_kl`, the clamp fractions, and `actor/entropy`.]{.common-bug-warning}
+
+### Value loss
+
+`critic/value_loss` is masked mean squared error between the critic $V(s)$ and the GAE return `ret`. Inside a single `train_op` the returns are frozen, so those epochs are ordinary regression: the error should drop from epoch 1 to epoch 4. The trainer records epoch 4 only. The next rollout throws the targets away and builds new ones.
+
+The new targets move for two reasons, and either one is enough to stop the logged curve from falling.
+
+**Bootstrap.** The return is $R = \hat A + V$, with $\hat A$ from temporal differences that themselves contain $V(s')$. When the critic moves, the next rollout's labels move. This is the semi-gradient TD target. Supervised labels do not depend on the weights.
+
+**Scale.** MSE has units of return squared. As the policy survives longer or earns larger reward, $\mathrm{Var}(R)$ grows. A critic with the same *relative* fit then posts a larger MSE. The sketch draws exactly that: return standard deviation grows from about $1.2$ to about $5.2$, end-of-fit MSE grows from about $0.33$ to about $5.0$, and explained variance stays near $0.81$ the whole way. Within each rollout the MSE still drops (the "mse start" column is higher than "mse end"). The column a logger would plot is "mse end", and that column rises.
+
+Explained variance is the scale-free reading of the same residual:
+
+$$
+\texttt{critic/explained\_var}
+= 1 - \frac{\texttt{value\_loss}}{\mathrm{Var}(R)}.
+$$
+
+`Var(R)` is the full-rollout variance of `ret` on valid steps, computed once, before the epochs. `value_loss` is the last-epoch minibatch MSE (symmetry copies included). They are not the same sample, so this is a diagnostic ratio in the spirit of $R^2$, not a formal coefficient of determination. It is near $1$ when the critic tracks the returns, near $0$ when it does no better than predicting the mean, and negative when it does worse.
+
+Two further floors keep the MSE off zero even when learning is fine.
+
+- Stochastic returns (contact, terrain, other agents) leave an irreducible variance. A perfect conditional mean still has MSE equal to that noise. Explained variance then plateaus below $1$. Chasing `value_loss` all the way to $0$ means the critic is memorizing the batch, or the episode scale has collapsed because every episode ends immediately.
+- Rewards were multiplied by $(1-\gamma)$ before GAE. With $\gamma = 0.99$ that is a factor of $0.01$, and a factor of $10^{-4}$ on the MSE. `ret_std_ema` rescales only the optional auxiliary head (`aux_coef`, default $0$), despite the name in the constructor comment. The logged value loss stays in these raw return units. A comparison against a codebase that does not scale by $(1-\gamma)$ will disagree by orders of magnitude with no difference in the fit.
+
+`critic/value_mean`, `critic/value_std`, and `critic/value_max` are statistics of **`ret`**, the regression target, not of the critic's output. The names match the target the critic is chasing. Early in training $V$ and `ret` disagree; if explained variance is high, their means and scales should sit close together.
+
+[A rising `critic/value_loss` together with a flat or rising `critic/explained_var` and a rising task return is a normal early-training pattern: the return scale grew, the relative fit did not get worse. Treat a falling explained variance, or a value loss that goes to zero while the policy is still failing, as the actual warning.]{.common-bug-warning}
+
+## Actor and critic keys
+
+All of these, except the post-update block in the next section, come from the last epoch. `approx_kl` and the clamp fractions use the ratio **before** that minibatch's optimizer step, against the rollout log-probabilities. They measure how far the weights have already walked from $\pi_{\theta_{\mathrm{old}}}$ during this update.
+
+| Key | Definition | What a healthy trace looks like |
+|---|---|---|
+| `actor/policy_loss` | Clipped surrogate above, on valid steps | Small and negative at the end of an update; a flat trace across updates is expected |
+| `actor/entropy` | Mean action-distribution entropy on valid steps | Declines as the policy concentrates, then levels off above $0$. A crash to $0$ while return is still poor is collapse |
+| `actor/approx_kl` | $\mathrm{mean}\big((r-1) - \log r\big)$, Schulman's nonnegative estimator, in nats | Stays small compared with the clip. A large value means this epoch is already far from the rollout policy |
+| `actor/clamp_pos` | Fraction of samples with $r > 1+\epsilon_{+}$ | A minority of the batch. Near $1$ means the clip is active almost everywhere and the surrogate is flat |
+| `actor/clamp_neg` | Fraction with $r < 1-\epsilon_{-}$ | Same, on the low side. Asymmetric $(\epsilon_{-}, \epsilon_{+})$ makes the two fractions meaningful separately |
+| `actor/grad_norm` | Gradient norm **before** clipping (the value `clip_grad_norm_` returns). Clip threshold is $1$ | Mostly near or under $1$. A norm stuck far above $1$ means every step is being clipped |
+| `actor/feature_norm` | Mean $L_2$ norm of the actor hidden features | Slow drift. A sudden jump on one update is a bad step, not a new baseline |
+| `critic/value_loss` | Masked MSE$(R, V)$ | Moves with $\mathrm{Var}(R)$. Read it next to `explained_var` and `value_std` |
+| `critic/explained_var` | $1 - \texttt{value\_loss} / \mathrm{Var}(R)$ | Rises toward a plateau below $1$ and stays there while return improves. $\le 0$ means the baseline is not helping |
+| `critic/grad_norm` | Pre-clip critic gradient norm, same threshold $1$ | Same reading as the actor norm |
+| `critic/feature_norm` | Mean $L_2$ norm of the critic hidden features | Same reading as the actor feature norm |
+| `critic/adv_mean`, `critic/adv_std` | Advantage **before** standardization | Mean near $0$. Std grows when rewards grow or the critic becomes a worse baseline (larger temporal differences) |
+| `critic/neg_rew_ratio` | Fraction of transitions whose summed reward is $\le 0$ | A reward-design signal. Near $1$ on a task that should be making progress means the reward is almost all penalties |
+
+When `desired_kl` is set, every epoch averages `approx_kl` across minibatches (and across ranks) and adapts the **actor** learning rate only: above $2\times$ the target, divide by $1.5$; below half the target, multiply by $1.5$; clamp to $[10^{-5},\, 10^{-2}]$. The critic group stays at `cfg.lr`. With the default `desired_kl: null`, `actor/lr` is constant.
+
+## After the optimizer steps
+
+These are computed once, under `no_grad`, by re-forwarding the **updated** policy on the rollout actions and comparing with the log-probabilities stored at collection time.
+
+**`actor/policy_gain`** is $\mathrm{mean}\big(\log(\pi_{\mathrm{new}}/\pi_{\mathrm{old}}) \cdot A\big)$ with the **unnormalized** advantage. Positive means the update increased log-probability where the advantage was positive and decreased it where the advantage was negative — the first-order policy-gradient signal, measured end to end rather than on the last minibatch. Because $A$ is not standardized, the magnitude follows the advantage scale; the sign is the check. A run whose policy gain stays negative has the update walking the wrong way: advantage sign, a log-probability from a different distribution than the one that sampled the action, or an action tensor that does not match `action_log_prob`.
+
+**`actor/weighted_ratio`** is $\mathrm{mean}(r \cdot A)$ with the same unnormalized advantage. Same comparison in ratio units. A few huge ratios can dominate it; prefer `policy_gain` when they disagree.
+
+**`actor/effective_rank`** and **`critic/effective_rank`** are an [effective rank](../references.qmd#reinforcement-learning) of the hidden features on that same post-update forward. With singular values $\sigma_i$ and variance shares $p_i = \sigma_i^2 / \sum_j \sigma_j^2$, the rank is $\exp\big(-\sum_i p_i \log p_i\big)$. It lies between $1$ and the number of singular values. Roy and Vetterli normalize the singular values themselves; this logger normalizes their squares, so a direction is weighted by how much feature variance it carries. A collapse toward $1$ means the features have concentrated in a few directions and the network is losing usable capacity.
+
+Two more actor keys are logged from the last epoch, on the forward **before** the minibatch step:
+
+**`actor/symmetry_loss`** is the MSE between the action mean on the mirrored half of the batch and the mirrored action mean on the original half. It is a diagnostic, with no gradient of its own. Near $0$ means the actor mean commutes with the robot's symmetry transform on this batch. The training signal for that constraint is indirect: mirrored transitions are concatenated into the batch with the same advantage, return, and stored log-probability. Reusing the stored log-probability is exact when the rollout policy is already equivariant, and only approximate otherwise.
+
+**`actor/aux_loss`** is present when `aux_coef > 0`. A linear head on the actor features regresses `ret`, and the loss is applied only on samples whose ratio was clipped, so those samples still move the trunk after the PPO clip has zeroed their policy gradient. The logged value is that masked MSE. The term added to the optimized loss divides it by `ret_std_ema` squared. Default `aux_coef` is $0$, the head is not built, and the log is $0$.
+
+## Checks you run only sometimes
+
+**Observation gradients.** If `obs_importance_interval` is positive, every that many updates the main process subsamples up to 256 valid transitions and plots mean $|\partial V / \partial \mathrm{obs}|$ and mean $|\partial (\log\pi \cdot A) / \partial \mathrm{obs}|$ per observation dimension, colored by observation group (`plot_obs_importance`). The default interval is $-1$ (off). This is a gradient sensitivity on a small clone of the batch, not a causal ablation: a channel the policy has already saturated can show a small gradient while behavior still depends on it. It is the right plot for "is the critic ignoring this observation group," and for spotting a reward-like channel that dominates the value gradient.
+
+**Dormancy.** With `debug: true` (which cannot be combined with `compile`), the rollout policy records post-activation magnitudes. `dormancy/<module>` is the fraction of units whose mean absolute activation is at most $1\%$ of that layer's mean absolute activation, following Sokar et al. A large fraction is dead capacity. Debug mode is for this kind of check, not for production throughput.
+
+**Distributed parameter drift.** In a debug distributed run, `actor/diff` and `critic/diff` measure cross-rank parameter disagreement after the update. They should stay at numerical noise. `VecNorm` statistics are broadcast from rank 0 at the end of every `train_op`.
+
+## What to trust instead
+
+Read the task return first. Then use the PPO keys to decide whether an update was a reasonable step on the way there:
+
+- Explained variance rises toward a plateau below $1$ and holds while return improves. Value loss is allowed to rise with `critic/value_std`.
+- Approximate KL stays modest and the two clamp fractions stay well below $1$. If both clamp fractions are near $1$, lower the learning rate or the epoch count; the clip is discarding most of the batch.
+- Entropy declines smoothly and remains positive. Pair a crash to zero with a stalled return before calling it convergence.
+- Policy gain is positive on average. A consistently negative gain is a bug in the advantage or in the action log-probabilities, not a hyperparameter to sweep.
+- Gradient norms are mostly at or under the clip threshold of $1$. Effective rank is not falling toward $1$.
+
+The rollout those updates consume is the lockstep loop in [The simulation loop](../robotics-basics/the-simulation-loop.qmd#the-simulation-loop): read state, write `ctrl`, `step`, with decimation between the policy tick and the physics tick. `train_every` is how many policy ticks are stacked before this update. It is not the simulator timestep.
+
+## A numerical sketch
+
+```bash
+uv run python scripts/ppo_loss_dynamics.py
+```
+
+The script prints three blocks. Supervised MSE on a fixed dataset falls from about $1.33$ to about $0.04$. The policy surrogate, on six independent rollouts with standardized advantages, starts at $0$ and ends near $-0.116$ every time — the flat column is what a last-epoch logger records. The value block refits a linear critic for a few steps on frozen targets whose scale grows; end-of-fit MSE rises with the return standard deviation while explained variance stays near $0.81$:
+
+```text
+rollout   ret std   mse start   mse end  expl var
+      0     1.243       1.547     0.328     0.788
+      3     3.110       2.185     1.722     0.822
+      7     5.165       5.234     4.986     0.813
+```
+
+Seed $0$ reproduces those rows. The middle of the table is the same pattern: within a rollout the MSE drops, and across rollouts the logged (end) MSE does not.

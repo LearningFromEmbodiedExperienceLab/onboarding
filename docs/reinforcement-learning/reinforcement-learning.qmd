@@ -1,0 +1,12 @@
+---
+aliases:
+  - /reinforcement-learning.html
+---
+
+# Reinforcement Learning
+
+This part is the training loop that sits on the [simulation loop](../robotics-basics/the-simulation-loop.qmd#the-simulation-loop): roll out a policy, update it, and read the scalars that say whether the update did what you think.
+
+It does not replace a course on MDPs, policy gradients, or sample complexity. The first chapter is the practical layer those courses usually skip — the diagnostics in our PPO trainer, and why the policy and value losses are not supervised-learning curves.
+
+- [PPO diagnostics and training dynamics](ppo-diagnostics.qmd#ppo-diagnostics-and-training-dynamics)

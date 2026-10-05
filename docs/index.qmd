@@ -18,10 +18,13 @@ sync the env, make `step()` run — before the interesting science starts.
 This tutorial fills that workshop gap. It is onboarding for the `robotics` example
 package and for **how to start, develop, organize, and maintain a research project**:
 Python environments and imports, project structure, debugging, version control,
-NumPy/PyTorch tensor work, and the robotics concepts in `src/robotics/` (kinematics,
-rotations, simulators, IK, contact). It does **not** replace controls or RL coursework
-— it is a **single coherent path** through the engineering layer those courses usually
-skip, closer to [MIT's *The Missing Semester*](https://missing.csail.mit.edu/) than a
+NumPy/PyTorch tensor work, the robotics concepts in `src/robotics/` (kinematics,
+rotations, simulators, IK, contact), and the PPO training diagnostics in
+[Reinforcement Learning](reinforcement-learning/reinforcement-learning.qmd).
+It does **not** replace controls or RL coursework — algorithm derivations stay in
+courses such as CS285. This book is a **single coherent path** through the engineering
+layer those courses usually skip, including how a PPO run actually looks while it
+trains, closer to [MIT's *The Missing Semester*](https://missing.csail.mit.edu/) than a
 syntax cheat sheet, so you can run experiments, compare simulators sensibly, and
 collaborate without re-learning the stack every rotation.
 

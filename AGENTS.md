@@ -18,6 +18,9 @@ Running / smoke test (this is the end-to-end check):
 - `uv run python scripts/train.py` — imports the library and runs quaternion math +
   an IK solver. Other demo scripts: `scripts/ik_controllers.py`,
   `scripts/rotations.py`, `scripts/print_env.py`.
+- `uv run python scripts/ppo_loss_dynamics.py` — NumPy sketch of why PPO policy
+  and value losses are not supervised-learning curves (see
+  `docs/reinforcement-learning/ppo-diagnostics.qmd`).
 - `uv run python scripts/async_ipc_demo.py` — async sim (500 Hz) + controller
   (50 Hz) in separate processes via shared memory (stdlib only).
 - `uv sync --extra ipc && uv run python scripts/async_ipc_zmq_demo.py` — same
@@ -81,7 +84,11 @@ Docs (Quarto):
   id because its pandoc id would otherwise include a period (from `launch.json`).
   Reuse an explicit `{#id}` for any new heading whose title contains punctuation
   you want to link to.
-- **Advanced** (after Robotics Basics): `advanced/inter-process-communication.qmd`
+- **Reinforcement Learning** (after Robotics Basics):
+  `reinforcement-learning/ppo-diagnostics.qmd` — PPO diagnostics from the lab
+  trainer `active_adaptation/learning/ppo/ppo_symaug.py` (that repo is not vendored
+  here). Runnable sketch: `scripts/ppo_loss_dynamics.py` (NumPy only).
+- **Advanced** (after Reinforcement Learning): `advanced/inter-process-communication.qmd`
   (IPC: shared memory, ZMQ, LCM; runnable `async_ipc_demo.py` + `async_ipc_zmq_demo.py`),
   `advanced/trajectory-parameterization.qmd`, `advanced/geometric-computing.qmd`
   (explicit vs implicit shape; `scripts/geometric_computing_demo.py` needs

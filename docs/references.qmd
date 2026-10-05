@@ -134,6 +134,19 @@ Curated **official** links for standards, install guides, and APIs cited in this
 | Quarto | [quarto.org/docs/get-started](https://quarto.org/docs/get-started/) |
 | Quarto books | [Quarto book format](https://quarto.org/docs/books/) |
 
+## Reinforcement learning {#reinforcement-learning}
+
+| Topic | Link |
+|---|---|
+| PPO (clipped surrogate) | [Schulman et al., 2017](https://arxiv.org/abs/1707.06347) |
+| GAE | [Schulman et al., 2016](https://arxiv.org/abs/1506.02438) |
+| Nonnegative KL estimator | [Schulman — Approximating KL divergence](http://joschu.net/blog/kl-approx.html) |
+| Code-level PPO details | [Engstrom et al., Implementation Matters, 2020](https://arxiv.org/abs/2005.12729) |
+| SPO / ASPO (`loss_fn`) | [Xie et al., 2024](https://arxiv.org/abs/2401.16025) |
+| Effective rank | [Roy and Vetterli, EUSIPCO 2007](https://doi.org/10.5281/zenodo.40328) |
+| Dormant units | [Sokar et al., 2023](https://arxiv.org/abs/2302.12902) |
+| Tutorial overview | [PPO diagnostics](reinforcement-learning/ppo-diagnostics.qmd#ppo-diagnostics-and-training-dynamics) |
+
 ## IPC {#ipc}
 
 | Tool | Link |
