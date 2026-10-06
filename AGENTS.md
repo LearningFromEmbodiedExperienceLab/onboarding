@@ -70,7 +70,9 @@ Docs (Quarto):
 - The tutorial is a Quarto book under `docs/`. Chapter files are organized into
   subfolders by part: `python-basics/`, `pytorch-numpy/`, `robotics-basics/`,
   `advanced/`. Front/back matter (`index.qmd`, `references.qmd`, `glossary.qmd`,
-  `environment-variables.qmd`) and site-wide assets stay at `docs/` root.
+  `environment-variables.qmd`) stay at `docs/` root; site-wide assets live under
+  `docs/assets/` (CSS in `assets/css/`, JS in `assets/js/`, HTML includes in
+  `assets/includes/`, and `favicon.svg` in `assets/`).
   The root `readme.md` is just a short pointer to the book.
 - Quarto is a **standalone CLI**, not a Python/pip package, and is not installed
   by `uv sync`. Install it from <https://quarto.org/docs/get-started/> if it is
@@ -101,23 +103,26 @@ Docs (Quarto):
   `docs/references.qmd` (book chapter before the glossary). Chapters link inline
   or to `#references` anchors — extend that page when adding new cited tools.
 - **In-browser exercises** on `pytorch-numpy/tensor-array-indexing.qmd` use Pyodide
-  + NumPy (`docs/tensor-exercises.js`, loaded via `tensor-exercises.html`). They need
-  network access on first **Check** (CDN). No `uv` / local kernel required for readers.
+  + NumPy (`docs/assets/js/tensor-exercises.js`, loaded via
+  `assets/includes/tensor-exercises.html`). They need network access on first
+  **Check** (CDN). No `uv` / local kernel required for readers.
 - **Trajectory splines** on `advanced/trajectory-parameterization.qmd` use vanilla
-  canvas JS (`docs/trajectory-splines.js`) — draggable Bézier control points and
-  B-spline waypoints; no network required.
+  canvas JS (`docs/assets/js/trajectory-splines.js`) — draggable Bézier control
+  points and B-spline waypoints; no network required.
 - GitHub Pages: `.github/workflows/publish-docs.yml` renders on push to
   `master`/`main` (when `docs/` changes) and deploys `docs/_site/`. One-time UI:
   Settings → Pages → Source: **GitHub Actions**. Live URL is set in
   `docs/_quarto.yml` (`website.site-url`).
-- Reading progress: client-side only via `docs/progress.js` + `progress.css`
-  (`localStorage` key `onboarding-book-progress:v1`). Marks `##` sections done;
-  highlights unread entries in the page TOC and chapter status in the sidebar.
+- Reading progress: client-side only via `docs/assets/js/progress.js` +
+  `assets/css/progress.css` (`localStorage` key `onboarding-book-progress:v1`).
+  Marks `##` sections done; highlights unread entries in the page TOC and chapter
+  status in the sidebar.
 - Menagerie vendor assets: `third_party/assets.lock.json` +
   `scripts/fetch_menagerie_assets.sh` → gitignored vendor trees (`mujoco_menagerie/`,
   `piper_ros/`, `arx_model/`).
   Doc figures: `scripts/render_menagerie_geometry_figures.py` (needs `uv sync --extra
   mujoco`, OSMesa headless). CI: `.github/workflows/regenerate-menagerie-images.yml`.
   Doc figure script also needs `trimesh`/`scipy` (included in `mujoco` extra).
-- Common bug warnings in HTML docs use `.common-bug-warning` in `docs/styles.css`
-  (red text); apply `{.common-bug-warning}` on future footgun callouts.
+- Common bug warnings in HTML docs use `.common-bug-warning` in
+  `docs/assets/css/styles.css` (red text); apply `{.common-bug-warning}` on future
+  footgun callouts.
